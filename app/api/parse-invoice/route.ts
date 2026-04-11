@@ -202,8 +202,9 @@ Return JSON with these fields (omit any not found):
         { status: 503 }
       );
     }
-    const textContent = result.content?.find(
-      (c: { type: string; text?: string }) => c.type === "text"
+    const contentArray = result.content as Array<{ type: string; text?: string }> | undefined;
+    const textContent = contentArray?.find(
+      (c) => c.type === "text"
     )?.text ?? "";
 
     // Extract JSON from response — could be a single object or an array
