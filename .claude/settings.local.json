@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(start:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx next build:*)",
+      "Bash(taskkill:*)",
+      "Bash(npx tsc:*)",
+      "WebFetch(domain:www.rebelwork.ai)",
+      "Bash(node -e:*)",
+      "Bash(npx tsx:*)",
+      "Bash(npx --yes tsx -e:*)",
+      "Bash(npm ls:*)",
+      "Bash(node test-cost-model.mjs:*)",
+      "Bash(curl:*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(netstat:*)",
+      "Bash(tasklist:*)",
+      "Bash(git stash:*)",
+      "Bash(git stash pop:*)",
+      "Bash(gh auth status:*)",
+      "Bash(vercel:*)",
+      "Bash(winget:*)",
+      "Bash(npm --version:*)",
+      "Bash(export PATH=\"/c/Program Files/GitHub CLI:$PATH\")",
+      "Bash(gh auth login:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

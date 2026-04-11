@@ -1,0 +1,167 @@
+/**
+ * Upgrade definitions, reduction factors, and recommendation config.
+ */
+
+import type { UpgradeDefinition, ActiveUpgrades } from "../types";
+
+/**
+ * Upgrade definitions — available energy improvements
+ * @source Boverket & Energimyndigheten
+ * @updated 2026-04-04
+ * @notes Genomsnittliga installationspriser 2025-2026 inkl. moms och ROT-avdrag
+ */
+export const UPGRADE_DEFINITIONS: UpgradeDefinition[] = [
+  {
+    id: "solceller",
+    label: "Solceller",
+    description: "Storlek justeras under Antaganden (standard 10 kW)",
+    investmentCostSEK: 140000,
+    lifespanYears: 25,
+    icon: "☀️",
+  },
+  {
+    id: "batteri",
+    label: "Hembatteri 25 kWh",
+    description: "Lagrar solel för användning kvällar och nätter",
+    investmentCostSEK: 110000,
+    lifespanYears: 15,
+    requires: "solceller",
+    icon: "🔋",
+  },
+  {
+    id: "luftluft",
+    label: "Luft-luft värmepump",
+    description: "COP 1,3–4 beroende på utetemperatur",
+    investmentCostSEK: 35000,
+    lifespanYears: 15,
+    incompatibleWith: ["luftvatten", "bergvarme"],
+    icon: "💨",
+  },
+  {
+    id: "luftvatten",
+    label: "Luft-vatten värmepump",
+    description: "COP 1,5–4,3 — ersätter hela uppvärmningen",
+    investmentCostSEK: 130000,
+    lifespanYears: 20,
+    incompatibleWith: ["luftluft", "bergvarme"],
+    icon: "🌡️",
+  },
+  {
+    id: "bergvarme",
+    label: "Bergvärme",
+    description: "COP 3,2–4,2 — stabil oavsett utetemperatur",
+    investmentCostSEK: 260000,
+    lifespanYears: 25,
+    incompatibleWith: ["luftluft", "luftvatten"],
+    icon: "⛰️",
+  },
+  {
+    id: "tillaggsisolering",
+    label: "Tilläggsisolering",
+    description: "Minskar värmeförlusten med ca 20 %",
+    investmentCostSEK: 80000,
+    lifespanYears: 40,
+    icon: "🧱",
+  },
+  {
+    id: "eldstad",
+    label: "Eldstad / kamin",
+    description: "Minskar eluppvärmningen med ca 15 %",
+    investmentCostSEK: 50000,
+    lifespanYears: 30,
+    icon: "🔥",
+  },
+  {
+    id: "smartstyrning",
+    label: "Smart styrning",
+    description: "Optimerar uppvärmning och förbrukning med ca 8 %",
+    investmentCostSEK: 12000,
+    lifespanYears: 10,
+    icon: "🤖",
+  },
+  {
+    id: "varmvattenpump",
+    label: "Varmvattenpump",
+    description: "Minskar varmvattenkostnaden med ca 65 %",
+    investmentCostSEK: 35000,
+    lifespanYears: 15,
+    icon: "🚿",
+  },
+  {
+    id: "fonsterbyte",
+    label: "Fönsterbyte 3-glas",
+    description: "Minskar värmeförlusten med ca 10 %",
+    investmentCostSEK: 130000,
+    lifespanYears: 30,
+    icon: "🪟",
+  },
+  {
+    id: "dynamiskt_elpris",
+    label: "Byt till dynamiskt elpris",
+    description: "Timpris ger dig möjlighet att styra förbrukningen till billiga timmar",
+    investmentCostSEK: 0,
+    lifespanYears: 99,
+    icon: "⚡",
+  },
+];
+
+/**
+ * Reduction factors for non-heat-pump upgrades
+ * @source Energimyndigheten & Boverket
+ * @updated 2026-04-04
+ * @notes Uppskattade procentuella minskningar per åtgärd
+ */
+export const REDUCTION_FACTORS: Record<string, number> = {
+  tillaggsisolering: 0.20,
+  fonsterbyte: 0.10,
+  smartstyrning: 0.08,
+  eldstad: 0.15,
+  varmvattenpump: 0.65, // applied only to hot water share
+};
+
+/**
+ * Battery parameters (25 kWh home battery)
+ * @source Branschdata (Tesla Powerwall, Huawei LUNA etc.)
+ * @updated 2026-04-04
+ * @notes Typiska parametrar för ett 25 kWh hembatteri
+ */
+export const BATTERY_PARAMS = {
+  capacityKwh: 25,
+  maxChargeRateKw: 5,
+  maxDischargeRateKw: 5,
+  roundTripEfficiency: 0.92,
+};
+
+/**
+ * Recommendation engine configuration
+ * @updated 2026-04-04
+ * @notes Styr filtreringsregler och antal rekommendationer
+ */
+export const RECOMMENDATION_CONFIG = {
+  maxRecommendations: 5,
+  topPickCount: 3,
+  excludeForApartment: ["tillaggsisolering", "fonsterbyte", "bergvarme", "eldstad"] as string[],
+  excludeIfHeatingType: {
+    bergvarme: ["luftluft", "luftvatten", "bergvarme"] as string[],
+    luftluft: ["luftluft"] as string[],
+    luftvatten: ["luftluft", "luftvatten"] as string[],
+  } as Record<string, string[]>,
+};
+
+/**
+ * Default active upgrades (all off)
+ * @updated 2026-04-04
+ */
+export const DEFAULT_ACTIVE_UPGRADES: ActiveUpgrades = {
+  solceller: false,
+  batteri: false,
+  luftluft: false,
+  luftvatten: false,
+  bergvarme: false,
+  tillaggsisolering: false,
+  eldstad: false,
+  smartstyrning: false,
+  varmvattenpump: false,
+  fonsterbyte: false,
+  dynamiskt_elpris: false,
+};
