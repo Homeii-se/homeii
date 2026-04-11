@@ -42,15 +42,11 @@ export function buildHouseholdProfile(
     powerFeePerKw: assumptions.powerFeeKrPerKw,
     elContractType: refinement.elContractType ?? "monthly",
     bigConsumers,
-    hasEv,
-    evChargingHome: hasEv,
+    hasElbil: hasEv,
     hasSolar: refinement.hasSolar ?? false,
     solarSizeKw: refinement.solarSizeKw ?? assumptions.solarSizeKw,
     hasBattery: refinement.hasBattery ?? false,
     batterySizeKwh: refinement.batterySizeKwh ?? assumptions.batterySizeKwh,
-    dataSources: [],
-    inferredFields: [],
-    lastUpdated: new Date().toISOString().split("T")[0],
   };
 }
 
@@ -75,7 +71,7 @@ export function profileToRefinement(profile: HouseholdProfile): RefinementAnswer
     area: profile.areaM2,
     heatingTypes: profile.heatingTypes,
     residents: profile.residents,
-    elCar: profile.hasEv ? "ja" : "nej",
+    elCar: profile.hasElbil ? "ja" : "nej",
     bigConsumers: profile.bigConsumers,
     hasSolar: profile.hasSolar,
     solarSizeKw: profile.solarSizeKw,
@@ -90,8 +86,8 @@ export function profileToRefinement(profile: HouseholdProfile): RefinementAnswer
  */
 export function profileToAssumptions(profile: HouseholdProfile): Assumptions {
   return {
-    solarSizeKw: profile.solarSizeKw,
-    batterySizeKwh: profile.batterySizeKwh,
+    solarSizeKw: profile.solarSizeKw ?? 0,
+    batterySizeKwh: profile.batterySizeKwh ?? 0,
     gridFeeKrPerMonth: profile.gridFeeMonthlyKr ?? 320,
     powerFeeKrPerKw: profile.powerFeePerKw ?? 44,
   };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { ThreeScenarioSummary, SEZone, BillData, Assumptions, RefinementAnswers } from "../types";
+import type { ThreeScenarioSummary, SEZone, BillData, Assumptions, RefinementAnswers, ActiveUpgrades } from "../types";
 import type { TmyHourlyData } from "../data/pvgis-tmy";
 import { SE_ZONE_SPOT_PRICE } from "../data/energy-prices";
 import { getEnergyTaxRate } from "../data/energy-tax";
@@ -190,7 +190,7 @@ export default function ResultOverview({
           billData={billData}
           refinement={refinement}
           seZone={seZone}
-          activeUpgrades={{}}
+          activeUpgrades={{} as ActiveUpgrades}
           assumptions={assumptions}
           selectedDate={selectedDate}
           onDateChange={setSelectedDate}

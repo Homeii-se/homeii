@@ -39,8 +39,8 @@ export default function SimulationExplorer({
   billData,
   refinement,
   seZone,
-  activeUpgrades = {},
-  assumptions = {},
+  activeUpgrades = {} as ActiveUpgrades,
+  assumptions = {} as Assumptions,
   selectedDate,
   onDateChange,
   tmyData,
@@ -62,7 +62,7 @@ export default function SimulationExplorer({
 
   // Full 8760-hour simulation — anchored to ACTUAL bill (no inflation)
   const sim8760 = useMemo(() => {
-    if (!tmyData || tmyData.length < 8760) return null;
+    if (!tmyData || tmyData.length < 8760 || !refinement) return null;
     return simulate8760WithSolar(billData, refinement, tmyData, seZone);
   }, [billData, refinement, tmyData, seZone]);
 
@@ -98,10 +98,12 @@ export default function SimulationExplorer({
       });
     }
 
+    if (!refinement) return null;
     return simulateDay(billData, refinement, date, activeUpgrades, seZone, assumptions);
   }, [sim8760, selectedDate, billData, refinement, activeUpgrades, seZone, assumptions]);
 
   const monthlyExtended = useMemo(() => {
+    if (!refinement) return null;
     const result = simulateMonthsWithUpgrades(billData, refinement, activeUpgrades, seZone, assumptions);
 
     // If 8760 simulation is available, override peakKw with actual hourly max
@@ -134,7 +136,7 @@ export default function SimulationExplorer({
   }, [billData, refinement, activeUpgrades, seZone, assumptions, sim8760]);
 
   const yearlyData = useMemo(
-    () => getYearlyData(billData, refinement),
+    () => refinement ? getYearlyData(billData, refinement) : null,
     [billData, refinement]
   );
 
@@ -142,6 +144,7 @@ export default function SimulationExplorer({
 
   const chartData = useMemo(() => {
     if (period === "dag") {
+      if (!daySimulation) return [];
       if (chartUnit === "sek") {
         return daySimulation.map((d) => ({
           label: `${String(d.hour).padStart(2, "0")}`,
@@ -161,6 +164,7 @@ export default function SimulationExplorer({
       }));
     }
     if (period === "manad") {
+      if (!monthlyExtended) return [];
       if (chartUnit === "kw") {
         return monthlyExtended.map((d, i) => ({
           label: d.label,
@@ -186,6 +190,7 @@ export default function SimulationExplorer({
       }));
     }
     // Year view
+    if (!yearlyData) return [];
     if (chartUnit === "sek") {
       return yearlyData.map((d) => ({
         label: d.label,
@@ -244,7 +249,7 @@ export default function SimulationExplorer({
       </div>
 
       {/* Day summary (only when 8760-driven) */}
-      {period === "dag" && sim8760 && (
+      {period === "dag" && sim8760 && daySimulation && (
         <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
           <div>
             <p className="text-text-muted">Förbrukning</p>
