@@ -202,9 +202,9 @@ Return JSON with these fields (omit any not found):
         { status: 503 }
       );
     }
-    const contentArray = result.content as Array<{ type: string; text?: string }> | undefined;
+    const contentArray = (result as { content?: Array<{ type: string; text?: string }> }).content;
     const textContent = contentArray?.find(
-      (c) => c.type === "text"
+      (c: { type: string; text?: string }) => c.type === "text"
     )?.text ?? "";
 
     // Extract JSON from response — could be a single object or an array
@@ -315,7 +315,7 @@ Return JSON with these fields (omit any not found):
     const message = error instanceof Error ? error.message : String(error);
     console.error("[PARSE-INVOICE] Fatal error:", message);
     return NextResponse.json(
-      { error: `Server error: ${message}` },
+      { error: `Serverfel vid analys av faktura: ${message}` },
       { status: 500 }
     );
   }

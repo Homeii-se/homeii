@@ -39,33 +39,7 @@ export default function LandingHero({ onStart }: LandingHeroProps) {
           {STRINGS.heroCta}
         </button>
 
-        {/* Trust signals */}
-        <div className="mt-14 flex flex-wrap items-center justify-center gap-6 text-sm text-slate-400">
-          <span className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-500/20 text-brand-300">
-              <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-            </span>
-            100% gratis
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-500/20 text-brand-300">
-              <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zm0 14a6 6 0 110-12 6 6 0 010 12zm-1-5a1 1 0 112 0v2a1 1 0 11-2 0v-2zm1-5a1 1 0 100 2 1 1 0 000-2z" clipRule="evenodd" />
-              </svg>
-            </span>
-            Helt oberoende
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-500/20 text-brand-300">
-              <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-              </svg>
-            </span>
-            Ingen data sparas online
-          </span>
-        </div>
+        {/* Trust signals — removed: "100% gratis", "Helt oberoende", "Ingen data sparas online" */}
       </div>
 
       {/* Social proof bar */}
