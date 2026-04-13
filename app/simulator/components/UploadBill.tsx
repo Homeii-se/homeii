@@ -452,6 +452,9 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
         {STRINGS.uploadTitle}
       </h2>
       <p className="mb-6 text-text-secondary">{STRINGS.uploadSubtitle}</p>
+      <p className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs text-amber-200">
+        För bästa resultat: ladda upp elhandelsfakturan som PDF, inte som skärmdump.
+      </p>
 
       {error && (
         <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">

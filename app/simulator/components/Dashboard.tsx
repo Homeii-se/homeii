@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import type {
   BillData,
   RefinementAnswers,
@@ -67,6 +67,7 @@ export default function Dashboard({
 }: DashboardProps) {
   const [period, setPeriod] = useState<Period>("manad");
   const [chartUnit, setChartUnit] = useState<ChartUnit>("kwh");
+  const [actualSpotPricesOre, setActualSpotPricesOre] = useState<number[] | null>(null);
   const precision = getPrecision(answeredQuestions);
   const hasUpgrades = Object.values(activeUpgrades).some(Boolean);
 
@@ -79,6 +80,34 @@ export default function Dashboard({
   };
 
   const disabledUnits: ChartUnit[] = period === "ar" ? ["kw"] : [];
+
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (selectedDate > today) {
+      setActualSpotPricesOre(null);
+      return;
+    }
+
+    let cancelled = false;
+    fetch(`/api/spot-prices?zone=${seZone}&date=${selectedDate}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (cancelled) return;
+        const prices = data?.pricesOreExMoms;
+        if (Array.isArray(prices) && prices.length > 0) {
+          setActualSpotPricesOre(prices as number[]);
+        } else {
+          setActualSpotPricesOre(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setActualSpotPricesOre(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDate, seZone]);
 
   // Memoized calculations — anchored to ACTUAL bill (no inflation)
   const annualSummary = useMemo(
@@ -108,7 +137,7 @@ export default function Dashboard({
       const priceProfile = getHourlyPriceProfile(month);
 
       return Array.from({ length: 24 }, (_, h) => {
-        const spotOre = monthAvgSpotOre * priceProfile[h];
+        const spotOre = actualSpotPricesOre?.[h] ?? (monthAvgSpotOre * priceProfile[h]);
         return {
           hour: h,
           kwhBase: consumption[h],
@@ -125,8 +154,8 @@ export default function Dashboard({
     }
 
     // Fallback: legacy simulateDay (identical per month)
-    return simulateDay(billData, refinement, date, activeUpgrades, seZone, assumptions);
-  }, [sim8760, selectedDate, billData, refinement, activeUpgrades, seZone, assumptions]);
+    return simulateDay(billData, refinement, date, activeUpgrades, seZone, assumptions, actualSpotPricesOre ?? undefined);
+  }, [sim8760, selectedDate, billData, refinement, activeUpgrades, seZone, assumptions, actualSpotPricesOre]);
 
   const monthlyExtended = useMemo(
     () => simulateMonthsWithUpgrades(billData, refinement, activeUpgrades, seZone, assumptions),

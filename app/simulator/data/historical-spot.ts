@@ -84,6 +84,24 @@ export async function fetchMonthlyAverageSpotPrice(
   return rounded;
 }
 
+/**
+ * Fetch hourly spot prices for a specific day and SE zone.
+ * Returns prices in öre/kWh (exkl moms), one value per returned time slot.
+ */
+export async function fetchDailySpotPrices(
+  year: number,
+  month: number, // 0-11
+  day: number,
+  zone: SEZone
+): Promise<number[] | null> {
+  const monthStr = String(month + 1).padStart(2, "0");
+  const dayStr = String(day).padStart(2, "0");
+  const url = `https://www.elprisetjustnu.se/api/v1/prices/${year}/${monthStr}-${dayStr}_${zone}.json`;
+  const dayData = await fetchDayPrices(url);
+  if (!dayData || dayData.length === 0) return null;
+  return dayData.map((entry) => entry.SEK_per_kWh * 100);
+}
+
 async function fetchDayPrices(url: string): Promise<ElprisetHourlyEntry[] | null> {
   try {
     const response = await fetch(url, {

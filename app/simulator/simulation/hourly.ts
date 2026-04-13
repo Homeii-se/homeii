@@ -86,7 +86,8 @@ export function simulateDay(
   date: Date,
   activeUpgrades: ActiveUpgrades,
   seZone: SEZone,
-  assumptions?: Assumptions
+  assumptions?: Assumptions,
+  actualSpotPricesOre?: number[]
 ): HourlyDataPointExtended[] {
   const seasonFactor = getSeasonFactorForDate(date, refinement, seZone);
   const dailyKwh = bill.kwhPerMonth * seasonFactor / 30;
@@ -118,6 +119,7 @@ export function simulateDay(
     // Spot price for this hour — month-specific profile
     const monthlySpotPrice = SE_ZONE_SPOT_PRICE[seZone]?.[month] ?? 80;
     const hourlyPriceProfile = getHourlyPriceProfile(month);
+    const historicalSpotForHour = actualSpotPricesOre?.[h];
 
     const effectiveContract = activeUpgrades.dynamiskt_elpris
       ? "dynamic"
@@ -125,7 +127,7 @@ export function simulateDay(
 
     if (effectiveContract === "dynamic") {
       // Dynamic contract: price varies by hour within the month
-      hourlyPrice.push(monthlySpotPrice * hourlyPriceProfile[h]);
+      hourlyPrice.push(historicalSpotForHour ?? (monthlySpotPrice * hourlyPriceProfile[h]));
     } else if (effectiveContract === "fixed") {
       // Fixed contract: annual average spot price
       const annualAvgSpot = SE_ZONE_SPOT_PRICE[seZone]
