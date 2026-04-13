@@ -71,6 +71,75 @@ function buildScenarioDetail(summary: AnnualSummary, useAfter: boolean): Scenari
   };
 }
 
+/**
+ * When only one invoice type is uploaded, anchor that known component to the
+ * invoice month so the model does not drift too high/low on partial data.
+ */
+function applyPartialInvoiceAnchor(summary: AnnualSummary, billData: BillData): void {
+  const breakdown = summary.annualCostBreakdown;
+  const month = billData.invoiceMonth;
+  const types = billData.uploadedInvoiceTypes ?? [];
+  if (!breakdown || month === undefined || month < 0 || month > 11) return;
+
+  const hasElhandel = types.includes("elhandel");
+  const hasElnat = types.includes("elnat");
+  if (hasElhandel && hasElnat) return; // full data, no anchoring needed
+
+  const onlyElnat = hasElnat && !hasElhandel && !!billData.invoiceElnatTotalKr;
+  const onlyElhandel = hasElhandel && !hasElnat && !!billData.invoiceElhandelTotalKr;
+  if (!onlyElnat && !onlyElhandel) return;
+
+  const monthData = breakdown.months[month];
+  if (!monthData) return;
+
+  const target = onlyElnat ? billData.invoiceElnatTotalKr! : billData.invoiceElhandelTotalKr!;
+  const modeled = onlyElnat ? monthData.totalElnatKr : monthData.totalElhandelKr;
+  if (target <= 0 || modeled <= 0) return;
+
+  // Keep calibration stable if OCR picks an odd number.
+  const factor = Math.min(2.5, Math.max(0.4, target / modeled));
+  if (Math.abs(factor - 1) < 0.03) return;
+
+  for (const m of breakdown.months) {
+    let before = 0;
+    let after = 0;
+
+    if (onlyElnat) {
+      before = m.totalElnatKr;
+      m.gridFixedFeeKr = Math.round(m.gridFixedFeeKr * factor);
+      m.gridTransferFeeKr = Math.round(m.gridTransferFeeKr * factor);
+      m.gridPowerChargeKr = Math.round(m.gridPowerChargeKr * factor);
+      m.energyTaxKr = Math.round(m.energyTaxKr * factor);
+      m.totalElnatKr = m.gridFixedFeeKr + m.gridTransferFeeKr + m.gridPowerChargeKr + m.energyTaxKr;
+      after = m.totalElnatKr;
+    } else {
+      before = m.totalElhandelKr;
+      m.spotCostKr = Math.round(m.spotCostKr * factor);
+      m.markupCostKr = Math.round(m.markupCostKr * factor);
+      m.elhandelMonthlyFeeKr = Math.round(m.elhandelMonthlyFeeKr * factor);
+      m.totalElhandelKr = m.spotCostKr + m.markupCostKr + m.elhandelMonthlyFeeKr;
+      after = m.totalElhandelKr;
+    }
+
+    m.totalKr += after - before;
+  }
+
+  breakdown.totalElhandelKr = breakdown.months.reduce((s, m) => s + m.totalElhandelKr, 0);
+  breakdown.totalElnatKr = breakdown.months.reduce((s, m) => s + m.totalElnatKr, 0);
+  breakdown.totalExportRevenueKr = breakdown.months.reduce((s, m) => s + m.exportRevenueKr, 0);
+  breakdown.totalKr = breakdown.months.reduce((s, m) => s + m.totalKr, 0);
+  breakdown.avgMonthlyKr = Math.round(breakdown.totalKr / 12);
+
+  summary.yearlyEnergyCostBase = breakdown.totalKr;
+  summary.yearlyEnergyCostAfter = breakdown.totalKr;
+  summary.yearlyTotalCostBase = breakdown.totalKr;
+  summary.yearlyTotalCostAfter = breakdown.totalKr;
+
+  console.log(
+    `[SCENARIOS] Applied partial anchor (${onlyElnat ? "elnät" : "elhandel"}): month=${month}, target=${target}, modeled=${modeled}, factor=${factor.toFixed(3)}`
+  );
+}
+
 /** Calculate three scenarios: without investments, current situation, and after recommendations.
  *  If tmyData is provided, uses 8760-hour simulation for accurate solar export estimation. */
 export function calculateThreeScenarios(
@@ -125,6 +194,7 @@ export function calculateThreeScenarios(
   const currentSituationSummary = calculateAnnualSummary(
     billData, nulägeRefinement, NO_UPGRADES, seZone, assumptions, true /* skipInflation — invoice kWh = grid consumption */
   );
+  applyPartialInvoiceAnchor(currentSituationSummary, billData);
   console.log('[SCENARIOS] nuläge: skipInflation=true, NO_UPGRADES, yearlyTotal:', currentSituationSummary.yearlyTotalCostBase);
 
   // --- Solar export credit for nuläge ---

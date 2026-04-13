@@ -76,7 +76,10 @@ YOU MUST ONLY extract data from the CONSUMPTION meter. Ignore the production met
 - solarExportRevenueKr: the export revenue (shown as negative kr amount — return as positive number)
 
 For totalCostInklMoms: use ONLY the consumption meter's costs (spotpris + påslag + månadsavgift). Do NOT include production meter amounts. Do NOT use the invoice's combined "Att betala" amount, as it nets production against consumption.
-For kwhForPeriod: use ONLY the consumption meter's kWh (the "Antal" column on the spotpris/consumption line).
+For kwhForPeriod: use ONLY the consumption meter's kWh.
+On ELHANDEL invoices, this is usually the "Antal kWh" on the spotpris/rörligt pris line.
+On ELNÄT invoices, this is usually the "Antal kWh" on "Elöverföring"/"Överföringsavgift"/"Rörlig nätavgift" lines.
+If multiple kWh values are present, choose the one tied to consumption charges (not production/export compensation).
 For annualKwh: use ONLY the "Beräknad årsförbrukning" from the CONSUMPTION meter (the one with thousands of kWh, NOT the production meter's 1 kWh).
 
 Key fields to look for:
@@ -106,7 +109,7 @@ ${contentBlocks.length > 1 ? `You are seeing ${contentBlocks.length} images/docu
 Return JSON with these fields (omit any not found):
 {
   "invoiceType": "elhandel" | "elnat" | "combined",
-  "kwhForPeriod": <number — kWh consumed from CONSUMPTION meter only>,
+  "kwhForPeriod": <number — kWh consumed from CONSUMPTION meter only (elhandel: spotpris/rörligt pris "Antal"; elnät: elöverföring/rörlig nätavgift "Antal")>,
   "totalCostInklMoms": <number — consumption costs only (inkl moms)>,
   "annualKwh": <number — ONLY if "Beräknad årsförbrukning" literally appears>,
   "seZone": "SE1" | "SE2" | "SE3" | "SE4",

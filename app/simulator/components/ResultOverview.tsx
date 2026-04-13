@@ -46,6 +46,9 @@ export default function ResultOverview({
   const todayMapped = `2025-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const [selectedDate, setSelectedDate] = useState(todayMapped);
   const { currentSituation, existingSavingsKr, withoutInvestments } = threeScenarios;
+  const uploadedTypes = billData.uploadedInvoiceTypes ?? [];
+  const hasOnlyElnat = uploadedTypes.includes("elnat") && !uploadedTypes.includes("elhandel");
+  const hasOnlyElhandel = uploadedTypes.includes("elhandel") && !uploadedTypes.includes("elnat");
 
   const calculationDetails = useMemo(() => {
     const gridPricing = assumptions?.gridOperator
@@ -89,6 +92,15 @@ export default function ResultOverview({
         <p className="mt-1.5 text-xs text-text-muted">
           Baserat på din faktura, dina uppgifter och aktuella energipriser. Verklig kostnad kan avvika.
         </p>
+        {(hasOnlyElnat || hasOnlyElhandel) && (
+          <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+            <p className="text-xs text-amber-200">
+              {hasOnlyElnat
+                ? "Endast elnätsfaktura uppladdad: elnätsdelen är fakturabaserad, elhandelsdelen är estimerad."
+                : "Endast elhandelsfaktura uppladdad: elhandelsdelen är fakturabaserad, elnätsdelen är estimerad."}
+            </p>
+          </div>
+        )}
         {hasExistingEquipment && existingSavingsKr > 0 && (
           <p className="mt-2 flex items-center gap-1.5 text-sm text-text-secondary">
             <svg className="h-4 w-4 text-energy-green flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

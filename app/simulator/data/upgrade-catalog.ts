@@ -50,7 +50,7 @@ export const UPGRADE_DEFINITIONS: UpgradeDefinition[] = [
     id: "bergvarme",
     label: "Bergvärme",
     description: "COP 3,2–4,2 — stabil oavsett utetemperatur",
-    investmentCostSEK: 260000,
+    investmentCostSEK: 180000,
     lifespanYears: 25,
     incompatibleWith: ["luftluft", "luftvatten"],
     icon: "⛰️",
