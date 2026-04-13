@@ -19,7 +19,8 @@ export default function LandingHero({ onStart }: LandingHeroProps) {
         {/* Floating icon */}
         <div className="animate-float mb-10 flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-brand-400 to-brand-600 shadow-lg shadow-brand-500/25">
           <svg className="h-12 w-12 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="12" cy="12" r="6.5" />
+            <circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none" />
           </svg>
         </div>
 

@@ -35,7 +35,8 @@ export default function RootLayout({
             <Link href="/" className="flex items-center gap-2.5 rounded-md outline-none ring-sky-400 focus-visible:ring-2">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 shadow-sm">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white" stroke="white" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="12" cy="12" r="6.5" stroke="white" strokeWidth="1.8" />
+                  <circle cx="12" cy="12" r="2.2" fill="white" />
                 </svg>
               </span>
               <span className="text-lg font-bold text-white tracking-tight">HOMEii</span>
@@ -66,7 +67,8 @@ export default function RootLayout({
             <div className="flex items-center gap-2">
               <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-400 to-brand-600">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white" />
+                  <circle cx="12" cy="12" r="6.2" stroke="white" strokeWidth="1.8" />
+                  <circle cx="12" cy="12" r="2.1" fill="white" />
                 </svg>
               </span>
               <span className="font-semibold text-white">HOMEii</span>
