@@ -17,7 +17,7 @@ const UNITS: { value: ChartUnit; label: string }[] = [
 
 export default function UnitToggle({ unit, onChange, disabledUnits = [] }: UnitToggleProps) {
   return (
-    <div className="glass-card inline-flex rounded-xl p-1">
+    <div className="card inline-flex rounded-xl p-1">
       {UNITS.map((u) => {
         const disabled = disabledUnits.includes(u.value);
         return (
@@ -27,7 +27,7 @@ export default function UnitToggle({ unit, onChange, disabledUnits = [] }: UnitT
             disabled={disabled}
             className={`rounded-lg px-3 py-2 text-sm font-medium transition-all ${
               unit === u.value
-                ? "bg-white/10 text-text-primary shadow-sm"
+                ? "bg-brand-50 text-text-primary shadow-sm"
                 : disabled
                   ? "text-text-muted/40 cursor-not-allowed"
                   : "text-text-secondary hover:text-text-primary"

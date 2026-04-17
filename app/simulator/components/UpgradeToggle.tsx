@@ -21,12 +21,12 @@ export default function UpgradeToggle({
     <button
       onClick={() => !disabled && onToggle(upgrade.id)}
       disabled={disabled}
-      className={`glass-card flex flex-col gap-1.5 rounded-xl !border-2 p-3 text-left transition-all ${
+      className={`card flex flex-col gap-1.5 rounded-xl !border-2 p-3 text-left transition-all ${
         active
-          ? "!border-energy-green !bg-green-500/10"
+          ? "!border-energy-green !bg-green-50"
           : disabled
           ? "opacity-60 cursor-not-allowed"
-          : "hover:!border-brand-300 cursor-pointer"
+          : "hover:!border-brand-500 cursor-pointer"
       }`}
     >
       <div className="flex items-center justify-between">
@@ -38,7 +38,7 @@ export default function UpgradeToggle({
         </div>
         <div
           className={`flex h-5 w-9 items-center rounded-full p-0.5 transition-colors ${
-            active ? "bg-energy-green" : "bg-slate-500"
+            active ? "bg-energy-green" : "bg-gray-300"
           }`}
         >
           <div

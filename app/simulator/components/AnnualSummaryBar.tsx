@@ -44,7 +44,7 @@ export default function AnnualSummaryBar({
   const savings = summary.yearlyTotalCostBase - summary.yearlyTotalCostAfter;
 
   return (
-    <div className="glass-card-strong rounded-2xl p-4">
+    <div className="card-strong rounded-2xl p-4">
       <h3 className="mb-3 text-sm font-semibold text-text-secondary">
         {STRINGS.annualSummary}
       </h3>
@@ -125,10 +125,10 @@ export default function AnnualSummaryBar({
 
       {/* Three-scenario breakdown */}
       {threeScenarios && hasUpgrades && (
-        <div className="mt-4 border-t border-white/10 pt-4">
+        <div className="mt-4 border-t border-gray-200 pt-4">
           <button
             onClick={() => setExpandThreeScenarios(!expandThreeScenarios)}
-            className="flex w-full items-center justify-between rounded-lg p-3 transition-colors hover:bg-surface-light/50"
+            className="flex w-full items-center justify-between rounded-lg p-3 transition-colors hover:bg-gray-100"
           >
             <span className="text-sm font-semibold text-text-secondary">Scenario-jämförelse</span>
             <svg
@@ -152,7 +152,7 @@ export default function AnnualSummaryBar({
                     {threeScenarios.withoutInvestments.yearlyTotalCostKr.toLocaleString("sv-SE")} kr
                   </span>
                 </div>
-                <div className="h-2 w-full rounded-full bg-surface-light">
+                <div className="h-2 w-full rounded-full bg-gray-200">
                   <div
                     className="h-full rounded-full bg-red-500/60"
                     style={{ width: "100%" }}
@@ -168,7 +168,7 @@ export default function AnnualSummaryBar({
                     {threeScenarios.currentSituation.yearlyTotalCostKr.toLocaleString("sv-SE")} kr
                   </span>
                 </div>
-                <div className="h-2 w-full rounded-full bg-surface-light">
+                <div className="h-2 w-full rounded-full bg-gray-200">
                   <div
                     className="h-full rounded-full bg-yellow-500/60"
                     style={{
@@ -190,7 +190,7 @@ export default function AnnualSummaryBar({
                     {threeScenarios.afterRecommendations.yearlyTotalCostKr.toLocaleString("sv-SE")} kr
                   </span>
                 </div>
-                <div className="h-2 w-full rounded-full bg-surface-light">
+                <div className="h-2 w-full rounded-full bg-gray-200">
                   <div
                     className="h-full rounded-full bg-energy-green/60"
                     style={{
@@ -205,7 +205,7 @@ export default function AnnualSummaryBar({
               </div>
 
               {/* Savings breakdown */}
-              <div className="mt-3 space-y-2 rounded-lg bg-surface-light/50 p-2 text-xs">
+              <div className="mt-3 space-y-2 rounded-lg bg-gray-200/50 p-2 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-text-muted">Befintlig utrustning sparar:</span>
                   <span className="font-semibold text-energy-green">
@@ -214,7 +214,7 @@ export default function AnnualSummaryBar({
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-text-muted">Ytterligare besparingspotential:</span>
-                  <span className="font-semibold text-brand-300">
+                  <span className="font-semibold text-brand-600">
                     {threeScenarios.potentialSavingsKr.toLocaleString("sv-SE")} kr/år
                   </span>
                 </div>

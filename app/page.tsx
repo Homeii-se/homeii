@@ -247,24 +247,21 @@ export default function Home() {
   if (!loaded) {
     return (
       <div className="bg-gradient-main flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 rounded-full border-2 border-brand-400/30 border-t-brand-400 animate-spin-slow" />
+        <div className="h-8 w-8 rounded-full border-2 border-brand-500/30 border-t-brand-500 animate-spin-slow" />
       </div>
     );
   }
 
   return (
     <div className="bg-gradient-main relative min-h-screen pb-12">
-      <div className="glow-teal" />
-      <div className="glow-warm" />
-
       {/* Step indicator (hidden on landing) */}
       {currentStep > 1 && (
-        <div className="relative z-10 border-b border-white/10 bg-slate-900/40 backdrop-blur-md">
+        <div className="relative z-10 border-b border-gray-200 bg-white/80">
           <div className="mx-auto flex max-w-2xl items-center justify-between">
             <StepIndicator currentStep={Math.min(currentStep, TOTAL_STEPS)} totalSteps={TOTAL_STEPS} onStepClick={handleStepClick} />
             <button
               onClick={handleRestart}
-              className="mr-4 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-200"
+              className="mr-4 rounded-lg px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:bg-gray-100 hover:text-text-secondary"
               title="Börja om från början"
             >
               Börja om

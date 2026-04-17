@@ -115,7 +115,7 @@ export default function VerificationScreen({ billData, initialRefinement, initia
         <p className="mt-1 text-sm text-text-secondary">
           Vi behöver dessa uppgifter för att ge dig en träffsäker analys.
           Baserat på din elräkning ser vi en årsförbrukning på cirka{" "}
-          <span className="font-semibold text-brand-300">
+          <span className="font-semibold text-brand-600">
             {Math.round(annualKwh).toLocaleString("sv-SE")} kWh
           </span>.
         </p>
@@ -123,7 +123,7 @@ export default function VerificationScreen({ billData, initialRefinement, initia
 
       <div className="flex flex-col gap-5">
         {/* Boendetyp */}
-        <div className="glass-card-strong rounded-2xl p-4">
+        <div className="card-strong rounded-2xl p-4">
           <label className="text-sm font-semibold text-text-primary">Boendetyp</label>
           <div className="mt-2 flex gap-2">
             {HOUSING_OPTIONS.map((opt) => (
@@ -132,8 +132,8 @@ export default function VerificationScreen({ billData, initialRefinement, initia
                 onClick={() => setHousingType(opt.value)}
                 className={`flex-1 flex flex-col items-center gap-0.5 rounded-xl border-2 px-3 py-2.5 text-sm font-medium transition-all ${
                   housingType === opt.value
-                    ? "border-brand-500 bg-brand-500/10 text-brand-300"
-                    : "border-border text-text-secondary hover:border-brand-300"
+                    ? "border-brand-500 bg-brand-50 text-brand-700"
+                    : "border-border text-text-secondary hover:border-brand-500"
                 }`}
               >
                 <span>{opt.label}</span>
@@ -144,7 +144,7 @@ export default function VerificationScreen({ billData, initialRefinement, initia
         </div>
 
         {/* Uppvärmning (multi-select) */}
-        <div className="glass-card-strong rounded-2xl p-4">
+        <div className="card-strong rounded-2xl p-4">
           <label className="text-sm font-semibold text-text-primary">Uppvärmning</label>
           <p className="mt-0.5 text-[11px] text-text-muted">Välj en eller flera — detta påverkar analysen mest</p>
           <div className="mt-2 flex flex-col gap-2">
@@ -156,12 +156,12 @@ export default function VerificationScreen({ billData, initialRefinement, initia
                   onClick={() => toggleHeating(opt.value)}
                   className={`flex items-center gap-3 rounded-xl border-2 px-4 py-2.5 text-left text-sm font-medium transition-all ${
                     checked
-                      ? "border-brand-500 bg-brand-500/10 text-brand-300"
-                      : "border-border text-text-secondary hover:border-brand-300"
+                      ? "border-brand-500 bg-brand-50 text-brand-700"
+                      : "border-border text-text-secondary hover:border-brand-500"
                   }`}
                 >
                   <div className={`flex h-5 w-5 items-center justify-center rounded border-2 transition-colors ${
-                    checked ? "border-brand-500 bg-brand-500" : "border-slate-500"
+                    checked ? "border-brand-500 bg-brand-500" : "border-gray-300"
                   }`}>
                     {checked && (
                       <svg className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor">
@@ -178,12 +178,12 @@ export default function VerificationScreen({ billData, initialRefinement, initia
             })}
           </div>
           {heatingTypes.length === 0 && (
-            <p className="mt-2 text-[11px] text-orange-300">Välj minst ett uppvärmningssätt för att gå vidare</p>
+            <p className="mt-2 text-[11px] text-amber-600">Välj minst ett uppvärmningssätt för att gå vidare</p>
           )}
         </div>
 
         {/* Elområde */}
-        <div className="glass-card-strong rounded-2xl p-4">
+        <div className="card-strong rounded-2xl p-4">
           <label className="text-sm font-semibold text-text-primary">Elområde</label>
           <p className="mt-0.5 text-[11px] text-text-muted">Påverkar elpriser och klimatprofil</p>
           <div className="mt-2 flex gap-2">
@@ -194,10 +194,10 @@ export default function VerificationScreen({ billData, initialRefinement, initia
                 className={`flex-1 rounded-xl border-2 px-2 py-2.5 text-center transition-all ${
                   seZone === zone.value
                     ? "border-brand-500 bg-brand-500/10"
-                    : "border-border hover:border-brand-300"
+                    : "border-border hover:border-brand-500"
                 }`}
               >
-                <span className={`text-sm font-bold ${seZone === zone.value ? "text-brand-300" : "text-text-primary"}`}>
+                <span className={`text-sm font-bold ${seZone === zone.value ? "text-brand-600" : "text-text-primary"}`}>
                   {zone.label}
                 </span>
                 <span className="block text-[10px] text-text-muted">{zone.description.split("(")[1]?.replace(")", "") ?? zone.description}</span>
@@ -207,7 +207,7 @@ export default function VerificationScreen({ billData, initialRefinement, initia
         </div>
 
         {/* Elavtal */}
-        <div className="glass-card-strong rounded-2xl p-4">
+        <div className="card-strong rounded-2xl p-4">
           <label className="text-sm font-semibold text-text-primary">Elavtal</label>
           <p className="mt-0.5 text-[11px] text-text-muted">Avgör hur du kan dra nytta av prisvariationer</p>
           <div className="mt-2 flex flex-col gap-2">
@@ -217,12 +217,12 @@ export default function VerificationScreen({ billData, initialRefinement, initia
                 onClick={() => setElContractType(opt.value)}
                 className={`flex items-center gap-3 rounded-xl border-2 px-4 py-2.5 text-left text-sm font-medium transition-all ${
                   elContractType === opt.value
-                    ? "border-brand-500 bg-brand-500/10 text-brand-300"
-                    : "border-border text-text-secondary hover:border-brand-300"
+                    ? "border-brand-500 bg-brand-50 text-brand-700"
+                    : "border-border text-text-secondary hover:border-brand-500"
                 }`}
               >
                 <div className={`flex h-4 w-4 items-center justify-center rounded-full border-2 transition-colors ${
-                  elContractType === opt.value ? "border-brand-500" : "border-slate-500"
+                  elContractType === opt.value ? "border-brand-500" : "border-gray-300"
                 }`}>
                   {elContractType === opt.value && (
                     <div className="h-2 w-2 rounded-full bg-brand-500" />
@@ -238,10 +238,10 @@ export default function VerificationScreen({ billData, initialRefinement, initia
         </div>
 
         {/* Boarea (slider) */}
-        <div className="glass-card-strong rounded-2xl p-4">
+        <div className="card-strong rounded-2xl p-4">
           <div className="flex items-center justify-between">
             <label className="text-sm font-semibold text-text-primary">Boarea</label>
-            <span className="text-sm font-bold text-brand-300">{area} m²</span>
+            <span className="text-sm font-bold text-brand-600">{area} m²</span>
           </div>
           <input
             type="range"
@@ -259,10 +259,10 @@ export default function VerificationScreen({ billData, initialRefinement, initia
         </div>
 
         {/* Antal boende (slider) */}
-        <div className="glass-card-strong rounded-2xl p-4">
+        <div className="card-strong rounded-2xl p-4">
           <div className="flex items-center justify-between">
             <label className="text-sm font-semibold text-text-primary">Antal boende</label>
-            <span className="text-sm font-bold text-brand-300">{residents} {residents === 1 ? "person" : "personer"}</span>
+            <span className="text-sm font-bold text-brand-600">{residents} {residents === 1 ? "person" : "personer"}</span>
           </div>
           <input
             type="range"
@@ -280,7 +280,7 @@ export default function VerificationScreen({ billData, initialRefinement, initia
         </div>
 
         {/* Befintlig utrustning */}
-        <div className="glass-card-strong rounded-2xl p-4">
+        <div className="card-strong rounded-2xl p-4">
           <label className="text-sm font-semibold text-text-primary">Befintlig utrustning</label>
           <p className="mt-0.5 text-[11px] text-text-muted">Har du någon av dessa redan installerat?</p>
 
@@ -294,12 +294,12 @@ export default function VerificationScreen({ billData, initialRefinement, initia
               }}
               className={`flex w-full items-center gap-3 rounded-xl border-2 px-4 py-2.5 text-left text-sm font-medium transition-all ${
                 hasSolar
-                  ? "border-brand-500 bg-brand-500/10 text-brand-300"
-                  : "border-border text-text-secondary hover:border-brand-300"
+                  ? "border-brand-500 bg-brand-50 text-brand-700"
+                  : "border-border text-text-secondary hover:border-brand-500"
               }`}
             >
               <div className={`flex h-5 w-5 items-center justify-center rounded border-2 transition-colors ${
-                hasSolar ? "border-brand-500 bg-brand-500" : "border-slate-500"
+                hasSolar ? "border-brand-500 bg-brand-500" : "border-gray-300"
               }`}>
                 {hasSolar && (
                   <svg className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor">
@@ -313,7 +313,7 @@ export default function VerificationScreen({ billData, initialRefinement, initia
               <div className="mt-2 ml-8 mr-2">
                 <div className="flex items-center justify-between text-[12px]">
                   <span className="text-text-muted">Storlek</span>
-                  <span className="font-bold text-brand-300">{solarSizeKw} kW</span>
+                  <span className="font-bold text-brand-600">{solarSizeKw} kW</span>
                 </div>
                 <input
                   type="range"
@@ -339,12 +339,12 @@ export default function VerificationScreen({ billData, initialRefinement, initia
                 onClick={() => setHasBattery(!hasBattery)}
                 className={`flex w-full items-center gap-3 rounded-xl border-2 px-4 py-2.5 text-left text-sm font-medium transition-all ${
                   hasBattery
-                    ? "border-brand-500 bg-brand-500/10 text-brand-300"
-                    : "border-border text-text-secondary hover:border-brand-300"
+                    ? "border-brand-500 bg-brand-50 text-brand-700"
+                    : "border-border text-text-secondary hover:border-brand-500"
                 }`}
               >
                 <div className={`flex h-5 w-5 items-center justify-center rounded border-2 transition-colors ${
-                  hasBattery ? "border-brand-500 bg-brand-500" : "border-slate-500"
+                  hasBattery ? "border-brand-500 bg-brand-500" : "border-gray-300"
                 }`}>
                   {hasBattery && (
                     <svg className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor">
@@ -358,7 +358,7 @@ export default function VerificationScreen({ billData, initialRefinement, initia
                 <div className="mt-2 ml-8 mr-2">
                   <div className="flex items-center justify-between text-[12px]">
                     <span className="text-text-muted">Kapacitet</span>
-                    <span className="font-bold text-brand-300">{batterySizeKwh} kWh</span>
+                    <span className="font-bold text-brand-600">{batterySizeKwh} kWh</span>
                   </div>
                   <input
                     type="range"
@@ -380,7 +380,7 @@ export default function VerificationScreen({ billData, initialRefinement, initia
         </div>
 
         {/* Storförbrukare */}
-        <div className="glass-card-strong rounded-2xl p-4">
+        <div className="card-strong rounded-2xl p-4">
           <label className="text-sm font-semibold text-text-primary">{STRINGS.bigConsumersTitle}</label>
           <div className="mt-3 flex flex-wrap gap-2">
             {BIG_CONSUMER_OPTIONS.map((opt) => {
@@ -391,8 +391,8 @@ export default function VerificationScreen({ billData, initialRefinement, initia
                   onClick={() => toggleBigConsumer(opt.value)}
                   className={`flex items-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all ${
                     selected
-                      ? "border-brand-500 bg-brand-500/10 text-brand-300"
-                      : "border-border text-text-secondary hover:border-brand-300"
+                      ? "border-brand-500 bg-brand-50 text-brand-700"
+                      : "border-border text-text-secondary hover:border-brand-500"
                   }`}
                 >
                   <span>{opt.icon}</span>
@@ -404,8 +404,8 @@ export default function VerificationScreen({ billData, initialRefinement, initia
               onClick={handleNoneOfThese}
               className={`flex items-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all ${
                 noneOfThese
-                  ? "border-brand-500 bg-brand-500/10 text-brand-300"
-                  : "border-border text-text-secondary hover:border-brand-300"
+                  ? "border-brand-500 bg-brand-50 text-brand-700"
+                  : "border-border text-text-secondary hover:border-brand-500"
               }`}
             >
               {STRINGS.noneOfThese}
@@ -418,7 +418,7 @@ export default function VerificationScreen({ billData, initialRefinement, initia
       <button
         onClick={handleSubmit}
         disabled={heatingTypes.length === 0}
-        className="mt-6 mb-8 w-full rounded-2xl bg-gradient-to-r from-brand-500 to-brand-600 px-6 py-3 font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="mt-6 mb-8 w-full rounded-2xl bg-cta-orange px-6 py-3 font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {STRINGS.next}
       </button>

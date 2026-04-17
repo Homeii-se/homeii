@@ -62,15 +62,15 @@ export default function InvoiceExplainerCard({
       {/* Two invoices side by side */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* LEFT: Elhandel */}
-        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
           <div className="flex items-center gap-2 mb-3">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-500/20">
-              <svg className="h-3.5 w-3.5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100">
+              <svg className="h-3.5 w-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
             <div>
-              <p className="text-xs font-semibold text-blue-300">Elhandel</p>
+              <p className="text-xs font-semibold text-blue-700">Elhandel</p>
               <p className="text-[10px] text-text-muted">Faktura 1 — din elhandlare</p>
             </div>
           </div>
@@ -80,7 +80,7 @@ export default function InvoiceExplainerCard({
               label="Spotpris"
               description="Rörligt elpris (exkl moms)"
               amount={splitVat(components.spotCostKr).exkl}
-              color="text-blue-300"
+              color="text-blue-700"
               canInfluence={true}
               influenceHow="Timpris + smart styrning"
             />
@@ -88,7 +88,7 @@ export default function InvoiceExplainerCard({
               label="Påslag"
               description="Elhandlarens marginal (exkl moms)"
               amount={splitVat(components.markupCostKr).exkl}
-              color="text-blue-300"
+              color="text-blue-700"
               canInfluence={false}
             />
             {components.elhandelMonthlyFeeKr > 0 && (
@@ -96,7 +96,7 @@ export default function InvoiceExplainerCard({
                 label="Månadsavgift"
                 description="Fast avgift (exkl moms)"
                 amount={splitVat(components.elhandelMonthlyFeeKr).exkl}
-                color="text-blue-300"
+                color="text-blue-700"
                 canInfluence={false}
               />
             )}
@@ -104,16 +104,16 @@ export default function InvoiceExplainerCard({
               label="Energiskatt"
               description={`Statlig skatt ${d.energyTaxOre} öre/kWh (exkl moms)`}
               amount={splitVat(components.energyTaxKr).exkl}
-              color="text-blue-300"
+              color="text-blue-700"
               canInfluence={false}
               footnote="* Betalas via nätfakturan"
             />
 
             {/* Moms */}
-            <div className="border-t border-blue-500/10 pt-1">
+            <div className="border-t border-blue-100 pt-1">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-text-muted">Moms 25%</span>
-                <span className="text-xs font-semibold text-blue-300 tabular-nums">
+                <span className="text-xs font-semibold text-blue-700 tabular-nums">
                   {elhandelMoms.toLocaleString("sv-SE")} kr
                 </span>
               </div>
@@ -121,23 +121,23 @@ export default function InvoiceExplainerCard({
           </div>
 
           <div className="mt-3 border-t border-blue-500/20 pt-2 flex justify-between">
-            <span className="text-xs font-semibold text-blue-300">Summa elhandel</span>
-            <span className="text-sm font-bold text-blue-200">
+            <span className="text-xs font-semibold text-blue-700">Summa elhandel</span>
+            <span className="text-sm font-bold text-blue-800">
               {Math.round(elhandelItemsInkl).toLocaleString("sv-SE")} kr/år
             </span>
           </div>
         </div>
 
         {/* RIGHT: Elnät */}
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
           <div className="flex items-center gap-2 mb-3">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-500/20">
-              <svg className="h-3.5 w-3.5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100">
+              <svg className="h-3.5 w-3.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
               </svg>
             </div>
             <div>
-              <p className="text-xs font-semibold text-amber-300">Elnät</p>
+              <p className="text-xs font-semibold text-amber-700">Elnät</p>
               <p className="text-[10px] text-text-muted">
                 Faktura 2 — {d.gridOperator || "din nätägare"}
               </p>
@@ -149,7 +149,7 @@ export default function InvoiceExplainerCard({
               label="Överföring"
               description={`Rörlig nätavgift ${d.transferFeeOre} öre/kWh (exkl moms)`}
               amount={splitVat(components.gridTransferFeeKr).exkl}
-              color="text-amber-300"
+              color="text-amber-700"
               canInfluence={true}
               influenceHow="Solceller minskar import"
             />
@@ -157,7 +157,7 @@ export default function InvoiceExplainerCard({
               label="Fast nätavgift"
               description="Abonnemangsavgift (exkl moms)"
               amount={splitVat(components.gridFixedFeeKr).exkl}
-              color="text-amber-300"
+              color="text-amber-700"
               canInfluence={false}
             />
             {components.gridPowerChargeKr > 0 && (
@@ -165,26 +165,26 @@ export default function InvoiceExplainerCard({
                 label="Effektavgift"
                 description="Baseras på din toppeffekt (exkl moms)"
                 amount={splitVat(components.gridPowerChargeKr).exkl}
-                color="text-amber-300"
+                color="text-amber-700"
                 canInfluence={true}
                 influenceHow="Batteri kapar toppar"
               />
             )}
 
             {/* Moms */}
-            <div className="border-t border-amber-500/10 pt-1">
+            <div className="border-t border-amber-100 pt-1">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-text-muted">Moms 25%</span>
-                <span className="text-xs font-semibold text-amber-300 tabular-nums">
+                <span className="text-xs font-semibold text-amber-700 tabular-nums">
                   {elnatMoms.toLocaleString("sv-SE")} kr
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="mt-3 border-t border-amber-500/20 pt-2 flex justify-between">
-            <span className="text-xs font-semibold text-amber-300">Summa elnät</span>
-            <span className="text-sm font-bold text-amber-200">
+          <div className="mt-3 border-t border-amber-200 pt-2 flex justify-between">
+            <span className="text-xs font-semibold text-amber-700">Summa elnät</span>
+            <span className="text-sm font-bold text-amber-800">
               {Math.round(elnatItemsInkl).toLocaleString("sv-SE")} kr/år
             </span>
           </div>
@@ -209,7 +209,7 @@ export default function InvoiceExplainerCard({
       )}
 
       {/* Total + moms summary + influence */}
-      <div className="rounded-xl bg-surface-light/50 p-4">
+      <div className="rounded-xl bg-gray-100 p-4">
         <div className="flex items-center justify-between mb-1">
           <span className="text-sm font-semibold text-text-secondary">Totalt per år</span>
           <span className="text-xl font-bold text-text-primary">
@@ -234,13 +234,13 @@ export default function InvoiceExplainerCard({
               {100 - influencePercent}% fasta kostnader
             </span>
           </div>
-          <div className="h-2 w-full rounded-full bg-surface-light overflow-hidden flex">
+          <div className="h-2 w-full rounded-full bg-gray-200 overflow-hidden flex">
             <div
               className="h-full rounded-l-full bg-energy-green/60"
               style={{ width: `${influencePercent}%` }}
             />
             <div
-              className="h-full rounded-r-full bg-white/10"
+              className="h-full rounded-r-full bg-gray-200"
               style={{ width: `${100 - influencePercent}%` }}
             />
           </div>
@@ -248,10 +248,10 @@ export default function InvoiceExplainerCard({
       </div>
 
       {/* Expandable: detailed calculations */}
-      <div className="border-t border-white/10 pt-2">
+      <div className="border-t border-gray-200 pt-2">
         <button
           onClick={() => setShowDetailedCalc(!showDetailedCalc)}
-          className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs transition-colors hover:bg-surface-light/50"
+          className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs transition-colors hover:bg-gray-100"
         >
           <span className="font-medium text-text-muted">Se detaljerade uträkningar</span>
           <svg
@@ -337,7 +337,7 @@ function DetailedCalculations({
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "Maj", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dec"];
 
   return (
-    <div className="mt-2 space-y-4 rounded-lg bg-surface-light/20 p-4 text-xs">
+    <div className="mt-2 space-y-4 rounded-lg bg-gray-200/20 p-4 text-xs">
       {/* Section: Input data */}
       <div>
         <h4 className="font-semibold text-text-secondary mb-2">Ingångsdata</h4>
@@ -370,7 +370,7 @@ function DetailedCalculations({
             </thead>
             <tbody>
               {monthNames.map((name, i) => (
-                <tr key={i} className="border-t border-white/5">
+                <tr key={i} className="border-t border-gray-100">
                   <td className="py-0.5 px-1 text-text-secondary">{name}</td>
                   <td className="py-0.5 px-1 text-right tabular-nums text-text-muted">
                     {d.monthlyKwh[i]?.toLocaleString("sv-SE") ?? "\u2014"}
@@ -440,7 +440,7 @@ function DetailedCalculations({
       </div>
 
       {/* Total summary */}
-      <div className="border-t border-white/10 pt-3">
+      <div className="border-t border-gray-200 pt-3">
         <div className="flex items-center justify-between">
           <span className="font-semibold text-text-secondary">Totalt exkl moms</span>
           <span className="font-bold text-text-primary tabular-nums">
@@ -453,7 +453,7 @@ function DetailedCalculations({
             {Math.round(components.totalKr - components.totalKr / 1.25).toLocaleString("sv-SE")} kr/år
           </span>
         </div>
-        <div className="flex items-center justify-between mt-1 border-t border-white/10 pt-1">
+        <div className="flex items-center justify-between mt-1 border-t border-gray-200 pt-1">
           <span className="font-semibold text-text-secondary">Totalt inkl moms</span>
           <span className="font-bold text-text-primary tabular-nums">
             {Math.round(components.totalKr).toLocaleString("sv-SE")} kr/år
@@ -462,7 +462,7 @@ function DetailedCalculations({
       </div>
 
       {/* Sources */}
-      <div className="border-t border-white/10 pt-3 text-[10px] text-text-muted/50">
+      <div className="border-t border-gray-200 pt-3 text-[10px] text-text-muted/50">
         <p className="font-medium mb-1">Källor</p>
         <ul className="space-y-0.5">
           <li>Spotpriser: Nord Pool historiska timdata 2022-2025 (genomsnitt)</li>
@@ -488,7 +488,7 @@ function CalcFormula({
   result: number;
 }) {
   return (
-    <div className="rounded-lg bg-surface-light/30 p-2">
+    <div className="rounded-lg bg-gray-200/30 p-2">
       <div className="flex items-center justify-between mb-1">
         <span className="font-medium text-text-secondary">{label}</span>
         <span className="font-bold text-text-primary tabular-nums">

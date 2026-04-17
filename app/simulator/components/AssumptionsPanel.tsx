@@ -25,7 +25,7 @@ function SliderRow({ label, value, min, max, step, unit, formula, onChange }: Sl
     <div className="py-3">
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-sm font-medium text-text-primary">{label}</span>
-        <span className="text-sm font-bold text-brand-300">
+        <span className="text-sm font-bold text-brand-600">
           {value.toLocaleString("sv-SE")} {unit}
         </span>
       </div>
@@ -57,7 +57,7 @@ export default function AssumptionsPanel({ assumptions, onChange }: AssumptionsP
   };
 
   return (
-    <div className="glass-card rounded-2xl">
+    <div className="card rounded-2xl">
       <button
         onClick={() => setExpanded(!expanded)}
         className="flex w-full items-center justify-between p-4 text-left"
@@ -129,7 +129,7 @@ export default function AssumptionsPanel({ assumptions, onChange }: AssumptionsP
             onChange={(v) => update("batterySizeKwh", v)}
           />
 
-          <div className="mt-3 rounded-xl bg-brand-500/10 p-3">
+          <div className="mt-3 rounded-xl bg-brand-50 border border-brand-200 p-3">
             <h4 className="text-xs font-semibold text-text-secondary mb-2">Så räknar vi</h4>
             <div className="space-y-1 text-xs text-text-muted leading-relaxed">
               <p><strong>Energikostnad</strong> = kWh nätimport x spotpris per timme</p>

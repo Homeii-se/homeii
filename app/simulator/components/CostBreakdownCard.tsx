@@ -80,7 +80,7 @@ export default function CostBreakdownCard({
   const positiveTotal = items.reduce((s, i) => s + Math.max(0, i.value), 0);
 
   return (
-    <div className="glass-card-strong rounded-2xl p-5">
+    <div className="card-strong rounded-2xl p-5">
       <h3 className="mb-1 text-sm font-semibold text-text-secondary">{title}</h3>
       <div className="mb-4 flex items-baseline gap-2">
         <span className="text-2xl font-bold text-text-primary">
@@ -183,7 +183,7 @@ export default function CostBreakdownCard({
 
           {/* Export revenue (if applicable) */}
           {components.exportRevenueKr < 0 && (
-            <div className="flex items-center justify-between border-t border-white/10 pt-1">
+            <div className="flex items-center justify-between border-t border-gray-200 pt-1">
               <div className="flex items-center gap-2">
                 <div className="h-2.5 w-2.5 rounded-full bg-energy-green" />
                 <span className="text-xs text-text-secondary">Försäljning överskottsproduktion</span>
@@ -205,10 +205,10 @@ export default function CostBreakdownCard({
 
       {/* Expandable: "Förstå din faktura" → InvoiceExplainerCard */}
       {calculationDetails && (
-        <div className="mt-4 border-t border-white/10 pt-3">
+        <div className="mt-4 border-t border-gray-200 pt-3">
           <button
             onClick={() => setExpanded(!expanded)}
-            className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-xs transition-colors hover:bg-surface-light/50"
+            className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-xs transition-colors hover:bg-gray-100"
           >
             <span className="font-medium text-text-muted">
               {expanded ? "Dölj fakturadetaljer" : "Förstå din faktura"}

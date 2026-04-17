@@ -32,7 +32,7 @@ export default function DatePicker({ selectedDate, onChange }: DatePickerProps) 
         <button
           onClick={() => shiftDay(-1)}
           disabled={selectedDate <= "2025-01-01"}
-          className="rounded-lg border border-border bg-surface px-2 py-1.5 text-sm text-text-secondary hover:text-text-primary hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-text-secondary hover:text-text-primary hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           aria-label="Föregående dag"
         >
           ‹
@@ -43,12 +43,12 @@ export default function DatePicker({ selectedDate, onChange }: DatePickerProps) 
           min="2025-01-01"
           max="2025-12-31"
           onChange={(e) => onChange(e.target.value)}
-          className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-text-primary focus:border-brand-500 focus:outline-none"
+          className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-text-primary focus:border-brand-500 focus:outline-none"
         />
         <button
           onClick={() => shiftDay(1)}
           disabled={selectedDate >= "2025-12-31"}
-          className="rounded-lg border border-border bg-surface px-2 py-1.5 text-sm text-text-secondary hover:text-text-primary hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-text-secondary hover:text-text-primary hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           aria-label="Nästa dag"
         >
           ›
@@ -59,8 +59,8 @@ export default function DatePicker({ selectedDate, onChange }: DatePickerProps) 
           onClick={() => onChange(todayMapped)}
           className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
             selectedDate === todayMapped
-              ? "bg-brand-500/20 text-brand-300"
-              : "bg-white/10 text-text-secondary hover:text-text-primary"
+              ? "bg-brand-100 text-brand-700"
+              : "bg-gray-100 text-text-secondary hover:text-text-primary"
           }`}
         >
           {STRINGS.today}
@@ -69,8 +69,8 @@ export default function DatePicker({ selectedDate, onChange }: DatePickerProps) 
           onClick={() => onChange(midwinter)}
           className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
             selectedDate === midwinter
-              ? "bg-brand-500/20 text-brand-300"
-              : "bg-white/10 text-text-secondary hover:text-text-primary"
+              ? "bg-brand-100 text-brand-700"
+              : "bg-gray-100 text-text-secondary hover:text-text-primary"
           }`}
         >
           {STRINGS.midwinter}
@@ -79,8 +79,8 @@ export default function DatePicker({ selectedDate, onChange }: DatePickerProps) 
           onClick={() => onChange(midsummer)}
           className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
             selectedDate === midsummer
-              ? "bg-brand-500/20 text-brand-300"
-              : "bg-white/10 text-text-secondary hover:text-text-primary"
+              ? "bg-brand-100 text-brand-700"
+              : "bg-gray-100 text-text-secondary hover:text-text-primary"
           }`}
         >
           {STRINGS.midsummer}

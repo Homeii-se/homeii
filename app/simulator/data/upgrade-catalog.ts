@@ -22,7 +22,7 @@ export const UPGRADE_DEFINITIONS: UpgradeDefinition[] = [
   {
     id: "batteri",
     label: "Hembatteri 25 kWh",
-    description: "Lagrar solel för användning kvällar och nätter",
+    description: "Spara solelen så du kan använda den när du behöver den.",
     investmentCostSEK: 110000,
     lifespanYears: 15,
     requires: "solceller",
@@ -31,7 +31,7 @@ export const UPGRADE_DEFINITIONS: UpgradeDefinition[] = [
   {
     id: "luftluft",
     label: "Luft-luft värmepump",
-    description: "COP 1,3–4 beroende på utetemperatur",
+    description: "Värmer upp till en bråkdel av kostnaden för direktel.",
     investmentCostSEK: 35000,
     lifespanYears: 15,
     incompatibleWith: ["luftvatten", "bergvarme"],
@@ -40,7 +40,7 @@ export const UPGRADE_DEFINITIONS: UpgradeDefinition[] = [
   {
     id: "luftvatten",
     label: "Luft-vatten värmepump",
-    description: "COP 1,5–4,3 — ersätter hela uppvärmningen",
+    description: "Ersätter hela uppvärmningen — mycket effektivare än direktel.",
     investmentCostSEK: 130000,
     lifespanYears: 20,
     incompatibleWith: ["luftluft", "bergvarme"],
@@ -49,7 +49,7 @@ export const UPGRADE_DEFINITIONS: UpgradeDefinition[] = [
   {
     id: "bergvarme",
     label: "Bergvärme",
-    description: "COP 3,2–4,2 — stabil oavsett utetemperatur",
+    description: "Stabil och effektiv värme oavsett hur kallt det är ute.",
     investmentCostSEK: 180000,
     lifespanYears: 25,
     incompatibleWith: ["luftluft", "luftvatten"],
@@ -74,7 +74,7 @@ export const UPGRADE_DEFINITIONS: UpgradeDefinition[] = [
   {
     id: "smartstyrning",
     label: "Smart styrning",
-    description: "Optimerar uppvärmning och förbrukning med ca 8 %",
+    description: "Låt huset sköta sig själv — smartare styrning av värme och el.",
     investmentCostSEK: 12000,
     lifespanYears: 10,
     icon: "🤖",
@@ -98,7 +98,7 @@ export const UPGRADE_DEFINITIONS: UpgradeDefinition[] = [
   {
     id: "dynamiskt_elpris",
     label: "Byt till dynamiskt elpris",
-    description: "Timpris ger dig möjlighet att styra förbrukningen till billiga timmar",
+    description: "Betala mindre genom att använda el när den är som billigast.",
     investmentCostSEK: 0,
     lifespanYears: 99,
     icon: "⚡",

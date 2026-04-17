@@ -16,14 +16,14 @@ export default function SEZoneSelector({ zone, onChange }: SEZoneSelectorProps) 
       <span className="text-sm font-medium text-text-secondary">
         {STRINGS.seZoneLabel}
       </span>
-      <div className="glass-card inline-flex rounded-xl p-1">
+      <div className="card inline-flex rounded-xl p-1">
         {ZONES.map((z) => (
           <button
             key={z}
             onClick={() => onChange(z)}
             className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
               zone === z
-                ? "bg-white/10 text-text-primary shadow-sm"
+                ? "bg-brand-50 text-text-primary shadow-sm"
                 : "text-text-secondary hover:text-text-primary"
             }`}
           >

@@ -32,12 +32,12 @@ export default function EnergyHealthScore({ summary, hasUpgrades, monthlyPeakKwA
   ];
 
   return (
-    <div className="glass-card-strong rounded-2xl p-5">
+    <div className="card-strong rounded-2xl p-5">
       <div className="flex items-center gap-5">
         {/* Score circle */}
         <div className="relative h-28 w-28 flex-shrink-0">
           <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
-            <circle cx="60" cy="60" r={radius} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="10" />
+            <circle cx="60" cy="60" r={radius} fill="none" stroke="rgba(26,60,42,0.1)" strokeWidth="10" />
             <circle
               cx="60" cy="60" r={radius}
               fill="none"
@@ -67,7 +67,7 @@ export default function EnergyHealthScore({ summary, hasUpgrades, monthlyPeakKwA
               return (
                 <div key={cat.label} className="flex items-center gap-2">
                   <span className="text-xs text-text-muted w-20 flex-shrink-0">{cat.label}</span>
-                  <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                  <div className="flex-1 h-1.5 rounded-full bg-gray-200 overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-700 ease-out"
                       style={{ width: `${pct}%`, backgroundColor: score.color }}

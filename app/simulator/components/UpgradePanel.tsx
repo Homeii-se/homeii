@@ -43,7 +43,7 @@ export default function UpgradePanel({
   }
 
   return (
-    <div className="glass-card-strong rounded-2xl">
+    <div className="card-strong rounded-2xl">
       {/* Header — always visible */}
       <button
         onClick={() => setExpanded(!expanded)}
@@ -77,7 +77,7 @@ export default function UpgradePanel({
             {UPGRADE_DEFINITIONS.map((upgrade) => (
               <div key={upgrade.id} className="relative">
                 {recommendedUpgradeIds?.includes(upgrade.id) && (
-                  <span className="absolute -top-1.5 -right-1.5 z-10 inline-flex items-center rounded-full bg-brand-500 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                  <span className="absolute -top-1.5 -right-1.5 z-10 inline-flex items-center rounded-full bg-cta-orange px-1.5 py-0.5 text-[10px] font-medium text-white">
                     Rek.
                   </span>
                 )}

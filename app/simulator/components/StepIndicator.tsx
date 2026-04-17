@@ -28,10 +28,10 @@ export default function StepIndicator({ currentStep, totalSteps, onStepClick }: 
               <div
                 className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-all duration-300 ${
                   isActive
-                    ? "bg-gradient-to-br from-brand-400 to-brand-600 text-white scale-110 shadow-md"
+                    ? "bg-brand-500 text-white scale-110 shadow-md"
                     : isCompleted
                     ? "bg-energy-green text-white hover:bg-energy-green/80 cursor-pointer"
-                    : "bg-white/10 text-text-muted"
+                    : "bg-gray-200 text-text-muted"
                 }`}
               >
                 {isCompleted ? (
@@ -53,7 +53,7 @@ export default function StepIndicator({ currentStep, totalSteps, onStepClick }: 
             {step < totalSteps && (
               <div
                 className={`h-0.5 w-6 transition-colors duration-300 ${
-                  isCompleted ? "bg-energy-green" : "bg-white/10"
+                  isCompleted ? "bg-energy-green" : "bg-gray-200"
                 }`}
               />
             )}

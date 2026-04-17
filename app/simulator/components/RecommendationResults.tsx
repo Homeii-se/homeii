@@ -69,11 +69,11 @@ export default function RecommendationResults({
     <div className="mx-auto max-w-2xl px-4 animate-fade-in">
       {/* Header */}
       <div className="mb-5">
-        <h2 className="text-xl font-bold text-text-primary">Våra rekommendationer för dig</h2>
+        <h2 className="text-xl font-bold text-text-primary">Det här rekommenderar vi för dig</h2>
         {recCount > 0 && totalYearlySavings > 0 && (
           <p className="mt-1 text-sm text-text-secondary">
             {STRINGS.recommendedActions}{" "}
-            <span className="font-semibold text-brand-300">
+            <span className="font-semibold text-brand-600">
               {recCount} {STRINGS.actionsThatSave}{" "}
               {totalYearlySavings.toLocaleString("sv-SE")} kr/år
             </span>
@@ -89,7 +89,7 @@ export default function RecommendationResults({
           ))}
         </div>
       ) : (
-        <div className="glass-card-strong rounded-2xl p-8 text-center mb-6">
+        <div className="card-strong rounded-2xl p-8 text-center mb-6">
           <p className="text-text-secondary">
             Din energiprofil ser redan bra ut! Vi hittade inga tydliga besparingsåtgärder.
           </p>
@@ -100,7 +100,7 @@ export default function RecommendationResults({
       {hasMore && !showAll && (
         <button
           onClick={() => setShowAll(true)}
-          className="w-full mb-4 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:border-brand-300 hover:text-text-primary"
+          className="w-full mb-4 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:border-brand-500 hover:text-text-primary"
         >
           Visa alla {recCount} rekommendationer
         </button>
@@ -115,13 +115,13 @@ export default function RecommendationResults({
       <div className="flex flex-col gap-3 mb-8">
         <button
           onClick={handleShare}
-          className="w-full rounded-2xl bg-gradient-to-r from-brand-500 to-brand-600 px-6 py-3 font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5"
+          className="w-full rounded-2xl bg-cta-orange px-6 py-3 font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5"
         >
           {shareCopied ? `✓ ${STRINGS.shareCopied}` : STRINGS.shareAnalysis}
         </button>
         <button
           onClick={onViewDashboard}
-          className="w-full rounded-xl border-2 border-border px-6 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:border-brand-300 hover:text-text-primary"
+          className="w-full rounded-xl border-2 border-border px-6 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:border-brand-500 hover:text-text-primary"
         >
           {STRINGS.viewDetailedAnalysis}
         </button>

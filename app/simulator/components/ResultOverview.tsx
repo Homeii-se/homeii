@@ -84,7 +84,7 @@ export default function ResultOverview({
   return (
     <div className="mx-auto max-w-2xl px-4 animate-fade-in">
       {/* Headline */}
-      <div className="glass-card-strong rounded-2xl p-5 mb-5">
+      <div className="card-strong rounded-2xl p-5 mb-5">
         <p className="text-sm text-text-muted mb-1">Uppskattad årlig elkostnad</p>
         <p className="text-3xl font-bold text-text-primary">
           {Math.round(currentSituation.yearlyTotalCostKr).toLocaleString("sv-SE")} kr/år
@@ -93,8 +93,8 @@ export default function ResultOverview({
           Baserat på din faktura, dina uppgifter och aktuella energipriser. Verklig kostnad kan avvika.
         </p>
         {(hasOnlyElnat || hasOnlyElhandel) && (
-          <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-            <p className="text-xs text-amber-200">
+          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+            <p className="text-xs text-amber-700">
               {hasOnlyElnat
                 ? "Endast elnätsfaktura uppladdad: elnätsdelen är fakturabaserad, elhandelsdelen är estimerad."
                 : "Endast elhandelsfaktura uppladdad: elhandelsdelen är fakturabaserad, elnätsdelen är estimerad."}
@@ -126,7 +126,7 @@ export default function ResultOverview({
 
       {/* Smartness insight — spot price ratio */}
       {billData.spotPriceRatio !== undefined && (
-        <div className="glass-card-strong rounded-2xl p-5 mb-5">
+        <div className="card-strong rounded-2xl p-5 mb-5">
           <div className="flex items-start gap-3">
             <span className="text-2xl flex-shrink-0">
               {billData.spotPriceRatio < 0.95 ? "⚡" : billData.spotPriceRatio > 1.05 ? "💡" : "👍"}
@@ -147,7 +147,7 @@ export default function ResultOverview({
               ) : billData.spotPriceRatio > 1.05 ? (
                 <p className="text-sm text-text-primary">
                   Du betalar{" "}
-                  <strong className="text-amber-400">
+                  <strong className="text-amber-600">
                     {Math.round((billData.spotPriceRatio - 1) * 100)}% över
                   </strong>{" "}
                   genomsnittligt spotpris. Genom att flytta förbrukning till
@@ -170,7 +170,7 @@ export default function ResultOverview({
 
       {/* Before/after existing investments comparison */}
       {hasExistingEquipment && existingSavingsKr > 0 && (
-        <div className="glass-card-strong rounded-2xl p-5 mb-5">
+        <div className="card-strong rounded-2xl p-5 mb-5">
           <h3 className="text-sm font-semibold text-text-secondary mb-3">Effekten av dina befintliga investeringar</h3>
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
@@ -185,7 +185,7 @@ export default function ResultOverview({
                 {Math.round(currentSituation.yearlyTotalCostKr).toLocaleString("sv-SE")} kr/år
               </span>
             </div>
-            <div className="flex items-center justify-between border-t border-white/10 pt-2 mt-1">
+            <div className="flex items-center justify-between border-t border-gray-200 pt-2 mt-1">
               <span className="text-sm font-medium text-text-secondary">Besparing</span>
               <span className="text-sm font-bold text-energy-green">
                 {existingSavingsKr.toLocaleString("sv-SE")} kr/år
@@ -214,9 +214,9 @@ export default function ResultOverview({
       <div className="flex flex-col gap-3">
         <button
           onClick={onContinue}
-          className="w-full rounded-2xl bg-gradient-to-r from-brand-500 to-brand-600 px-6 py-3 font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5"
+          className="w-full rounded-2xl bg-cta-orange px-6 py-3 font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5"
         >
-          Ser rimligt ut — visa rekommendationer
+          Ser bra ut! Visa vad jag kan göra
         </button>
         <p className="text-xs text-text-muted text-center mt-2">
           Uppskattningen baseras på din faktura och genomsnittliga energipriser för din zon.

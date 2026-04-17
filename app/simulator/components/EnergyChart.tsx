@@ -70,7 +70,7 @@ export default function EnergyChart({
             <div className="flex items-center gap-1">
               <div
                 className="h-2.5 w-2.5 rounded-sm"
-                style={{ background: "rgba(20,184,166,0.2)" }}
+                style={{ background: "rgba(46,125,82,0.2)" }}
               />
               <span>Utan åtgärder</span>
             </div>
@@ -99,7 +99,7 @@ export default function EnergyChart({
                 x2={chartWidth - padding.right}
                 y1={y}
                 y2={y}
-                stroke="rgba(255,255,255,0.1)"
+                stroke="rgba(26,60,42,0.08)"
                 strokeWidth="1"
                 strokeDasharray="4 4"
               />
@@ -107,7 +107,7 @@ export default function EnergyChart({
                 x={padding.left}
                 y={y - 4}
                 fontSize="10"
-                fill="#94a3b8"
+                fill="#8a8a80"
                 textAnchor="start"
               >
                 {Math.round(maxValue * frac)} {unit}
@@ -149,7 +149,7 @@ export default function EnergyChart({
                   width={barWidth}
                   height={baselineHeight}
                   rx={3}
-                  fill="rgba(20,184,166,0.15)"
+                  fill="rgba(46,125,82,0.15)"
                   className="animate-bar-grow"
                   style={{ animationDelay: `${i * 40}ms` }}
                 />
@@ -164,7 +164,7 @@ export default function EnergyChart({
                 rx={3}
                 className="animate-bar-grow"
                 style={{ animationDelay: `${i * 40}ms` }}
-                fill={d.highlight ? "#0d9488" : "#14b8a6"}
+                fill={d.highlight ? "#256B45" : "#2E7D52"}
                 opacity={d.highlight ? 1 : 0.75}
               />
 
@@ -188,7 +188,7 @@ export default function EnergyChart({
                 x={x + barWidth / 2}
                 y={Math.min(y, overlayHeight > 0 ? overlayY : y) - 4}
                 fontSize="9"
-                fill="#cbd5e1"
+                fill="#4a4a4a"
                 textAnchor="middle"
               >
                 {unit === "kr" || unit === "kW"
@@ -201,7 +201,7 @@ export default function EnergyChart({
                 x={x + barWidth / 2}
                 y={chartHeight - padding.bottom + 16}
                 fontSize="11"
-                fill="#cbd5e1"
+                fill="#4a4a4a"
                 textAnchor="middle"
               >
                 {d.label}
@@ -213,7 +213,7 @@ export default function EnergyChart({
                   x={x + barWidth / 2}
                   y={chartHeight - padding.bottom + 30}
                   fontSize="9"
-                  fill="#94a3b8"
+                  fill="#8a8a80"
                   textAnchor="middle"
                 >
                   {d.secondary.toLocaleString("sv-SE")} {secondaryUnit}

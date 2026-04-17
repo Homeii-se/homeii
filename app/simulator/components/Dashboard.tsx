@@ -260,7 +260,7 @@ export default function Dashboard({
       {/* Back button */}
       <button
         onClick={onBackToRecommendations}
-        className="mb-4 flex items-center gap-1.5 text-sm font-medium text-brand-300 hover:text-brand-200 transition-colors"
+        className="mb-4 flex items-center gap-1.5 text-sm font-medium text-brand-500 hover:text-brand-600 transition-colors"
       >
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -346,7 +346,7 @@ export default function Dashboard({
       )}
 
       {/* Chart */}
-      <div className="glass-card-strong rounded-2xl p-4">
+      <div className="card-strong rounded-2xl p-4">
         <EnergyChart
           data={chartData}
           unit={displayUnit}
@@ -420,7 +420,7 @@ export default function Dashboard({
       <div className="mt-6 text-center">
         <button
           onClick={onBackToRecommendations}
-          className="rounded-xl px-6 py-2.5 text-sm font-medium text-text-muted transition-colors hover:text-text-secondary hover:bg-surface-light/50"
+          className="rounded-xl px-6 py-2.5 text-sm font-medium text-text-muted transition-colors hover:text-text-secondary hover:bg-gray-100"
         >
           ← Tillbaka till rekommendationer
         </button>

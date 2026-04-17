@@ -27,30 +27,30 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="sv">
-      <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen antialiased text-slate-100`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen antialiased text-text-primary`}>
         <a href="#main-content" className="sr-only sr-only-focusable">Hoppa till innehåll</a>
 
-        <header className="sticky top-0 z-50 border-b border-sky-200/20 bg-slate-900/80 backdrop-blur-md">
+        <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 shadow-sm">
           <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
-            <Link href="/" className="flex items-center gap-2.5 rounded-md outline-none ring-sky-400 focus-visible:ring-2">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 shadow-sm">
+            <Link href="/" className="flex items-center gap-2.5 rounded-md outline-none ring-brand-500 focus-visible:ring-2">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-500 shadow-sm">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <circle cx="12" cy="12" r="6.5" stroke="white" strokeWidth="1.8" />
                   <circle cx="12" cy="12" r="2.2" fill="white" />
                 </svg>
               </span>
-              <span className="text-lg font-bold text-white tracking-tight">HOMEii</span>
+              <span className="text-lg font-bold text-brand-900 tracking-tight">HOMEii</span>
             </Link>
 
             {/* Desktop nav */}
             <nav className="hidden sm:flex items-center gap-1">
-              <Link href="/" className="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-white">
+              <Link href="/" className="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-gray-100 hover:text-text-primary">
                 Hem
               </Link>
-              <Link href="/" className="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-white">
+              <Link href="/" className="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-gray-100 hover:text-text-primary">
                 Simulator
               </Link>
-              <Link href="/" className="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-white">
+              <Link href="/" className="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-gray-100 hover:text-text-primary">
                 Om HOMEii
               </Link>
             </nav>
@@ -62,21 +62,21 @@ export default function RootLayout({
 
         <main id="main-content">{children}</main>
 
-        <footer className="border-t border-sky-200/20 bg-slate-900/80 py-8 backdrop-blur-md">
+        <footer className="border-t border-gray-200 bg-white/95 py-8 shadow-sm">
           <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6">
             <div className="flex items-center gap-2">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-400 to-brand-600">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-lg bg-brand-500">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <circle cx="12" cy="12" r="6.2" stroke="white" strokeWidth="1.8" />
                   <circle cx="12" cy="12" r="2.1" fill="white" />
                 </svg>
               </span>
-              <span className="font-semibold text-white">HOMEii</span>
+              <span className="font-semibold text-brand-900">HOMEii</span>
             </div>
-            <p className="text-center text-sm text-slate-400 sm:text-left">
+            <p className="text-center text-sm text-text-secondary sm:text-left">
               Oberoende energirådgivning — vi säljer ingenting
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-text-muted">
               © 2026 HOMEii. Alla beräkningar är uppskattningar.
             </p>
           </div>

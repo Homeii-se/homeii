@@ -13,10 +13,10 @@ export default function ConsumptionCard({
   value,
   unit,
   subtitle,
-  color = "text-brand-300",
+  color = "text-brand-600",
 }: ConsumptionCardProps) {
   return (
-    <div className="glass-card flex flex-col gap-1 rounded-2xl p-4">
+    <div className="card flex flex-col gap-1 rounded-2xl p-4">
       <span className="text-sm text-text-secondary">{label}</span>
       <div className="flex items-baseline gap-1.5">
         <span className={`text-2xl font-bold ${color}`}>{value}</span>

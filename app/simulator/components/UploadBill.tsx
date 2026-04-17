@@ -187,9 +187,9 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
         </p>
 
         {/* Show specific issues */}
-        <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex flex-col gap-2">
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex flex-col gap-2">
           {errors.map((issue, idx) => (
-            <div key={idx} className="flex items-start gap-2 text-sm text-amber-200">
+            <div key={idx} className="flex items-start gap-2 text-sm text-amber-700">
               <span className="mt-0.5 flex-shrink-0">⚠</span>
               <span>{issue.message}</span>
             </div>
@@ -209,7 +209,7 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
               setValidationResult(null);
               setError(null);
             }}
-            className="w-full rounded-2xl bg-gradient-to-r from-brand-500 to-brand-600 px-6 py-3 font-semibold text-white shadow-lg transition-all hover:shadow-xl"
+            className="w-full rounded-2xl bg-brand-500 px-6 py-3 font-semibold text-white shadow-lg transition-all hover:shadow-xl"
           >
             Ladda upp igen
           </button>
@@ -218,7 +218,7 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
               setValidationResult(null);
               setPhase("confirm");
             }}
-            className="w-full rounded-xl border border-border px-4 py-3 text-sm font-medium text-text-secondary hover:bg-white/5 transition-colors"
+            className="w-full rounded-xl border border-border px-4 py-3 text-sm font-medium text-text-secondary hover:bg-gray-100 transition-colors"
           >
             Ange uppgifter manuellt
           </button>
@@ -244,9 +244,9 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
 
         {/* Validation warnings (if any) */}
         {validationResult && validationResult.issues.length > 0 && (
-          <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 flex flex-col gap-1.5">
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex flex-col gap-1.5">
             {validationResult.issues.map((issue, idx) => (
-              <div key={idx} className="flex items-start gap-2 text-xs text-amber-300/80">
+              <div key={idx} className="flex items-start gap-2 text-xs text-amber-700">
                 <span className="mt-0.5 flex-shrink-0">⚠</span>
                 <span>{issue.message}</span>
               </div>
@@ -255,7 +255,7 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
         )}
 
         {/* Extraction summary */}
-        <div className="glass-card-strong rounded-2xl p-4 flex flex-col gap-3">
+        <div className="card-strong rounded-2xl p-4 flex flex-col gap-3">
           {billData.invoicePeriodKwh && billData.invoiceMonth !== undefined && (
             <div className="flex justify-between">
               <span className="text-sm text-text-secondary">
@@ -319,7 +319,7 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
           {billData.hasProductionRevenue && (
             <div className="flex justify-between">
               <span className="text-sm text-text-secondary">Solproduktion</span>
-              <span className="text-sm font-bold text-green-400">Ja</span>
+              <span className="text-sm font-bold text-energy-green">Ja</span>
             </div>
           )}
         </div>
@@ -327,12 +327,12 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
         {/* Invoice type indicators */}
         <div className="mt-4 flex gap-3">
           <div className={`flex-1 rounded-xl border-2 px-3 py-2 text-center text-sm ${
-            hasElhandel ? "border-green-500/50 bg-green-500/10 text-green-400" : "border-border text-text-muted"
+            hasElhandel ? "border-green-500/50 bg-green-50 text-green-700" : "border-border text-text-muted"
           }`}>
             {hasElhandel ? "✓ " : ""}Elhandel
           </div>
           <div className={`flex-1 rounded-xl border-2 px-3 py-2 text-center text-sm ${
-            hasElnat ? "border-green-500/50 bg-green-500/10 text-green-400" : "border-border text-text-muted"
+            hasElnat ? "border-green-500/50 bg-green-50 text-green-700" : "border-border text-text-muted"
           }`}>
             {hasElnat ? "✓ " : ""}Elnät
           </div>
@@ -342,7 +342,7 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
         {(!hasElhandel || !hasElnat) && (
           <button
             onClick={handleAddMore}
-            className="mt-4 w-full rounded-xl border-2 border-dashed border-brand-300/50 px-4 py-3 text-sm font-medium text-brand-300 hover:bg-brand-500/5 transition-colors"
+            className="mt-4 w-full rounded-xl border-2 border-dashed border-brand-500/50 px-4 py-3 text-sm font-medium text-brand-600 hover:bg-brand-50 transition-colors"
           >
             + Lägg till {!hasElnat ? "elnätsfaktura" : "elhandelsfaktura"}
           </button>
@@ -351,7 +351,7 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
         <button
           onClick={handleProceed}
           disabled={billData.kwhPerMonth <= 0}
-          className="mt-4 w-full rounded-2xl bg-gradient-to-r from-brand-500 to-brand-600 px-6 py-3 font-semibold text-white shadow-lg transition-all hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+          className="mt-4 w-full rounded-2xl bg-cta-orange px-6 py-3 font-semibold text-white shadow-lg transition-all hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {STRINGS.next}
         </button>
@@ -377,7 +377,7 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
                 value={manualKwh}
                 onChange={(e) => setManualKwh(Number(e.target.value))}
                 min={0}
-                className="w-full glass-card rounded-lg px-4 py-3 pr-16 text-text-primary outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                className="w-full card rounded-lg px-4 py-3 pr-16 text-text-primary outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-text-muted">kWh</span>
             </div>
@@ -392,7 +392,7 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
                 value={manualCost}
                 onChange={(e) => setManualCost(Number(e.target.value))}
                 min={0}
-                className="w-full glass-card rounded-lg px-4 py-3 pr-16 text-text-primary outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                className="w-full card rounded-lg px-4 py-3 pr-16 text-text-primary outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-text-muted">kr</span>
             </div>
@@ -407,7 +407,7 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
               value={manualNatAgare}
               onChange={(e) => setManualNatAgare(e.target.value)}
               placeholder="T.ex. Ellevio, Vattenfall, E.ON..."
-              className="w-full glass-card rounded-lg px-4 py-3 text-text-primary outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 placeholder:text-text-muted/50"
+              className="w-full card rounded-lg px-4 py-3 text-text-primary outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 placeholder:text-text-muted/50"
             />
           </label>
 
@@ -422,7 +422,7 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
                 onChange={(e) => setManualAnnualKwh(e.target.value === "" ? "" : Number(e.target.value))}
                 min={0}
                 placeholder="T.ex. 18000"
-                className="w-full glass-card rounded-lg px-4 py-3 pr-16 text-text-primary outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 placeholder:text-text-muted/50"
+                className="w-full card rounded-lg px-4 py-3 pr-16 text-text-primary outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 placeholder:text-text-muted/50"
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-text-muted">kWh/år</span>
             </div>
@@ -437,7 +437,7 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
             ...(manualAnnualKwh !== "" && manualAnnualKwh > 0 ? { annualKwh: manualAnnualKwh } : {}),
           })}
           disabled={manualKwh <= 0 || manualCost <= 0}
-          className="mt-6 w-full rounded-2xl bg-gradient-to-r from-brand-500 to-brand-600 px-6 py-3 font-semibold text-white shadow-lg transition-all hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+          className="mt-6 w-full rounded-2xl bg-cta-orange px-6 py-3 font-semibold text-white shadow-lg transition-all hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {STRINGS.next}
         </button>
@@ -452,12 +452,12 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
         {STRINGS.uploadTitle}
       </h2>
       <p className="mb-6 text-text-secondary">{STRINGS.uploadSubtitle}</p>
-      <p className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs text-amber-200">
+      <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-700">
         För bästa resultat: ladda upp elhandelsfakturan som PDF, inte som skärmdump.
       </p>
 
       {error && (
-        <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
@@ -467,8 +467,8 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
-        className={`glass-card flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 transition-colors ${
-          dragOver ? "border-brand-500 !bg-brand-500/10" : "border-border hover:border-brand-300"
+        className={`card flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 transition-colors ${
+          dragOver ? "border-brand-500 !bg-brand-50" : "border-border hover:border-brand-500"
         }`}
       >
         <svg
@@ -500,7 +500,7 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
           {stagedFiles.map((file, idx) => (
             <div
               key={`${file.name}-${idx}`}
-              className="glass-card rounded-xl px-4 py-3 flex items-center justify-between"
+              className="card rounded-xl px-4 py-3 flex items-center justify-between"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <span className="text-lg flex-shrink-0">
@@ -513,7 +513,7 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
               </div>
               <button
                 onClick={() => removeFile(idx)}
-                className="text-text-muted hover:text-red-400 transition-colors ml-2 flex-shrink-0"
+                className="text-text-muted hover:text-red-500 transition-colors ml-2 flex-shrink-0"
                 title="Ta bort"
               >
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -526,7 +526,7 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
           {/* Submit button */}
           <button
             onClick={handleSubmitFiles}
-            className="mt-2 w-full rounded-2xl bg-gradient-to-r from-brand-500 to-brand-600 px-6 py-3 font-semibold text-white shadow-lg transition-all hover:shadow-xl"
+            className="mt-2 w-full rounded-2xl bg-brand-500 px-6 py-3 font-semibold text-white shadow-lg transition-all hover:shadow-xl"
           >
             Analysera {stagedFiles.length === 1 ? "faktura" : `${stagedFiles.length} filer`}
           </button>
@@ -534,7 +534,7 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
       )}
 
       <div className="mt-4 text-center">
-        <button onClick={handleSkip} className="text-sm text-brand-300 hover:text-brand-200 underline underline-offset-2">
+        <button onClick={handleSkip} className="text-sm text-brand-600 hover:text-brand-500 underline underline-offset-2">
           Eller ange uppgifter manuellt
         </button>
       </div>

@@ -10,7 +10,7 @@ export default function MethodologyPanel() {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="glass-card-strong rounded-2xl">
+    <div className="card-strong rounded-2xl">
       {/* Header — always visible */}
       <button
         onClick={() => setExpanded(!expanded)}
@@ -50,7 +50,7 @@ export default function MethodologyPanel() {
               komplett bild av din energiekonomi:
             </p>
             <div className="space-y-3 text-sm text-text-muted leading-relaxed">
-              <div className="rounded-lg bg-brand-500/5 p-3 border border-brand-500/10">
+              <div className="rounded-lg bg-brand-50 p-3 border border-brand-200">
                 <p className="text-xs font-semibold text-text-primary mb-1">
                   1. Förbrukningsprofil
                 </p>
@@ -64,7 +64,7 @@ export default function MethodologyPanel() {
                 </p>
               </div>
 
-              <div className="rounded-lg bg-brand-500/5 p-3 border border-brand-500/10">
+              <div className="rounded-lg bg-brand-50 p-3 border border-brand-200">
                 <p className="text-xs font-semibold text-text-primary mb-1">
                   2. Produktionsprofil
                 </p>
@@ -77,7 +77,7 @@ export default function MethodologyPanel() {
                 </p>
               </div>
 
-              <div className="rounded-lg bg-brand-500/5 p-3 border border-brand-500/10">
+              <div className="rounded-lg bg-brand-50 p-3 border border-brand-200">
                 <p className="text-xs font-semibold text-text-primary mb-1">
                   3. Prismodell
                 </p>
@@ -89,7 +89,7 @@ export default function MethodologyPanel() {
                 </p>
               </div>
 
-              <div className="rounded-lg bg-brand-500/5 p-3 border border-brand-500/10">
+              <div className="rounded-lg bg-brand-50 p-3 border border-brand-200">
                 <p className="text-xs font-semibold text-text-primary mb-1">
                   4. Investeringsmodell
                 </p>
@@ -124,7 +124,7 @@ export default function MethodologyPanel() {
             </h4>
             <div className="space-y-3">
               {Object.entries(ALL_SOURCES).map(([key, source]) => (
-                <div key={key} className="rounded-lg bg-brand-500/5 p-3 border border-brand-500/10">
+                <div key={key} className="rounded-lg bg-brand-50 p-3 border border-brand-200">
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <p className="text-xs font-semibold text-text-primary">
                       {source.label}
@@ -136,7 +136,7 @@ export default function MethodologyPanel() {
                       href={source.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-brand-300 hover:text-brand-200 transition-colors underline"
+                      className="text-brand-600 hover:text-brand-500 transition-colors underline"
                     >
                       {source.source}
                     </a>
@@ -150,7 +150,7 @@ export default function MethodologyPanel() {
           </div>
 
           {/* Disclaimer */}
-          <div className="mt-6 rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-3">
+          <div className="mt-6 rounded-lg bg-amber-50 border border-amber-200 p-3">
             <p className="text-xs text-text-muted">
               <strong>Observera:</strong> Dessa beräkningar är estimat baserade på genomsnittlig
               klimatdata och typiska förbrukningsmönster. Faktiska besparingar beror på väder,

@@ -21,8 +21,8 @@ export default function RecommendationCard({ recommendation }: RecommendationCar
 
   return (
     <div
-      className={`glass-card-strong rounded-2xl overflow-hidden transition-all ${
-        recommendation.isTopPick ? "ring-2 ring-brand-400/50" : ""
+      className={`card-strong rounded-2xl overflow-hidden transition-all ${
+        recommendation.isTopPick ? "ring-2 ring-brand-500/30" : ""
       }`}
     >
       <div className="p-5">
@@ -30,8 +30,8 @@ export default function RecommendationCard({ recommendation }: RecommendationCar
           {/* Icon */}
           <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl text-xl ${
             recommendation.isTopPick
-              ? "bg-gradient-to-br from-brand-400 to-brand-600 shadow-md"
-              : "bg-surface-bright"
+              ? "bg-brand-500 shadow-md"
+              : "bg-card-green"
           }`}>
             {upgrade.icon}
           </div>
@@ -41,7 +41,7 @@ export default function RecommendationCard({ recommendation }: RecommendationCar
             <div className="flex items-center gap-2 mb-1">
               <h3 className="text-base font-semibold text-text-primary">{label}</h3>
               {recommendation.isTopPick && (
-                <span className="inline-flex items-center rounded-full bg-brand-500/20 px-2 py-0.5 text-xs font-medium text-brand-300">
+                <span className="inline-flex items-center rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">
                   {STRINGS.topPick}
                 </span>
               )}
@@ -89,7 +89,7 @@ export default function RecommendationCard({ recommendation }: RecommendationCar
         {/* Expand toggle */}
         <button
           onClick={() => setExpanded(!expanded)}
-          className="mt-3 flex items-center gap-1 text-xs font-medium text-brand-300 hover:text-brand-200"
+          className="mt-3 flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-500"
         >
           {expanded ? "Dölj detaljer" : "Visa detaljer"}
           <svg

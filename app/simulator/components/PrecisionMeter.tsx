@@ -29,7 +29,7 @@ export default function PrecisionMeter({ precision }: PrecisionMeterProps) {
             cy="50"
             r={radius}
             fill="none"
-            stroke="rgba(255,255,255,0.1)"
+            stroke="rgba(26,60,42,0.1)"
             strokeWidth="8"
           />
           {/* Progress circle */}
