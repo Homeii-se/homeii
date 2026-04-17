@@ -8,11 +8,14 @@ interface DatePickerProps {
 }
 
 export default function DatePicker({ selectedDate, onChange }: DatePickerProps) {
-  // Map today's month+day to 2025 (TMY year)
   const now = new Date();
-  const todayMapped = `2025-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  const midwinter = "2025-01-15";
-  const midsummer = "2025-06-21";
+  const year = now.getFullYear();
+  const todayMapped = `${year}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const midwinter = `${year}-01-15`;
+  const midsummer = `${year}-06-21`;
+
+  const yearStart = `${year}-01-01`;
+  const yearEnd = `${year}-12-31`;
 
   const shiftDay = (delta: number) => {
     const d = new Date(selectedDate + "T12:00:00");
@@ -21,8 +24,7 @@ export default function DatePicker({ selectedDate, onChange }: DatePickerProps) 
     const m = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(d.getDate()).padStart(2, "0");
     const next = `${y}-${m}-${day}`;
-    // Clamp to 2025-01-01 .. 2025-12-31
-    if (next < "2025-01-01" || next > "2025-12-31") return;
+    if (next < yearStart || next > yearEnd) return;
     onChange(next);
   };
 
@@ -31,7 +33,7 @@ export default function DatePicker({ selectedDate, onChange }: DatePickerProps) 
       <div className="flex items-center gap-1">
         <button
           onClick={() => shiftDay(-1)}
-          disabled={selectedDate <= "2025-01-01"}
+          disabled={selectedDate <= yearStart}
           className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-text-secondary hover:text-text-primary hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           aria-label="Föregående dag"
         >
@@ -40,14 +42,14 @@ export default function DatePicker({ selectedDate, onChange }: DatePickerProps) 
         <input
           type="date"
           value={selectedDate}
-          min="2025-01-01"
-          max="2025-12-31"
+          min={yearStart}
+          max={yearEnd}
           onChange={(e) => onChange(e.target.value)}
           className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-text-primary focus:border-brand-500 focus:outline-none"
         />
         <button
           onClick={() => shiftDay(1)}
-          disabled={selectedDate >= "2025-12-31"}
+          disabled={selectedDate >= yearEnd}
           className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-text-secondary hover:text-text-primary hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           aria-label="Nästa dag"
         >
