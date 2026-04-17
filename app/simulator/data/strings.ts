@@ -5,7 +5,6 @@
 export const STRINGS = {
   appTitle: "HOMEii",
   appDescription: "Din oberoende energirådgivare. Vi analyserar din elräkning och ger dig personliga rekommendationer för att sänka dina energikostnader.",
-  heroTagline: "Förstår du verkligen din elräkning? Det är inte dig det är fel på.",
   heroTitle: "Få koll på din energiekonomi",
   heroSubtitle: "Ladda upp din elräkning så visar vi vad du betalar, vad du kan spara — och vilka åtgärder som faktiskt lönar sig.",
   heroCta: "Analysera min elräkning",
