@@ -36,14 +36,16 @@
   --color-border: rgba(26, 60, 42, 0.12);
 
   /* New tokens */
-  --color-cta-orange: #F4A261;
+  --color-cta-orange: #E8824A;
   --color-card-green: #E8F0E8;
-  --color-bg-warm: #F7F3EE;
+  --color-bg-warm: #EFEBE4;
+  --color-green-light: #52B788;
+  --font-fraunces: var(--font-fraunces);
 }
 
 /* Warm flat background */
 .bg-gradient-main {
-  background: #F7F3EE;
+  background: #EFEBE4;
   min-height: 100vh;
 }
 

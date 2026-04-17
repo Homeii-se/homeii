@@ -10,7 +10,7 @@ export default function MobileNav() {
     <div className="sm:hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="flex h-9 w-9 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-gray-100 hover:text-text-primary"
+        className="flex h-9 w-9 items-center justify-center rounded-lg text-white/75 transition-colors hover:bg-white/10 hover:text-white"
         aria-label={open ? "Stäng meny" : "Öppna meny"}
       >
         {open ? (
