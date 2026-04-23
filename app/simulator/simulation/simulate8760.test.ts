@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { simulate8760Consumption, simulate8760WithSolar } from "./simulate8760";
+import {
+  dateToDayOfYear,
+  getDay,
+  simulate8760Consumption,
+  simulate8760WithSolar,
+} from "./simulate8760";
 import type { BillData, RefinementAnswers } from "../types";
 import type { TmyHourlyData } from "../data/pvgis-tmy";
 
@@ -47,6 +52,21 @@ describe("simulate8760Consumption", () => {
   });
 });
 
+describe("simulate8760 helpers", () => {
+  it("maps dates to day-of-year consistently", () => {
+    expect(dateToDayOfYear(new Date(2025, 0, 1))).toBe(0);
+    expect(dateToDayOfYear(new Date(2025, 11, 31))).toBe(364);
+  });
+
+  it("extracts one day (24 hours) from an 8760 array", () => {
+    const hourly = Array.from({ length: 8760 }, (_, i) => i);
+    const day10 = getDay(hourly, 10);
+    expect(day10).toHaveLength(24);
+    expect(day10[0]).toBe(240);
+    expect(day10[23]).toBe(263);
+  });
+});
+
 describe("simulate8760WithSolar", () => {
   it("returns balanced import/export/self-consumption arrays", () => {
     const tmy = createSyntheticTmy();
@@ -76,5 +96,31 @@ describe("simulate8760WithSolar", () => {
       expect(Math.abs(lhsConsumption - result.consumption[i])).toBeLessThan(1e-6);
       expect(Math.abs(lhsProduction - result.solarProduction[i])).toBeLessThan(1e-6);
     }
+  });
+
+  it("reduces annual export when battery is enabled", () => {
+    const tmy = createSyntheticTmy();
+    const bill: BillData = {
+      kwhPerMonth: 900,
+      costPerMonth: 1400,
+      annualKwh: 10800,
+      seZone: "SE3",
+    };
+
+    const noBattery = simulate8760WithSolar(
+      bill,
+      { hasSolar: true, solarSizeKw: 5, hasBattery: false, heatingTypes: ["direktel"] },
+      tmy,
+      "SE3"
+    );
+    const withBattery = simulate8760WithSolar(
+      bill,
+      { hasSolar: true, solarSizeKw: 5, hasBattery: true, batterySizeKwh: 10, heatingTypes: ["direktel"] },
+      tmy,
+      "SE3"
+    );
+
+    expect(withBattery.annualExportKwh).toBeLessThan(noBattery.annualExportKwh);
+    expect(withBattery.annualSelfConsumptionKwh).toBeGreaterThan(noBattery.annualSelfConsumptionKwh);
   });
 });

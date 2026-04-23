@@ -75,4 +75,44 @@ describe("calculateMonthlyCost", () => {
     expect(fixed.spotCostKr).toBe(750);
     expect(fixed.effectiveSpotOre).toBe(60);
   });
+
+  it("falls back to spotPriceOre when dynamic hourly cost is missing", () => {
+    const dynamicFallback = calculateMonthlyCost({
+      gridImportKwh: 1000,
+      gridExportKwh: 0,
+      peakGridKw: 0,
+      month: 6,
+      seZone: "SE3",
+      spotPriceOre: 120,
+      elContractType: "dynamic",
+      gridHasPowerCharge: false,
+      gridFixedFeeKr: 0,
+      gridTransferFeeOre: 0,
+      energyTaxOre: 0,
+      elhandelMarkupOre: 0,
+      elhandelMonthlyFeeKr: 0,
+    });
+
+    expect(dynamicFallback.spotCostKr).toBe(1500);
+    expect(dynamicFallback.effectiveSpotOre).toBe(120);
+  });
+
+  it("keeps effective total ore at 0 when there is no grid import", () => {
+    const zeroImport = calculateMonthlyCost({
+      gridImportKwh: 0,
+      gridExportKwh: 200,
+      peakGridKw: 0,
+      month: 4,
+      seZone: "SE3",
+      spotPriceOre: 100,
+      gridHasPowerCharge: false,
+      gridFixedFeeKr: 0,
+      gridTransferFeeOre: 0,
+      energyTaxOre: 0,
+      elhandelMarkupOre: 0,
+      elhandelMonthlyFeeKr: 0,
+    });
+
+    expect(zeroImport.effectiveTotalOrePerKwh).toBe(0);
+  });
 });

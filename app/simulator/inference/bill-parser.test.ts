@@ -92,6 +92,48 @@ describe("mergeBillData", () => {
     expect(merged.annualKwh).toBe(18000);
     expect(merged.kwhPerMonth).toBe(1500);
   });
+
+  it("protects annualized kwhPerMonth against single-period overwrite", () => {
+    const existing: BillData = {
+      kwhPerMonth: 2000,
+      costPerMonth: 2600,
+      annualKwh: 24000,
+      uploadedInvoiceTypes: ["elnat"],
+    };
+    const incoming: Partial<BillData> = {
+      kwhPerMonth: 2600,
+      uploadedInvoiceTypes: ["elnat"],
+    };
+
+    const merged = mergeBillData(existing, incoming);
+    expect(merged.kwhPerMonth).toBe(2000);
+    expect(merged.annualKwh).toBe(24000);
+  });
+
+  it("prioritizes elhandel calibration fields when elhandel arrives after elnat", () => {
+    const existing: BillData = {
+      kwhPerMonth: 1700,
+      costPerMonth: 2500,
+      uploadedInvoiceTypes: ["elnat"],
+      invoiceMonth: 0,
+      seZone: "SE3",
+    };
+    const incoming: Partial<BillData> = {
+      uploadedInvoiceTypes: ["elhandel"],
+      invoiceMonth: 2,
+      invoiceYear: 2025,
+      invoiceSpotPriceOre: 110,
+      kwhPerMonth: 1500,
+      annualKwh: 18000,
+    };
+
+    const merged = mergeBillData(existing, incoming);
+    expect(merged.invoiceMonth).toBe(2);
+    expect(merged.invoiceYear).toBe(2025);
+    expect(merged.kwhPerMonth).toBe(1500);
+    expect(merged.annualKwh).toBe(18000);
+    expect(merged.uploadedInvoiceTypes).toEqual(["elnat", "elhandel"]);
+  });
 });
 
 describe("validation and ratio", () => {
@@ -112,5 +154,31 @@ describe("validation and ratio", () => {
 
     expect(ratio).toBeTypeOf("number");
     expect(ratio).toBeGreaterThan(0);
+  });
+
+  it("returns undefined spot ratio for out-of-range values", () => {
+    const ratio = calculateSpotPriceRatio({
+      kwhPerMonth: 1000,
+      costPerMonth: 1500,
+      seZone: "SE3",
+      invoiceMonth: 0,
+      invoiceSpotPriceOre: 1000,
+      historicalSpotPriceOre: 100,
+    });
+
+    expect(ratio).toBeUndefined();
+  });
+
+  it("flags suspiciously high cost per kWh as extraction error", () => {
+    const result = validateExtraction({
+      invoiceType: "combined",
+      kwhForPeriod: 200,
+      totalCostInklMoms: 2000,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(
+      result.issues.some((i) => i.field === "totalCostInklMoms" && i.severity === "error")
+    ).toBe(true);
   });
 });
