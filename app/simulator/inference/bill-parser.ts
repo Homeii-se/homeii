@@ -484,7 +484,7 @@ export function validateExtraction(parsed: ParsedInvoice): ValidationResult {
   // Under the low threshold → cost or kWh may be misread.
   if (parsed.totalCostInklMoms && parsed.totalCostInklMoms > 0) {
     const kwhRef = hasPeriod ? parsed.kwhForPeriod! :
-                   hasAnnual ? parsed.annualKwh! / 12 : 0;
+      hasAnnual ? parsed.annualKwh! / 12 : 0;
     if (kwhRef > 0) {
       const costPerKwh = parsed.totalCostInklMoms / kwhRef;
       const isPartialInvoice = parsed.invoiceType === "elhandel" || parsed.invoiceType === "elnat";
@@ -519,6 +519,8 @@ export function validateExtraction(parsed: ParsedInvoice): ValidationResult {
     }
   }
 
+  // 5. Field-specific unit/range validation (catches LLM unit confusions)
+  issues.push(...validateFieldRanges(parsed));
   // Determine overall result: any "error" → not ok
   const hasError = issues.some((i) => i.severity === "error");
 
@@ -526,4 +528,153 @@ export function validateExtraction(parsed: ParsedInvoice): ValidationResult {
     ok: !hasError,
     issues,
   };
+}
+
+/**
+ * Field-specific unit and range validation.
+ *
+ * Catches LLM misreads where the VALUE is syntactically valid but semantically
+ * absurd — usually from unit confusion (öre vs kr, öre/kWh vs kr/kWh) or from
+ * the model grabbing the wrong field entirely (e.g. totalCostInklMoms as monthly fee).
+ *
+ * Ranges are based on Swedish electricity market realities (2024–2026).
+ * "error" = value is almost certainly wrong; UI should block or demand re-upload.
+ * "warning" = value is unusual but plausible; show to user, don't block.
+ */
+export function validateFieldRanges(parsed: ParsedInvoice): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  // --- spotPrice (öre/kWh ex moms) ---
+  if (parsed.spotPriceOreExMoms !== undefined) {
+    const v = parsed.spotPriceOreExMoms;
+    if (v < 5 || v > 500) {
+      issues.push({
+        severity: "error",
+        field: "spotPriceOreExMoms",
+        message: `Spotpris ${v} öre/kWh är utanför rimligt intervall (5–500 öre). Troligen fel enhet eller fel fält avläst.`,
+      });
+    } else if (v > 300) {
+      issues.push({
+        severity: "warning",
+        field: "spotPriceOreExMoms",
+        message: `Spotpris ${v} öre/kWh är ovanligt högt — dubbelkolla.`,
+      });
+    }
+  }
+
+  // --- markup (påslag, öre/kWh ex moms) ---
+  if (parsed.markupOreExMoms !== undefined) {
+    const v = parsed.markupOreExMoms;
+    if (v < 0) {
+      issues.push({
+        severity: "error",
+        field: "markupOreExMoms",
+        message: `Negativt påslag (${v} öre/kWh) är orimligt.`,
+      });
+    } else if (v > 100) {
+      issues.push({
+        severity: "warning",
+        field: "markupOreExMoms",
+        message: `Påslag ${v} öre/kWh är ovanligt högt — dubbelkolla enhet.`,
+      });
+    }
+  }
+
+  // --- monthlyFee (månadsavgift, kr ex moms) ---
+  if (parsed.monthlyFeeKrExMoms !== undefined) {
+    const v = parsed.monthlyFeeKrExMoms;
+    if (v < 0) {
+      issues.push({
+        severity: "error",
+        field: "monthlyFeeKrExMoms",
+        message: `Negativ månadsavgift (${v} kr) är orimlig.`,
+      });
+    } else if (v > 500) {
+      issues.push({
+        severity: "warning",
+        field: "monthlyFeeKrExMoms",
+        message: `Månadsavgift ${v} kr är ovanligt hög — möjligen totalkostnad avläst som månadsavgift.`,
+      });
+    }
+  }
+
+  // --- gridTransferFee (elöverföring, öre/kWh ex moms) ---
+  if (parsed.gridTransferFeeOreExMoms !== undefined) {
+    const v = parsed.gridTransferFeeOreExMoms;
+    if (v < 5 || v > 200) {
+      issues.push({
+        severity: "error",
+        field: "gridTransferFeeOreExMoms",
+        message: `Elöverföringsavgift ${v} öre/kWh är utanför rimligt intervall (5–200 öre). Troligen fel enhet (öre vs kr).`,
+      });
+    }
+  }
+
+  // --- gridFixedFee (nätabonnemang, kr ex moms per månad) ---
+  if (parsed.gridFixedFeeKrExMoms !== undefined) {
+    const v = parsed.gridFixedFeeKrExMoms;
+    if (v < 0) {
+      issues.push({
+        severity: "error",
+        field: "gridFixedFeeKrExMoms",
+        message: `Negativt nätabonnemang (${v} kr) är orimligt.`,
+      });
+    } else if (v > 800) {
+      issues.push({
+        severity: "warning",
+        field: "gridFixedFeeKrExMoms",
+        message: `Nätabonnemang ${v} kr/mån är ovanligt högt — dubbelkolla.`,
+      });
+    }
+  }
+
+  // --- gridPowerCharge (effektavgift, kr/kW ex moms) ---
+  if (parsed.gridPowerChargeKrPerKwExMoms !== undefined) {
+    const v = parsed.gridPowerChargeKrPerKwExMoms;
+    if (v < 0) {
+      issues.push({
+        severity: "error",
+        field: "gridPowerChargeKrPerKwExMoms",
+        message: `Negativ effektavgift (${v} kr/kW) är orimlig.`,
+      });
+    } else if (v > 200) {
+      issues.push({
+        severity: "warning",
+        field: "gridPowerChargeKrPerKwExMoms",
+        message: `Effektavgift ${v} kr/kW är ovanligt hög — dubbelkolla enhet.`,
+      });
+    }
+  }
+
+  // --- energyTax (energiskatt, öre/kWh ex moms) ---
+  if (parsed.energyTaxOreExMoms !== undefined) {
+    const v = parsed.energyTaxOreExMoms;
+    if (v < 20 || v > 70) {
+      issues.push({
+        severity: "error",
+        field: "energyTaxOreExMoms",
+        message: `Energiskatt ${v} öre/kWh ligger utanför reglerat intervall (20–70 öre). Troligen fel fält avläst.`,
+      });
+    }
+  }
+
+  // --- gridPeakKw (effekttopp, kW) ---
+  if (parsed.gridPeakKw !== undefined) {
+    const v = parsed.gridPeakKw;
+    if (v < 0) {
+      issues.push({
+        severity: "error",
+        field: "gridPeakKw",
+        message: `Negativ effekttopp (${v} kW) är orimlig.`,
+      });
+    } else if (v < 0.5 || v > 50) {
+      issues.push({
+        severity: "warning",
+        field: "gridPeakKw",
+        message: `Effekttopp ${v} kW är utanför typiskt hushållsintervall (0.5–50 kW).`,
+      });
+    }
+  }
+
+  return issues;
 }
