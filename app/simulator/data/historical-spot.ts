@@ -119,7 +119,7 @@ async function fetchDayPrices(url: string): Promise<ElprisetHourlyEntry[] | null
     }
 
     return (await response.json()) as ElprisetHourlyEntry[];
-  } catch (err) {
+  } catch {
     // Timeout or network error — skip this day
     return null;
   }

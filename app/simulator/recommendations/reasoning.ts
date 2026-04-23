@@ -12,8 +12,6 @@ import type {
   AnnualSummary,
   ActiveUpgrades,
 } from "../types";
-import { buildExistingEquipmentUpgrades } from "../simulation/upgrades";
-import { calculateAnnualSummary } from "../simulation/annual";
 
 export interface ReasoningFactor {
   label: string;
@@ -37,13 +35,19 @@ export interface ReasoningChain {
  */
 export function buildReasoningChain(
   rec: Recommendation,
-  _billData: BillData,
-  _refinement: RefinementAnswers,
-  _seZone: SEZone,
-  _assumptions: Assumptions,
-  _existingUpgrades: ActiveUpgrades,
-  _annualSummaryBefore: AnnualSummary
+  billData: BillData,
+  refinement: RefinementAnswers,
+  seZone: SEZone,
+  assumptions: Assumptions,
+  existingUpgrades: ActiveUpgrades,
+  annualSummaryBefore: AnnualSummary
 ): ReasoningChain {
+  void billData;
+  void refinement;
+  void seZone;
+  void assumptions;
+  void existingUpgrades;
+  void annualSummaryBefore;
   const factors: ReasoningFactor[] = [];
 
   if (rec.kwhReductionPercent > 0) {

@@ -12,7 +12,7 @@ import type {
   Assumptions,
   SEZone,
 } from "../types";
-import { HOURLY_PROFILE, HEATING_HOURLY_PROFILE, HEATING_SHARE, EV_CHARGING_PROFILE, BIG_CONSUMER_PROFILES } from "../data/energy-profiles";
+import { HOURLY_PROFILE, EV_CHARGING_PROFILE, BIG_CONSUMER_PROFILES } from "../data/energy-profiles";
 import { SE_ZONE_SPOT_PRICE, getHourlyPriceProfile } from "../data/energy-prices";
 import { getTemperature, getSolarProduction } from "../climate";
 import { getSeasonFactorForDate, applyUpgradesToHour } from "./upgrades";
@@ -93,10 +93,6 @@ export function simulateDay(
   const dailyKwh = bill.kwhPerMonth * seasonFactor / 30;
   const month = date.getMonth();
   const hourlyProfile = getAdjustedHourlyProfile(refinement, month);
-  const day = date.getDate();
-  const daysInMonth = new Date(date.getFullYear(), month + 1, 0).getDate();
-  const t = (day - 1) / daysInMonth;
-  const nextMonth = (month + 1) % 12;
 
   // Base hourly consumption
   const hourlyBase: number[] = [];

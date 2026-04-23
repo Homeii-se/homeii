@@ -200,7 +200,6 @@ export function getSolarProduction(zone: SEZone, date: Date, hour: number, solar
  * Returns total degree-hours for the month (used for energy need calculation).
  */
 export function getHeatingDegreeHours(zone: SEZone, monthIdx: number): number {
-  const climate = ZONE_CLIMATE[zone];
   const year = new Date().getFullYear();
   const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
   const baseTemp = 17; // Swedish standard indoor-outdoor balance point

@@ -3,7 +3,7 @@
  * These complement investment recommendations with actionable habits.
  */
 
-import type { RefinementAnswers, BillData, SEZone, Assumptions } from "../types";
+import type { RefinementAnswers, BillData, SEZone } from "../types";
 import { SE_ZONE_TOTAL_CONSUMER_PRICE } from "../data/energy-prices";
 
 export type TipCategory = "transport" | "contract" | "finance" | "heating" | "appliances" | "general";
@@ -24,8 +24,7 @@ export interface LifestyleTip {
 export function generateLifestyleTips(
   billData: BillData,
   refinement: RefinementAnswers,
-  seZone: SEZone,
-  _assumptions?: Assumptions
+  seZone: SEZone
 ): LifestyleTip[] {
   const yearlyKwh = billData.annualKwh ?? billData.kwhPerMonth * 12;
   const avgPriceOre = SE_ZONE_TOTAL_CONSUMER_PRICE[seZone]?.reduce((a, b) => a + b, 0) / 12 || 100;

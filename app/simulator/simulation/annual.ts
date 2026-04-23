@@ -12,7 +12,6 @@ import type {
   Assumptions,
   SEZone,
 } from "../types";
-import { MONTH_LABELS } from "../data/energy-profiles";
 import { UPGRADE_DEFINITIONS } from "../data/upgrade-catalog";
 import { getZoneClimate } from "../climate";
 import { getBlendedHeatingShare, getHeatPumpCOP, getAdjustedSeasonFactors } from "./upgrades";

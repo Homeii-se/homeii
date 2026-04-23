@@ -31,7 +31,6 @@ import type {
 } from "../types";
 import {
   UPGRADE_TYPES,
-  UPGRADE_VARIANTS,
   getVariantsForType,
   getRelevantTypeIds,
   type UpgradeType,

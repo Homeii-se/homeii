@@ -311,6 +311,7 @@ export function simulate8760Solar(
   tiltDeg: number = 30,
   azimuthDeg: number = 180
 ): number[] {
+  void azimuthDeg;
   const timeIndex = getTimeIndex();
   const result = new Array<number>(8760);
 

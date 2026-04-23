@@ -12,7 +12,6 @@ import type {
   ConfidenceLevel,
 } from "../types";
 import { NATAGARE_SE_ZONE } from "../data/inference-rules";
-import { HEATING_SHARE } from "../data/energy-profiles";
 
 /** Fuzzy-match nätägare name against known mappings */
 export function inferSEZone(natAgare?: string): InferredValue<SEZone> {
