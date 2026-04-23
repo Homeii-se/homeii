@@ -37,7 +37,7 @@ export default function LandingHero({ onStart }: LandingHeroProps) {
 
         {/* Trust row */}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-text-secondary">
-          {["Helt gratis", "Ingen registrering", "Data stannar lokalt"].map((item) => (
+          {["Helt gratis", "Personlig analys", "2-3 minuter"].map((item) => (
             <span key={item} className="inline-flex items-center gap-1.5">
               <svg className="h-4 w-4 text-green-light" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -52,7 +52,7 @@ export default function LandingHero({ onStart }: LandingHeroProps) {
       <section className="mx-auto max-w-3xl px-4 py-16">
         <div className="text-center">
           <h2 className="text-2xl font-light text-brand-900 sm:text-3xl font-[family-name:var(--font-fraunces)]">Så går det till</h2>
-          <p className="mt-2 text-text-secondary">Ingen registrering krävs. Helt gratis.</p>
+          <p className="mt-2 text-text-secondary">Kom igång på ett par minuter. Helt gratis.</p>
         </div>
         <ol className="mt-10 grid gap-6 sm:grid-cols-3">
           {[
@@ -114,7 +114,7 @@ export default function LandingHero({ onStart }: LandingHeroProps) {
       <section className="mx-auto max-w-2xl px-4 pb-16">
         <div className="rounded-3xl bg-card-green border border-brand-500/20 p-8 text-center sm:p-12">
           <h2 className="text-xl font-bold text-brand-900 sm:text-2xl">Redo att se vad du kan spara?</h2>
-          <p className="mt-3 text-text-secondary">Det tar bara 2–3 minuter och kräver ingen registrering.</p>
+          <p className="mt-3 text-text-secondary">Det tar bara 2-3 minuter att komma igång.</p>
           <button
             onClick={onStart}
             className="mt-6 inline-flex items-center gap-2 rounded-xl bg-cta-orange px-8 py-4 text-lg font-semibold text-white shadow-lg transition hover:shadow-xl hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cta-orange focus-visible:ring-offset-2"
@@ -130,7 +130,7 @@ export default function LandingHero({ onStart }: LandingHeroProps) {
         <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-8">
           <h2 className="text-lg font-semibold text-brand-900">Byggt för förtroende — inte försäljning</h2>
           <p className="mt-3 text-text-secondary">
-            HOMEii säljer inga produkter eller tjänster. Vi hjälper dig fatta ett klokt beslut med tydliga siffror och ärliga beräkningar. All data stannar i din webbläsare — inget sparas på våra servrar.
+            HOMEii säljer inga produkter eller tjänster. Vi hjälper dig fatta ett klokt beslut med tydliga siffror och ärliga beräkningar.
           </p>
         </div>
       </section>
