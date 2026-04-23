@@ -17,6 +17,7 @@ const STEPS = [
 
 export default function ProcessingAnimation({ onComplete }: ProcessingAnimationProps) {
   const [currentStep, setCurrentStep] = useState(0);
+  const lineWidths = ["64%", "78%", "72%", "86%", "69%", "81%"];
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -47,7 +48,7 @@ export default function ProcessingAnimation({ onComplete }: ProcessingAnimationP
               key={i}
               className="h-1.5 rounded-full bg-brand-200 animate-pulse-slow"
               style={{
-                width: `${60 + Math.random() * 30}%`,
+                width: lineWidths[i],
                 animationDelay: `${i * 200}ms`,
               }}
             />

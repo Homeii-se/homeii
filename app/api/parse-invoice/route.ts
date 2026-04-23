@@ -216,7 +216,7 @@ Return JSON with these fields (omit any not found):
       return NextResponse.json({ error: "Could not parse LLM response" }, { status: 500 });
     }
 
-    let parsed = JSON.parse(jsonMatch[0]);
+    const parsed = JSON.parse(jsonMatch[0]);
 
     // Normalize: always work with an array of invoices
     const invoices: Array<Record<string, unknown>> = Array.isArray(parsed) ? parsed : [parsed];

@@ -48,7 +48,7 @@ export function simulateMonthsWithUpgrades(
   assumptions?: Assumptions
 ): MonthlyDataPointExtended[] {
   const year = new Date().getFullYear();
-  let seasonFactors = getAdjustedSeasonFactors(refinement, seZone);
+  const seasonFactors = getAdjustedSeasonFactors(refinement, seZone);
 
   // --- Seasonal consumption calibration (pin-and-redistribute) ---
   // If we have actual kWh for a specific month from the invoice, use it to

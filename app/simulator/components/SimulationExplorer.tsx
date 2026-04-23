@@ -21,6 +21,7 @@ import EnergyChart from "./EnergyChart";
 import PeriodToggle from "./PeriodToggle";
 import DatePicker from "./DatePicker";
 import UnitToggle from "./UnitToggle";
+import type { MonthlyDataPointExtended } from "../types";
 
 interface SimulationExplorerProps {
   billData: BillData;
@@ -64,7 +65,6 @@ export default function SimulationExplorer({
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
     if (selectedDate > today) {
-      setActualSpotPricesOre(null);
       return;
     }
 
@@ -89,6 +89,11 @@ export default function SimulationExplorer({
     };
   }, [selectedDate, seZone]);
 
+  const effectiveSpotPricesOre = useMemo(
+    () => (selectedDate > new Date().toISOString().slice(0, 10) ? null : actualSpotPricesOre),
+    [actualSpotPricesOre, selectedDate]
+  );
+
   // Full 8760-hour simulation — anchored to ACTUAL bill (no inflation)
   const sim8760 = useMemo(() => {
     if (!tmyData || tmyData.length < 8760 || !refinement) return null;
@@ -103,7 +108,6 @@ export default function SimulationExplorer({
       const dayOfYear = dateToDayOfYear(date);
       const consumption = getDay(sim8760.consumption, dayOfYear);
       const solar = getDay(sim8760.solarProduction, dayOfYear);
-      const selfCons = getDay(sim8760.selfConsumption, dayOfYear);
       const gridImport = getDay(sim8760.gridImport, dayOfYear);
       const gridExport = getDay(sim8760.gridExport, dayOfYear);
       const month = date.getMonth();
@@ -111,7 +115,7 @@ export default function SimulationExplorer({
       const priceProfile = getHourlyPriceProfile(month);
 
       return Array.from({ length: 24 }, (_, h) => {
-        const spotOre = actualSpotPricesOre?.[h] ?? (monthAvgSpotOre * priceProfile[h]);
+        const spotOre = effectiveSpotPricesOre?.[h] ?? (monthAvgSpotOre * priceProfile[h]);
         return {
           hour: h,
           kwhBase: consumption[h],
@@ -128,8 +132,8 @@ export default function SimulationExplorer({
     }
 
     if (!refinement) return null;
-    return simulateDay(billData, refinement, date, activeUpgrades, seZone, assumptions, actualSpotPricesOre ?? undefined);
-  }, [sim8760, selectedDate, billData, refinement, activeUpgrades, seZone, assumptions, actualSpotPricesOre]);
+    return simulateDay(billData, refinement, date, activeUpgrades, seZone, assumptions, effectiveSpotPricesOre ?? undefined);
+  }, [sim8760, selectedDate, billData, refinement, activeUpgrades, seZone, assumptions, effectiveSpotPricesOre]);
 
   const monthlyExtended = useMemo(() => {
     if (!refinement) return null;
@@ -154,11 +158,11 @@ export default function SimulationExplorer({
             if (consumption[h] > maxGridImportBase) maxGridImportBase = consumption[h];
           }
         }
-        (result[m] as any).peakKw = Math.round(maxGridImport * 10) / 10;
-        (result[m] as any).peakKwBase = Math.round(maxGridImportBase * 10) / 10;
+        result[m].peakKw = Math.round(maxGridImport * 10) / 10;
+        result[m].peakKwBase = Math.round(maxGridImportBase * 10) / 10;
         dayStart += days;
       }
-      console.log('[SimExplorer] 8760-based peaks:', result.map((m: any) => m.peakKw.toFixed(1)));
+      console.log("[SimExplorer] 8760-based peaks:", result.map((m: MonthlyDataPointExtended) => m.peakKw.toFixed(1)));
     }
 
     return result;

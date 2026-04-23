@@ -84,7 +84,6 @@ export default function Dashboard({
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
     if (selectedDate > today) {
-      setActualSpotPricesOre(null);
       return;
     }
 
@@ -109,6 +108,11 @@ export default function Dashboard({
     };
   }, [selectedDate, seZone]);
 
+  const effectiveSpotPricesOre = useMemo(
+    () => (selectedDate > new Date().toISOString().slice(0, 10) ? null : actualSpotPricesOre),
+    [actualSpotPricesOre, selectedDate]
+  );
+
   // Memoized calculations — anchored to ACTUAL bill (no inflation)
   const annualSummary = useMemo(
     () => calculateAnnualSummary(billData, refinement, activeUpgrades, seZone, assumptions, true),
@@ -129,7 +133,6 @@ export default function Dashboard({
       const dayOfYear = dateToDayOfYear(date);
       const consumption = getDay(sim8760.consumption, dayOfYear);
       const solar = getDay(sim8760.solarProduction, dayOfYear);
-      const selfCons = getDay(sim8760.selfConsumption, dayOfYear);
       const gridImport = getDay(sim8760.gridImport, dayOfYear);
       const gridExport = getDay(sim8760.gridExport, dayOfYear);
       const month = date.getMonth();
@@ -137,7 +140,7 @@ export default function Dashboard({
       const priceProfile = getHourlyPriceProfile(month);
 
       return Array.from({ length: 24 }, (_, h) => {
-        const spotOre = actualSpotPricesOre?.[h] ?? (monthAvgSpotOre * priceProfile[h]);
+        const spotOre = effectiveSpotPricesOre?.[h] ?? (monthAvgSpotOre * priceProfile[h]);
         return {
           hour: h,
           kwhBase: consumption[h],
@@ -154,8 +157,8 @@ export default function Dashboard({
     }
 
     // Fallback: legacy simulateDay (identical per month)
-    return simulateDay(billData, refinement, date, activeUpgrades, seZone, assumptions, actualSpotPricesOre ?? undefined);
-  }, [sim8760, selectedDate, billData, refinement, activeUpgrades, seZone, assumptions, actualSpotPricesOre]);
+    return simulateDay(billData, refinement, date, activeUpgrades, seZone, assumptions, effectiveSpotPricesOre ?? undefined);
+  }, [sim8760, selectedDate, billData, refinement, activeUpgrades, seZone, assumptions, effectiveSpotPricesOre]);
 
   const monthlyExtended = useMemo(
     () => simulateMonthsWithUpgrades(billData, refinement, activeUpgrades, seZone, assumptions),

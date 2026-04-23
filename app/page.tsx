@@ -21,27 +21,19 @@ import { SE_ZONE_CENTROIDS } from "./simulator/data/geocoding";
 const TOTAL_STEPS = 4;
 
 export default function Home() {
-  const [state, setState] = useState<SimulatorState>(DEFAULT_STATE);
-  const [loaded, setLoaded] = useState(false);
-  const [tmyData, setTmyData] = useState<TmyHourlyData[] | null>(null);
-  const [tmyLoading, setTmyLoading] = useState(false);
-
-  // Load state from localStorage on mount
-  useEffect(() => {
+  const [state, setState] = useState<SimulatorState>(() => {
     const saved = loadState();
     if (!saved.selectedDate || saved.selectedDate === "2026-03-25") {
       saved.selectedDate = new Date().toISOString().split("T")[0];
     }
-    setState(saved);
-    setLoaded(true);
-  }, []);
+    return saved;
+  });
+  const [tmyData, setTmyData] = useState<TmyHourlyData[] | null>(null);
 
   // Persist state on every change (after initial load)
   useEffect(() => {
-    if (loaded) {
-      saveState(state);
-    }
-  }, [state, loaded]);
+    saveState(state);
+  }, [state]);
 
   const updateState = useCallback((updates: Partial<SimulatorState>) => {
     setState((prev) => ({ ...prev, ...updates }));
@@ -66,7 +58,6 @@ export default function Home() {
     }
 
     let cancelled = false;
-    setTmyLoading(true);
 
     fetchTmyData(lat, lon)
       .then((data) => {
@@ -77,9 +68,6 @@ export default function Home() {
       })
       .catch((err) => {
         console.warn("[PAGE] Failed to fetch TMY data, falling back to legacy:", err);
-      })
-      .finally(() => {
-        if (!cancelled) setTmyLoading(false);
       });
 
     return () => { cancelled = true; };
@@ -243,14 +231,6 @@ export default function Home() {
       selectedDate: new Date().toISOString().split("T")[0],
     });
   }, []);
-
-  if (!loaded) {
-    return (
-      <div className="bg-gradient-main flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 rounded-full border-2 border-brand-500/30 border-t-brand-500 animate-spin-slow" />
-      </div>
-    );
-  }
 
   return (
     <div className="bg-gradient-main relative min-h-screen pb-12">

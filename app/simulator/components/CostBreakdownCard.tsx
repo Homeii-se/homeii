@@ -94,29 +94,30 @@ export default function CostBreakdownCard({
         {/* Donut chart */}
         <div className="relative h-36 w-36 flex-shrink-0">
           <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
-            {(() => {
-              let cumulative = 0;
-              const circumference = Math.PI * 80; // r=40
-              return items
-                .filter((i) => i.value > 0)
-                .map((item, idx) => {
-                  const pct = item.value / positiveTotal;
-                  const dashLength = pct * circumference;
-                  const dashOffset = cumulative * circumference;
-                  cumulative += pct;
-                  return (
-                    <circle
-                      key={idx}
-                      cx="50" cy="50" r="40"
-                      fill="none"
-                      stroke={item.color}
-                      strokeWidth="16"
-                      strokeDasharray={`${dashLength} ${circumference - dashLength}`}
-                      strokeDashoffset={-dashOffset}
-                    />
-                  );
-                });
-            })()}
+            {items
+              .filter((i) => i.value > 0)
+              .reduce<Array<{ item: (typeof items)[number]; offsetPct: number }>>((acc, item) => {
+                const offsetPct = acc.length === 0 ? 0 : acc[acc.length - 1].offsetPct + (acc[acc.length - 1].item.value / positiveTotal);
+                acc.push({ item, offsetPct });
+                return acc;
+              }, [])
+              .map(({ item, offsetPct }, idx) => {
+                const circumference = Math.PI * 80; // r=40
+                const pct = item.value / positiveTotal;
+                const dashLength = pct * circumference;
+                const dashOffset = offsetPct * circumference;
+                return (
+                  <circle
+                    key={idx}
+                    cx="50" cy="50" r="40"
+                    fill="none"
+                    stroke={item.color}
+                    strokeWidth="16"
+                    strokeDasharray={`${dashLength} ${circumference - dashLength}`}
+                    strokeDashoffset={-dashOffset}
+                  />
+                );
+              })}
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-xs text-text-muted">per månad</span>
