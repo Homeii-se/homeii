@@ -292,6 +292,8 @@ export default function Home() {
             billData={state.billData!}
             refinement={state.refinement}
             seZone={state.seZone}
+            assumptions={state.assumptions}
+            tmyData={tmyData ?? undefined}
             onViewDashboard={handleViewDashboard}
             onRestart={handleRestart}
           />

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import type { RecommendationResult, BillData, RefinementAnswers, SEZone } from "../types";
+import type { RecommendationResult, BillData, RefinementAnswers, SEZone, Assumptions } from "../types";
+import type { TmyHourlyData } from "../data/pvgis-tmy";
+import ScenarioTeaserCard from "./ScenarioTeaserCard";
 import { STRINGS } from "../data/strings";
 import RecommendationCard from "./RecommendationCard";
 
@@ -12,6 +14,8 @@ interface RecommendationResultsProps {
   seZone?: SEZone;
   onViewDashboard: () => void;
   onRestart: () => void;
+  assumptions?: Assumptions;
+  tmyData?: TmyHourlyData[];
 }
 
 /** Build a shareable URL encoding the analysis parameters */
@@ -35,14 +39,7 @@ function buildShareUrl(
   return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
 }
 
-export default function RecommendationResults({
-  recommendations,
-  billData,
-  refinement,
-  seZone,
-  onViewDashboard,
-  onRestart,
-}: RecommendationResultsProps) {
+export default function RecommendationResults({ recommendations, billData, refinement, seZone, onViewDashboard, onRestart, assumptions, tmyData }: RecommendationResultsProps) {
   const [shareCopied, setShareCopied] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
@@ -80,6 +77,20 @@ export default function RecommendationResults({
           </p>
         )}
       </div>
+
+      {/* Scenario-teaser — alarmerar och väcker nyfikenhet */}
+      {billData && seZone && assumptions && refinement && (
+        <div className="mb-5">
+          <ScenarioTeaserCard
+            billData={billData}
+            refinement={refinement}
+            seZone={seZone}
+            assumptions={assumptions}
+            tmyData={tmyData}
+            onExplore={onViewDashboard}
+          />
+        </div>
+      )}
 
       {/* Recommendation cards */}
       {recCount > 0 ? (

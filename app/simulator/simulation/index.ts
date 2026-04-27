@@ -1,5 +1,5 @@
 /**
- * Simulation layer — all calculation and modeling logic.
+ * Simulation layer - all calculation and modeling logic.
  * Master re-export for the simulation/ directory.
  */
 
@@ -14,3 +14,5 @@ export * from "./adapters";
 export { calculateMonthlyCost, calculateAnnualCost } from "./cost-model";
 export type { MonthlyCostInput, MonthlyCostBreakdown, AnnualCostBreakdown } from "./cost-model";
 export * from "./simulate8760";
+export * from "./historical-scenario";
+export * from "./future-scenario";

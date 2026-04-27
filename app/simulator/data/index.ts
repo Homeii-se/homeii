@@ -1,5 +1,5 @@
 /**
- * Data layer — all constants, profiles, and configuration.
+ * Data layer - all constants, profiles, and configuration.
  * Master re-export for the data/ directory.
  */
 
@@ -17,3 +17,4 @@ export * from "./energy-tax";
 export * from "./elhandel-defaults";
 export * from "./pvgis-tmy";
 export * from "./geocoding";
+export * from "./scenarios-presets";
