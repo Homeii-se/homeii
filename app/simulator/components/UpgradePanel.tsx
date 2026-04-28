@@ -5,6 +5,7 @@ import type { ActiveUpgrades, AnnualSummary, UpgradeId } from "../types";
 import { STRINGS } from "../data/strings";
 import { UPGRADE_DEFINITIONS } from "../data/upgrade-catalog";
 import UpgradeToggle from "./UpgradeToggle";
+import UpgradeEvidencePanel from "./UpgradeEvidencePanel";
 
 interface UpgradePanelProps {
   activeUpgrades: ActiveUpgrades;
@@ -20,6 +21,7 @@ export default function UpgradePanel({
   recommendedUpgradeIds,
 }: UpgradePanelProps) {
   const [expanded, setExpanded] = useState(false);
+  const [evidenceFor, setEvidenceFor] = useState<UpgradeId | null>(null);
 
   const anyActive = Object.values(activeUpgrades).some(Boolean);
 
@@ -81,6 +83,15 @@ export default function UpgradePanel({
                     Rek.
                   </span>
                 )}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setEvidenceFor(upgrade.id); }}
+                  className="absolute bottom-2 right-2 z-10 inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#2E7D52]/10 hover:bg-[#2E7D52]/25 text-[#2E7D52] text-xs font-semibold transition"
+                  title="Så räknade vi"
+                  aria-label={`Så räknade vi - ${upgrade.label}`}
+                >
+                  i
+                </button>
                 <UpgradeToggle
                   upgrade={upgrade}
                   active={activeUpgrades[upgrade.id]}
@@ -91,6 +102,16 @@ export default function UpgradePanel({
               </div>
             ))}
           </div>
+
+          {/* Evidens-panel för vald åtgärd */}
+          {evidenceFor && (
+            <div className="mt-4">
+              <UpgradeEvidencePanel
+                upgradeId={evidenceFor}
+                onClose={() => setEvidenceFor(null)}
+              />
+            </div>
+          )}
 
           {/* Summary footer */}
           {anyActive && (

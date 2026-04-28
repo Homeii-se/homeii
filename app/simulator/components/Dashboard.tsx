@@ -15,6 +15,7 @@ import type { TmyHourlyData } from "../data/pvgis-tmy";
 import { STRINGS } from "../data/strings";
 import { SE_ZONE_TOTAL_CONSUMER_PRICE } from "../data/energy-prices";
 import { calculateDailyKwh, getYearlyData, getPrecision, calculateAnnualSummary } from "../simulation/annual";
+import { NO_UPGRADES } from "../simulation/upgrades";
 import { simulateDay } from "../simulation/hourly";
 import { simulate8760WithSolar, getDay, dateToDayOfYear } from "../simulation/simulate8760";
 import { SE_ZONE_SPOT_PRICE, getHourlyPriceProfile } from "../data/energy-prices";
@@ -31,6 +32,7 @@ import AnnualSummaryBar from "./AnnualSummaryBar";
 import EnergyHealthScore from "./EnergyHealthScore";
 import AssumptionsPanel from "./AssumptionsPanel";
 import MethodologyPanel from "./MethodologyPanel";
+import ScenarioExplorerCard from "./ScenarioExplorerCard";
 
 interface DashboardProps {
   billData: BillData;
@@ -118,6 +120,23 @@ export default function Dashboard({
     () => calculateAnnualSummary(billData, refinement, activeUpgrades, seZone, assumptions, true),
     [billData, refinement, activeUpgrades, seZone, assumptions]
   );
+
+  // Baseline UTAN upgrades — används som jämförelsereferens i scenariovyn.
+  // Matchar EXAKT "Kostnadsfördelning — nuläge" i AnnualSummaryBar:
+  // förenklat refinement (bara elContractType), NO_UPGRADES, skipInflation=true.
+  const baselineNoUpgradesSummary = useMemo(() => {
+    const minimalRefinement: RefinementAnswers = {
+      elContractType: refinement.elContractType,
+    };
+    return calculateAnnualSummary(
+      billData,
+      minimalRefinement,
+      NO_UPGRADES,
+      seZone,
+      assumptions,
+      true /* skipInflation — matchar fakturan direkt */
+    );
+  }, [billData, refinement.elContractType, seZone, assumptions]);
 
   // Full 8760-hour simulation (memoized, runs once when tmyData is available)
   const sim8760 = useMemo(() => {
@@ -406,6 +425,33 @@ export default function Dashboard({
           onToggle={onUpgradeToggle}
           annualSummary={annualSummary}
           recommendedUpgradeIds={recommendedUpgradeIds}
+        />
+      </div>
+
+      {/* Vad-om-scenarier: historiska + framtida + grannmarknader */}
+      <div className="mt-4">
+        <ScenarioExplorerCard
+          sim8760={sim8760}
+          seZone={seZone}
+          baselineAnnualSpotKr={
+            baselineNoUpgradesSummary.annualCostBreakdown?.months.reduce(
+              (s, m) => s + m.spotCostKr,
+              0
+            ) ?? 0
+          }
+          baselineAnnualTotalKr={
+            baselineNoUpgradesSummary.annualCostBreakdown?.totalKr ??
+            baselineNoUpgradesSummary.yearlyTotalCostBase ??
+            0
+          }
+          baselineMonthlyKr={
+            baselineNoUpgradesSummary.annualCostBreakdown?.months.map(
+              (m) => m.totalKr
+            ) ??
+            new Array(12).fill(
+              (baselineNoUpgradesSummary.yearlyTotalCostBase ?? 0) / 12
+            )
+          }
         />
       </div>
 
