@@ -16,10 +16,40 @@ import type {
   SEZone,
 } from "../types";
 import type { TmyHourlyData } from "../data/pvgis-tmy";
-import { HOURLY_PROFILE, HEATING_HOURLY_PROFILE } from "../data/energy-profiles";
-import { getBlendedHeatingShare, getAdjustedSeasonFactors } from "./upgrades";
-import { HEATING_SHARE } from "../data/energy-profiles";
+import {
+  HOURLY_PROFILE,
+  HEATING_HOURLY_PROFILE,
+  HEATING_SHARE,
+  EV_CHARGING_PROFILE,
+  BIG_CONSUMER_PROFILES,
+} from "../data/energy-profiles";
+import {
+  getBlendedHeatingShare,
+  getAdjustedSeasonFactors,
+  getHeatPumpCOP,
+} from "./upgrades";
 import { BATTERY_PARAMS } from "../data/upgrade-catalog";
+
+/** Heat pump types (subset of HeatingType) that have COP curves */
+type HeatPumpType = "luftluft" | "luftvatten" | "bergvarme";
+const HEAT_PUMP_TYPES: HeatPumpType[] = ["luftluft", "luftvatten", "bergvarme"];
+
+/** Pick the primary heat pump type from a household's heating mix.
+ *  Returns undefined if no heat pump is present (direktel/fjärrvärme only).
+ *  When multiple heat pumps exist, returns the most efficient one
+ *  (lowest HEATING_SHARE) since that's the primary electric heater. */
+function getPrimaryHeatPump(
+  heatingTypes: ReadonlyArray<keyof typeof HEATING_SHARE> | undefined
+): HeatPumpType | undefined {
+  if (!heatingTypes || heatingTypes.length === 0) return undefined;
+  const heatPumps = heatingTypes.filter(
+    (t): t is HeatPumpType => (HEAT_PUMP_TYPES as string[]).includes(t)
+  );
+  if (heatPumps.length === 0) return undefined;
+  return heatPumps.sort(
+    (a, b) => HEATING_SHARE[a] - HEATING_SHARE[b]
+  )[0];
+}
 
 // ============================================================
 // Types
@@ -153,6 +183,24 @@ export function simulate8760Consumption(
   const heatingShare = getBlendedHeatingShare(refinement.heatingTypes)
     ?? (refinement.heatingType ? HEATING_SHARE[refinement.heatingType] : 0.5);
 
+  // --- Heat pump COP correction setup ---
+  // For heat pumps (luftluft / luftvatten / bergvärme) the electricity needed
+  // per kWh of heat output drops dramatically when it gets cold:
+  //   luftluft  COP: 4.0 at +15°C → 1.8 at -10°C  (2.2x more electricity)
+  //   bergvärme COP: 4.2 at +15°C → 3.4 at -10°C  (1.2x more electricity)
+  // Without COP correction, the linear degree-hour formula understates winter
+  // electricity load for heat-pump households.
+  // Source: Energimyndighetens värmepumpslista (HEAT_PUMP_COP_CURVES).
+  //
+  // For direktel/fjärrvärme: no COP concept (resistance heating ≈ COP 1).
+  const heatingTypesArr = refinement.heatingTypes
+    ?? (refinement.heatingType ? [refinement.heatingType] : []);
+  const primaryHeatPump = getPrimaryHeatPump(heatingTypesArr);
+  // When no heat pump present, use COP=1 (no correction, matches old behaviour)
+  const referenceCop = primaryHeatPump
+    ? getHeatPumpCOP(primaryHeatPump, 7) // datasheet rating point
+    : 1;
+
   // Season factors (may be pin-and-redistributed)
   const seasonFactors = [...getAdjustedSeasonFactors(refinement, seZone)];
 
@@ -198,7 +246,78 @@ export function simulate8760Consumption(
     Math.round(effectiveKwhPerMonth * f)
   );
 
-  // --- Step 1: Build raw (un-scaled) hourly consumption ---
+  // --- Big consumers: redistribute (NOT add) within the existing total ---
+  // The user's bill already includes EV/pool/spa/sauna kWh. We don't add them
+  // on top of the monthly target — that would double-count. We *redistribute*:
+  // subtract the expected big-consumer load from the heat+base budget, then
+  // add it back with a big-consumer-shaped hourly profile.
+  //
+  // Result: monthly totals stay correct, but hourly shape reflects EV night
+  // charging, pool day operation, etc.
+  const bigConsumerMonthlyKwh = new Array(12).fill(0); // total per month
+  const bigConsumerHourly = new Float64Array(8760);    // distributed per hour
+
+  // EV: real hourly profile (source: SCB & Trafikverket via EV_CHARGING_PROFILE)
+  // Activated by either explicit elCar="ja" or bigConsumers including "elbil".
+  // "planerar" = half-load (they're getting one but don't have it yet).
+  const hasEv =
+    refinement.elCar === "ja" || refinement.bigConsumers?.includes("elbil");
+  const planningEv =
+    refinement.elCar === "planerar" && !refinement.bigConsumers?.includes("elbil");
+
+  let evMonthly: number[] = new Array(12).fill(0);
+  if (hasEv) {
+    evMonthly = BIG_CONSUMER_PROFILES.elbil.monthlyKwhAdded.slice();
+  } else if (planningEv) {
+    evMonthly = BIG_CONSUMER_PROFILES.elbil.monthlyKwhAdded.map(k => k * 0.5);
+  }
+
+  // Pool / spabad / bastu: monthly kWh from BIG_CONSUMER_PROFILES, but no
+  // verified hourly profile available — distribute evenly within the day.
+  // Pool & spabad are continuous-load (pumps/heaters) so flat is reasonable;
+  // bastu is concentrated evening use, so flat understates the peakiness.
+  // PLACEHOLDER pending external hourly data (Energimyndigheten/branschdata).
+  const flatConsumerMonthly = new Array(12).fill(0);
+  for (const consumer of refinement.bigConsumers ?? []) {
+    if (consumer === "elbil") continue; // EV handled above with real profile
+    const profile = BIG_CONSUMER_PROFILES[consumer];
+    if (profile) {
+      profile.monthlyKwhAdded.forEach((kwh, m) => {
+        flatConsumerMonthly[m] += kwh;
+      });
+    }
+  }
+
+  // Normalize EV profile so daily kWh × profile[h] sums to daily kWh
+  const evProfileSum = EV_CHARGING_PROFILE.reduce((s, v) => s + v, 0);
+  const normalizedEvProfile = evProfileSum > 0
+    ? EV_CHARGING_PROFILE.map(v => v / evProfileSum)
+    : new Array(24).fill(1 / 24);
+
+  // Distribute big-consumer kWh per hour
+  for (let i = 0; i < 8760; i++) {
+    const m = timeIndex.month[i];
+    const hod = timeIndex.hourOfDay[i];
+    const daysInMonth = DAYS_PER_MONTH[m];
+
+    // EV: daily average × hourly profile
+    const evDailyKwh = daysInMonth > 0 ? evMonthly[m] / daysInMonth : 0;
+    const evHourly = evDailyKwh * normalizedEvProfile[hod];
+
+    // Other consumers: flat across day
+    const flatDailyKwh = daysInMonth > 0 ? flatConsumerMonthly[m] / daysInMonth : 0;
+    const flatHourly = flatDailyKwh / 24;
+
+    bigConsumerHourly[i] = evHourly + flatHourly;
+    bigConsumerMonthlyKwh[m] += bigConsumerHourly[i];
+  }
+
+  // Heat+base must hit (monthly target − big consumer contribution) so total stays correct
+  const adjustedMonthlyTarget = monthlyTargetKwh.map(
+    (target, m) => Math.max(0, target - bigConsumerMonthlyKwh[m])
+  );
+
+  // --- Step 1: Build raw (un-scaled) hourly heat+base consumption ---
   // For each hour: baseLoad(hourOfDay) + heatingDemand(temperature)
   const rawHourly = new Float64Array(8760);
   const monthlyRawSum = new Float64Array(12);
@@ -224,22 +343,29 @@ export function simulate8760Consumption(
     const baseLoad = baseFraction * (1 - heatingShare);
 
     // Heating component: degree-hour method, base 17°C
-    // Now modulated by time-of-day profile (morning+evening peaks)
+    // Now modulated by time-of-day profile (morning+evening peaks).
+    // For heat pumps, also corrected by COP at this temperature — colder hours
+    // need disproportionately more electricity per kWh of heat output.
     const heatingDegrees = Math.max(0, 17 - tempC);
-    const heatingLoad = heatingDegrees * heatingShare / 17 * normalizedHeatingProfile[hod];
+    let copFactor = 1;
+    if (primaryHeatPump) {
+      const cop = getHeatPumpCOP(primaryHeatPump, tempC);
+      copFactor = referenceCop / Math.max(0.5, cop); // guard against absurd low COP
+    }
+    const heatingLoad = heatingDegrees * heatingShare / 17 * normalizedHeatingProfile[hod] * copFactor;
 
     rawHourly[i] = baseLoad + heatingLoad;
     monthlyRawSum[m] += rawHourly[i];
   }
 
-  // --- Step 2: Scale each month to match target kWh ---
+  // --- Step 2: Scale heat+base to adjusted target, then add big consumers back ---
   const result = new Array<number>(8760);
   for (let i = 0; i < 8760; i++) {
     const m = timeIndex.month[i];
     const scale = monthlyRawSum[m] > 0
-      ? monthlyTargetKwh[m] / monthlyRawSum[m]
+      ? adjustedMonthlyTarget[m] / monthlyRawSum[m]
       : 0;
-    result[i] = Math.max(0, rawHourly[i] * scale);
+    result[i] = Math.max(0, rawHourly[i] * scale + bigConsumerHourly[i]);
   }
 
   // Verify: log monthly and annual totals
@@ -249,8 +375,19 @@ export function simulate8760Consumption(
     monthTotals[timeIndex.month[i]] += result[i];
     total += result[i];
   }
+  const bigConsumerAnnual = bigConsumerMonthlyKwh.reduce((s, v) => s + v, 0);
   console.log("[8760-CONSUMPTION] Monthly totals:", monthTotals.map(v => Math.round(v)));
   console.log("[8760-CONSUMPTION] Annual total:", Math.round(total), "kWh (target:", Math.round(effectiveKwhPerMonth * 12), ")");
+  if (bigConsumerAnnual > 0) {
+    console.log("[8760-CONSUMPTION] Big consumers redistributed:", Math.round(bigConsumerAnnual), "kWh/yr",
+      "(EV:", Math.round(evMonthly.reduce((s, v) => s + v, 0)), "kWh,",
+      "other:", Math.round(flatConsumerMonthly.reduce((s, v) => s + v, 0)), "kWh)");
+  }
+  if (primaryHeatPump) {
+    console.log(
+      `[8760-CONSUMPTION] Heat pump COP correction applied (${primaryHeatPump}, reference COP@7°C=${referenceCop.toFixed(2)})`
+    );
+  }
 
   return result;
 }
