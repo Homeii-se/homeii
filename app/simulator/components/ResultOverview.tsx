@@ -43,7 +43,7 @@ export default function ResultOverview({
 }: ResultOverviewProps) {
   // Local date state for the simulation explorer
   const now = new Date();
-  const todayMapped = `2025-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const todayMapped = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const [selectedDate, setSelectedDate] = useState(todayMapped);
   const { currentSituation, existingSavingsKr, withoutInvestments } = threeScenarios;
   const uploadedTypes = billData.uploadedInvoiceTypes ?? [];
