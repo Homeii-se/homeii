@@ -547,11 +547,11 @@ export function validateFieldRanges(parsed: ParsedInvoice): ValidationIssue[] {
   // --- spotPrice (öre/kWh ex moms) ---
   if (parsed.spotPriceOreExMoms !== undefined) {
     const v = parsed.spotPriceOreExMoms;
-    if (v < 5 || v > 500) {
+    if (v < 5 || v > 1500) {
       issues.push({
         severity: "error",
         field: "spotPriceOreExMoms",
-        message: `Spotpris ${v} öre/kWh är utanför rimligt intervall (5–500 öre). Troligen fel enhet eller fel fält avläst.`,
+        message: `Spotpris ${v} öre/kWh är utanför rimligt intervall (5–1500 öre). Troligen fel enhet eller fel fält avläst.`,
       });
     } else if (v > 300) {
       issues.push({
@@ -571,7 +571,7 @@ export function validateFieldRanges(parsed: ParsedInvoice): ValidationIssue[] {
         field: "markupOreExMoms",
         message: `Negativt påslag (${v} öre/kWh) är orimligt.`,
       });
-    } else if (v > 100) {
+    } else if (v > 50) {
       issues.push({
         severity: "warning",
         field: "markupOreExMoms",
@@ -589,7 +589,7 @@ export function validateFieldRanges(parsed: ParsedInvoice): ValidationIssue[] {
         field: "monthlyFeeKrExMoms",
         message: `Negativ månadsavgift (${v} kr) är orimlig.`,
       });
-    } else if (v > 500) {
+    } else if (v > 200) {
       issues.push({
         severity: "warning",
         field: "monthlyFeeKrExMoms",
@@ -599,13 +599,21 @@ export function validateFieldRanges(parsed: ParsedInvoice): ValidationIssue[] {
   }
 
   // --- gridTransferFee (elöverföring, öre/kWh ex moms) ---
+  // Operatörer med effektbaserad tariff kan ha mycket låg per-kWh-del (~1-3 öre);
+  // huvudkostnaden ligger då i gridPowerCharge eller gridFixedFee.
   if (parsed.gridTransferFeeOreExMoms !== undefined) {
     const v = parsed.gridTransferFeeOreExMoms;
-    if (v < 5 || v > 200) {
+    if (v < 1 || v > 150) {
       issues.push({
         severity: "error",
         field: "gridTransferFeeOreExMoms",
-        message: `Elöverföringsavgift ${v} öre/kWh är utanför rimligt intervall (5–200 öre). Troligen fel enhet (öre vs kr).`,
+        message: `Elöverföringsavgift ${v} öre/kWh är utanför rimligt intervall (1–150 öre). Troligen fel enhet (öre vs kr).`,
+      });
+    } else if (v < 5 || v > 100) {
+      issues.push({
+        severity: "warning",
+        field: "gridTransferFeeOreExMoms",
+        message: `Elöverföringsavgift ${v} öre/kWh är ovanlig — dubbelkolla.`,
       });
     }
   }
@@ -647,13 +655,15 @@ export function validateFieldRanges(parsed: ParsedInvoice): ValidationIssue[] {
   }
 
   // --- energyTax (energiskatt, öre/kWh ex moms) ---
+  // Standardskatt ~47 öre/kWh, men norrlandsrabatten (Norrbotten, Västerbotten,
+  // Jämtland, Västernorrland) ger 9.6 öre/kWh — därför 5 öre som lower bound.
   if (parsed.energyTaxOreExMoms !== undefined) {
     const v = parsed.energyTaxOreExMoms;
-    if (v < 20 || v > 70) {
+    if (v < 5 || v > 70) {
       issues.push({
         severity: "error",
         field: "energyTaxOreExMoms",
-        message: `Energiskatt ${v} öre/kWh ligger utanför reglerat intervall (20–70 öre). Troligen fel fält avläst.`,
+        message: `Energiskatt ${v} öre/kWh ligger utanför reglerat intervall (5–70 öre). Troligen fel fält avläst.`,
       });
     }
   }
