@@ -88,7 +88,7 @@ export async function fetchYearlyHourlyPrices(
   const allPoints: PricePoint[] = [];
   const limit     = new Date(ELPRISETJUSTNU_HISTORICAL_LIMIT);
 
-  let current = new Date(startDate);
+  const current = new Date(startDate);
   const total = Math.ceil((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
   let done = 0;
 

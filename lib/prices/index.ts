@@ -39,7 +39,7 @@ export async function getDailyPrices(marketId: MarketId, zoneId: string, date: s
     console.warn(`[prices] Live-data saknas for ${date}`);
     return null;
   }
-  return fetchHourlyPrices(date, zoneId as any);
+  return fetchHourlyPrices(date, zoneId as Parameters<typeof fetchHourlyPrices>[1]);
 }
 
 /**

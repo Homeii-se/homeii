@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * DEPRECATED - 2026-04-24
  * ========================
@@ -34,6 +35,4 @@ export function getMonthlyAvg(_zone: string, _year: number): (number | null)[] {
   deprecated(null);
 }
 
-export function getAnnualAvg(_zone: string, _year: number): number | null {
-  deprecated(null);
-}
+export function getAnnualAvg(_zone: string, _year: number): nu
