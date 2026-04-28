@@ -86,7 +86,12 @@ export async function fetchMonthlyAverageSpotPrice(
 
 /**
  * Fetch hourly spot prices for a specific day and SE zone.
- * Returns prices in öre/kWh (exkl moms), one value per returned time slot.
+ * Returns prices in öre/kWh (exkl moms), aggregated to 24 hourly averages.
+ *
+ * Note: From 2025-10-01 onwards, Nord Pool / elprisetjustnu.se publishes
+ * 15-minute resolution prices (96 entries/day instead of 24). We aggregate
+ * those to hourly averages here so downstream code (which expects 24 values
+ * indexed by hour 0-23) keeps working correctly.
  */
 export async function fetchDailySpotPrices(
   year: number,
@@ -99,7 +104,55 @@ export async function fetchDailySpotPrices(
   const url = `https://www.elprisetjustnu.se/api/v1/prices/${year}/${monthStr}-${dayStr}_${zone}.json`;
   const dayData = await fetchDayPrices(url);
   if (!dayData || dayData.length === 0) return null;
-  return dayData.map((entry) => entry.SEK_per_kWh * 100);
+  return aggregateToHourly(dayData);
+}
+
+/**
+ * Aggregate raw API entries (hourly OR 15-minute resolution) into 24 hourly
+ * averages, keyed by the local hour parsed from each entry's `time_start`.
+ *
+ * Robust against:
+ *  - 24 entries (legacy hourly resolution, pre 2025-10-01)
+ *  - 96 entries (15-min resolution, from 2025-10-01)
+ *  - 23 / 92 entries (DST spring-forward day)
+ *  - 25 / 100 entries (DST fall-back day) - duplicate hour 02 averaged
+ *
+ * `time_start` is ISO-8601 with explicit offset, e.g. "2026-04-27T07:15:00+02:00".
+ * We slice characters 11-12 to read the local hour without depending on the
+ * runtime timezone.
+ */
+function aggregateToHourly(entries: ElprisetHourlyEntry[]): number[] {
+  const hourSums = new Array<number>(24).fill(0);
+  const hourCounts = new Array<number>(24).fill(0);
+
+  for (const entry of entries) {
+    const hour = parseHourFromIso(entry.time_start);
+    if (hour < 0 || hour > 23) continue;
+    hourSums[hour] += entry.SEK_per_kWh * 100; // SEK/kWh -> öre/kWh
+    hourCounts[hour] += 1;
+  }
+
+  // Build the 24-slot array. If a slot has zero samples (rare DST edge cases),
+  // fall back to a neighbour so the chart stays continuous.
+  const result: number[] = [];
+  for (let h = 0; h < 24; h++) {
+    if (hourCounts[h] > 0) {
+      result.push(hourSums[h] / hourCounts[h]);
+    } else {
+      const prev = h > 0 && hourCounts[h - 1] > 0 ? hourSums[h - 1] / hourCounts[h - 1] : null;
+      const next = h < 23 && hourCounts[h + 1] > 0 ? hourSums[h + 1] / hourCounts[h + 1] : null;
+      result.push(prev ?? next ?? 0);
+    }
+  }
+
+  return result;
+}
+
+/** Extract the local hour (0-23) from an ISO timestamp like "2026-04-27T07:15:00+02:00". */
+function parseHourFromIso(iso: string): number {
+  if (iso.length < 13 || iso[10] !== "T") return -1;
+  const h = Number(iso.slice(11, 13));
+  return Number.isFinite(h) ? h : -1;
 }
 
 async function fetchDayPrices(url: string): Promise<ElprisetHourlyEntry[] | null> {
