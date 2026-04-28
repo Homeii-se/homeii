@@ -610,6 +610,34 @@ export function simulate8760WithSolar(
   const batterySizeKwh = refinement.batterySizeKwh;
   const netAnnualKwh = bill.annualKwh ?? bill.kwhPerMonth * 12;
 
+  // --- Early exit for non-solar households ---
+  // Without this guard the function falls back to a default 10 kW system and
+  // generates phantom solar production for users who don't have panels.
+  // Bug: yellow "Solproduktion" bars and grid-export values appeared in the
+  // daily chart for non-solar customers (visible 2026-04-28).
+  const hasSolar = refinement.hasSolar ?? false;
+  if (!hasSolar) {
+    const consumption = simulate8760Consumption(bill, refinement, tmyData, seZone);
+    const zero8760 = new Array(8760).fill(0);
+    const zero12 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    return {
+      consumption,
+      solarProduction: zero8760,
+      selfConsumption: zero8760,
+      gridImport: consumption,
+      gridExport: zero8760,
+      annualExportKwh: 0,
+      annualSelfConsumptionKwh: 0,
+      annualGridImportKwh: consumption.reduce((s, v) => s + v, 0),
+      annualSolarProductionKwh: 0,
+      calibratedSystemSizeKw: 0,
+      monthlyExportKwh: zero12,
+      monthlySelfConsumptionKwh: zero12,
+      monthlyGridImportKwh: monthlyTotals(consumption),
+      monthlySolarProductionKwh: zero12,
+    };
+  }
+
   // --- Determine system size ---
   // Prefer user-reported size. Calibration from a single winter month's export
   // is unreliable because our consumption model is too smooth (doesn't capture
