@@ -259,7 +259,7 @@ export default function UploadModal({ open, onClose, onComplete }: UploadModalPr
 
           {phase === "processing" && (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "30px 0", gap: 14 }}>
-              <ProcessingAnimation />
+              <ProcessingAnimation onComplete={() => { /* drivs av API-svar, inte av animationens onComplete */ }} />
               <p style={{ fontSize: 14, color: "#1a3a26", margin: 0 }}>Tolkar din räkning...</p>
               <p style={{ fontSize: 12, color: "#4a6b54", margin: 0 }}>Detta tar oftast 10-30 sekunder</p>
             </div>
