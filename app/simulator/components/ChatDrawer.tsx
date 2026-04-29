@@ -52,7 +52,8 @@ const STORAGE_KEY_PREFIX = "homeii-chat-";
 const STORAGE_KEY_GENERAL = "homeii-chat-general";
 const SIMULATOR_STATE_KEY = "homeii-state";
 
-const PEEK_HEIGHT = 138;
+const TAB_HEIGHT = 40;
+const PEEK_HEIGHT = 102;
 const HALF_HEIGHT_VH = 50;
 const FULL_HEIGHT_VH = 90;
 
@@ -217,10 +218,10 @@ export default function ChatDrawer() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages]);
 
-  // Snappa till närmaste höjdpunkt
+  // Snappa till närmaste höjdpunkt — TAB är nu lägsta möjliga
   const snapTo = useCallback(
     (target: number) => {
-      const clamped = Math.max(PEEK_HEIGHT, Math.min(fullHeight, target));
+      const clamped = Math.max(TAB_HEIGHT, Math.min(fullHeight, target));
       setDrawerHeight(clamped);
     },
     [fullHeight]
@@ -228,7 +229,7 @@ export default function ChatDrawer() {
 
   const snapToNearest = useCallback(
     (h: number) => {
-      const targets = [PEEK_HEIGHT, halfHeight, fullHeight];
+      const targets = [TAB_HEIGHT, PEEK_HEIGHT, halfHeight, fullHeight];
       let best = targets[0];
       let dist = Math.abs(h - targets[0]);
       for (const t of targets) {
@@ -264,7 +265,7 @@ export default function ChatDrawer() {
       if (!ds.isDragging) return;
       const dy = ds.startY - e.clientY;
       if (Math.abs(dy) > 4) ds.didDrag = true;
-      const next = Math.max(PEEK_HEIGHT, Math.min(fullHeight, ds.startHeight + dy));
+      const next = Math.max(TAB_HEIGHT, Math.min(fullHeight, ds.startHeight + dy));
       setDrawerHeight(next);
     },
     [fullHeight]
@@ -283,8 +284,18 @@ export default function ChatDrawer() {
       if (ds.didDrag) {
         snapToNearest(drawerHeight);
       } else {
-        // Klick (utan drag) togglar peek <-> half
-        snapTo(drawerHeight <= PEEK_HEIGHT + 20 ? halfHeight : PEEK_HEIGHT);
+        // Klick (utan drag) — kontextkänslig toggle:
+        //  TAB → HALF (öppna chatten)
+        //  PEEK → HALF (öppna chatten)
+        //  HALF → PEEK (kollapsa till sammanfattning)
+        //  FULL → PEEK (kollapsa till sammanfattning)
+        if (drawerHeight <= TAB_HEIGHT + 10) {
+          snapTo(halfHeight);
+        } else if (drawerHeight <= PEEK_HEIGHT + 20) {
+          snapTo(halfHeight);
+        } else {
+          snapTo(PEEK_HEIGHT);
+        }
       }
     },
     [drawerHeight, snapTo, snapToNearest, halfHeight]
@@ -437,7 +448,8 @@ export default function ChatDrawer() {
         aria-hidden
       />
 
-      {/* Container — flexbox för att centrera drawern på desktop */}
+      {/* Container — flexbox för att centrera drawern på desktop. Padding på parent
+          istället för margin på child så total bredd aldrig överskrider viewport. */}
       <div
         style={{
           position: "fixed",
@@ -446,6 +458,8 @@ export default function ChatDrawer() {
           bottom: 0,
           display: "flex",
           justifyContent: "center",
+          padding: "0 12px",
+          boxSizing: "border-box",
           pointerEvents: "none",
           zIndex: 50,
         }}
@@ -456,9 +470,8 @@ export default function ChatDrawer() {
         style={{
           pointerEvents: "auto",
           width: "100%",
-          maxWidth: 640,
+          maxWidth: 540,
           boxSizing: "border-box",
-          margin: "0 14px",
           height: `${drawerHeight}px`,
           background: "linear-gradient(180deg, #eaf2e8 0%, #f0f6ed 100%)",
           borderTop: "0.5px solid rgba(46,125,82,0.25)",
@@ -475,20 +488,52 @@ export default function ChatDrawer() {
           overflow: "hidden",
         }}
       >
-        {/* Grepp + header */}
+        {/* Grepp + header — kompakt i tab-läge, full i peek/half/full */}
         <div
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           style={{
-            padding: "10px 16px 8px",
+            padding: drawerHeight <= TAB_HEIGHT + 10 ? "0 12px" : "10px 16px 8px",
             cursor: "ns-resize",
             userSelect: "none",
             touchAction: "none",
             flexShrink: 0,
+            height: drawerHeight <= TAB_HEIGHT + 10 ? `${TAB_HEIGHT}px` : "auto",
+            display: drawerHeight <= TAB_HEIGHT + 10 ? "flex" : "block",
+            alignItems: drawerHeight <= TAB_HEIGHT + 10 ? "center" : undefined,
+            justifyContent: drawerHeight <= TAB_HEIGHT + 10 ? "space-between" : undefined,
+            gap: drawerHeight <= TAB_HEIGHT + 10 ? 8 : undefined,
           }}
         >
+          {/* Tab-läge: kompakt enradig */}
+          {drawerHeight <= TAB_HEIGHT + 10 ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    background: "#2e7d52",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "white",
+                    fontSize: 10,
+                    fontWeight: 600,
+                  }}
+                >
+                  H
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#1a3a26" }}>Energy Buddy</span>
+                <span style={{ fontSize: 11, color: "#4a6b54" }}>· Klicka för att chatta</span>
+              </div>
+              <span style={{ fontSize: 14, color: "#2e7d52" }}>↑</span>
+            </>
+          ) : (
+            <>
           <div
             style={{
               width: 40,
@@ -498,52 +543,54 @@ export default function ChatDrawer() {
               margin: "0 auto 10px",
             }}
           />
-          <p
-            style={{
-              fontSize: 10,
-              fontWeight: 500,
-              color: "#1a5e3a",
-              margin: "0 0 1px",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-            }}
-          >
-            Energy Buddy
-          </p>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <p style={{ fontSize: 15, fontWeight: 600, margin: 0, color: "#1a3a26" }}>
-                Din personlige energirådgivare
-              </p>
-              <div
+              <p
                 style={{
-                  fontSize: 12,
-                  color: "#4a6b54",
-                  margin: "3px 0 0",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 2,
+                  fontSize: 9,
+                  fontWeight: 500,
+                  color: "#1a5e3a",
+                  margin: 0,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
                 }}
               >
-                <span style={{ fontSize: 11, color: "#4a6b54" }}>Fråga mig om..</span>
-                <CheckRow text="Generella frågor" />
-                <CheckRow text="Din energisituation" />
-                <CheckRow text="Framtidsscenarier" />
-              </div>
+                Energy Buddy
+              </p>
+              <p style={{ fontSize: 13, fontWeight: 600, margin: "1px 0 0", color: "#1a3a26" }}>
+                Din personlige energirådgivare
+              </p>
             </div>
             <div
               style={{
-                fontSize: 14,
+                fontSize: 13,
                 color: "#2e7d52",
                 transform: `rotate(${expansion * 180}deg)`,
                 transition: "transform 0.3s",
                 flexShrink: 0,
-                marginTop: 2,
               }}
             >
               ↑
             </div>
           </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+              marginTop: 6,
+              fontSize: 11,
+              color: "#4a6b54",
+            }}
+          >
+            <span style={{ flexShrink: 0 }}>Fråga mig om:</span>
+            <CheckRow text="generella frågor" />
+            <CheckRow text="din energisituation" />
+            <CheckRow text="framtidsscenarier" />
+          </div>
+            </>
+          )}
         </div>
 
         {/* Chat-content (synlig när drawer är minst halvöppen) */}
@@ -740,10 +787,19 @@ export default function ChatDrawer() {
 
 function CheckRow({ text }: { text: string }) {
   return (
-    <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#1a3a26" }}>
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        fontSize: 11,
+        color: "#1a3a26",
+        whiteSpace: "nowrap",
+      }}
+    >
+      <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
         <circle cx="6" cy="6" r="6" fill="#2e7d52" />
-        <path d="M3.5 6.2l1.7 1.7L8.5 4.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <path d="M3.5 6.2l1.7 1.7L8.5 4.5" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
       </svg>
       <span>{text}</span>
     </span>

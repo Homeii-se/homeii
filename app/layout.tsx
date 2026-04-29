@@ -68,8 +68,9 @@ export default function RootLayout({
           </div>
         </header>
 
-        {/* pb-40 ger plats åt den globala ChatDrawer-peek (~140px) längst ned */}
-        <main id="main-content" className="pb-40">{children}</main>
+        {/* pb-32 ger plats åt ChatDrawer-peek (~102px). Tab-läget tar bara ~40px
+            så då blir padding-bottom större än nödvändigt — men det skadar inte. */}
+        <main id="main-content" className="pb-32">{children}</main>
 
         {/* Global AI-rådgivare — drag-bar bottom drawer på alla sidor */}
         <ChatDrawer />
