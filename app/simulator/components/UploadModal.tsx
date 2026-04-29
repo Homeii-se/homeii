@@ -61,13 +61,15 @@ export default function UploadModal({ open, onClose, onComplete }: UploadModalPr
     return () => window.removeEventListener("keydown", onKey);
   }, [open, phase, onClose]);
 
-  // Förhindra background-scroll medan modalen är öppen
+  // Förhindra background-scroll + dölj chat-drawer medan modalen är öppen
   useEffect(() => {
     if (!open) return;
     const original = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    document.body.classList.add("modal-open");
     return () => {
       document.body.style.overflow = original;
+      document.body.classList.remove("modal-open");
     };
   }, [open]);
 
@@ -171,13 +173,14 @@ export default function UploadModal({ open, onClose, onComplete }: UploadModalPr
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 60,
+        zIndex: 100,
         display: "flex",
-        alignItems: "flex-end",
+        alignItems: "center",
         justifyContent: "center",
+        padding: "16px",
+        boxSizing: "border-box",
         background: "rgba(26,60,42,0.55)",
         backdropFilter: "blur(2px)",
-        animation: "fadeIn 0.2s ease",
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget && phase !== "processing") onClose();
@@ -188,17 +191,15 @@ export default function UploadModal({ open, onClose, onComplete }: UploadModalPr
           background: "white",
           width: "100%",
           maxWidth: 520,
-          maxHeight: "90vh",
-          borderRadius: "20px 20px 0 0",
-          padding: "12px 22px 22px",
-          boxShadow: "0 -4px 32px rgba(0,0,0,0.2)",
+          maxHeight: "85vh",
+          borderRadius: 16,
+          padding: "16px 22px 22px",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
           display: "flex",
           flexDirection: "column",
           overflow: "auto",
           boxSizing: "border-box",
-          animation: "slideUp 0.28s cubic-bezier(0.32, 0.72, 0, 1)",
         }}
-        className="sm:rounded-2xl sm:my-auto"
       >
         {/* Drag handle (decorative on desktop, functional touch on mobile) */}
         <div
@@ -310,13 +311,6 @@ export default function UploadModal({ open, onClose, onComplete }: UploadModalPr
         </div>
       </div>
 
-      <style>{`
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        @media (min-width: 640px) {
-          [role="dialog"] > div { border-radius: 16px !important; max-height: 85vh !important; }
-        }
-      `}</style>
     </div>
   );
 }

@@ -110,6 +110,18 @@ export default function ChatDrawer() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewportHeight, setViewportHeight] = useState(800);
+  const [hidden, setHidden] = useState(false);
+
+  // Lyssna på "modal-open"-klassen på body — när någon annan modal är öppen ska
+  // chat-drawern dölja sig så den inte krockar visuellt.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const update = () => setHidden(document.body.classList.contains("modal-open"));
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
 
   const drawerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -427,6 +439,7 @@ export default function ChatDrawer() {
   };
 
   if (!mounted) return null;
+  if (hidden) return null; // Annan modal är öppen — göm chat-drawern tillfälligt
 
   const expansion = Math.max(0, (drawerHeight - PEEK_HEIGHT) / (fullHeight - PEEK_HEIGHT));
   const showSuggestions = messages.length === 0;
