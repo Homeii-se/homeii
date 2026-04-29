@@ -33,6 +33,9 @@ export default function Home() {
     if (!saved.selectedDate || saved.selectedDate === "2026-03-25") {
       saved.selectedDate = new Date().toISOString().split("T")[0];
     }
+    // Hydration-safe bootstrap: startar med DEFAULT_STATE så server/klient matchar,
+    // läser sedan localStorage enbart client-side i detta mount-once effect. Medvetet mönster.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState(saved);
     setHydrated(true);
   }, []);

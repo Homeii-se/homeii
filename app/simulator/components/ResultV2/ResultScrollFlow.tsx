@@ -169,6 +169,9 @@ function ProgressRail({ activeIdx, onClick }: { activeIdx: number; onClick: (idx
   // inte till nagon transformed parent (animate-fade-in pa ResultOverview-wrappern
   // bryter annars containing block och rail:n hamnar mitt i ResultScrollFlow).
   const [mounted, setMounted] = useState(false);
+  // Portal-hydration-guard: SSR renderar null, klienten sätter mounted=true efter mount
+  // så portalen renderas till document.body (undviker SSR-krasch + fixing-bug med transformed parent).
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setMounted(true); }, []);
   if (!mounted) return null;
 
@@ -336,6 +339,8 @@ function Section1Chock({
 
   useEffect(() => {
     let cancelled = false;
+    // Sätter loading synkront i effect-kroppen för att visa spinner direkt när seZone ändras. Medvetet.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     fetch(`/api/monthly-spot-averages?zone=${seZone}&year=2025`)
       .then((res) => (res.ok ? res.json() : null))
@@ -877,7 +882,7 @@ function ActionCard({
 }
 
 function ScenarioCard({
-  variant, tagline, title, deltaText, todayKr, scenarioKr, isHigher, explanation,
+  variant, tagline, title, deltaText, todayKr, scenarioKr, explanation,
 }: {
   variant: "bad" | "good";
   tagline: string;
@@ -987,7 +992,10 @@ function Modal({ onClose, eyebrow, title, children }: { onClose: () => void; eye
   // Render via portal till document.body så positionen är relativ till viewport,
   // inte till någon transformed parent (sticky progress-rail har transform).
   const [mounted, setMounted] = useState(false);
+  // Portal-hydration-guard + overflow-lock: SSR renderar null, klienten aktiverar modal
+  // via portal till document.body (undviker SSR-krasch + fixing-bug med transformed parent).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = ""; };
