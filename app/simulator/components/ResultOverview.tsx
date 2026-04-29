@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ThreeScenarioSummary, SEZone, BillData, Assumptions, RefinementAnswers, ActiveUpgrades } from "../types";
 import type { TmyHourlyData } from "../data/pvgis-tmy";
 import { SE_ZONE_SPOT_PRICE } from "../data/energy-prices";
@@ -77,7 +77,15 @@ export default function ResultOverview({
     };
   }, [seZone, currentSituation, assumptions, billData]);
 
-  const [resultView, setResultView] = useState<"classic" | "scroll">("classic");
+  const [resultView, setResultView] = useState<"classic" | "scroll">("scroll");
+
+  // Scrolla till toppen när vyn mountas (annars kan användaren landa nedåt
+  // pga föregående stegs scroll-position eller chattens auto-scroll)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+  }, []);
 
   const hasExistingEquipment = refinement && (
     refinement.hasSolar ||

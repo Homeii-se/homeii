@@ -50,6 +50,14 @@ export default function Home() {
 
   const currentStep = state.completedStep + 1;
 
+  // Scrolla till toppen vid varje stegbyte så användaren inte landar mitt på sidan
+  // (kan annars hända om föregående steg var långt eller chatten auto-scrollat)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+  }, [currentStep]);
+
   // Fetch TMY data when billData exists (use coordinates or SE-zone centroid as fallback)
   useEffect(() => {
     if (!state.billData) return;
