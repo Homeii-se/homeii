@@ -53,7 +53,7 @@ const STORAGE_KEY_GENERAL = "homeii-chat-general";
 const SIMULATOR_STATE_KEY = "homeii-state";
 
 const TAB_HEIGHT = 40;
-const PEEK_HEIGHT = 102;
+const PEEK_HEIGHT = 64;
 const HALF_HEIGHT_VH = 50;
 const FULL_HEIGHT_VH = 90;
 
@@ -544,23 +544,22 @@ export default function ChatDrawer() {
             }}
           />
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <p
-                style={{
-                  fontSize: 9,
-                  fontWeight: 500,
-                  color: "#1a5e3a",
-                  margin: 0,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                }}
-              >
-                Energy Buddy
-              </p>
-              <p style={{ fontSize: 13, fontWeight: 600, margin: "1px 0 0", color: "#1a3a26" }}>
-                Din personlige energirådgivare
-              </p>
-            </div>
+            <p
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                margin: 0,
+                color: "#1a3a26",
+                minWidth: 0,
+                flex: 1,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <span style={{ color: "#1a5e3a" }}>Energy Buddy</span>
+              <span style={{ color: "#4a6b54", fontWeight: 400 }}> — din personlige energirådgivare</span>
+            </p>
             <div
               style={{
                 fontSize: 13,
@@ -572,25 +571,6 @@ export default function ChatDrawer() {
             >
               ↑
             </div>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              flexWrap: "wrap",
-              marginTop: 6,
-              fontSize: 11,
-              color: "#4a6b54",
-              minWidth: 0,
-              maxWidth: "100%",
-              overflow: "hidden",
-            }}
-          >
-            <span style={{ flexShrink: 0 }}>Fråga mig om:</span>
-            <CheckRow text="generella frågor" />
-            <CheckRow text="din energisituation" />
-            <CheckRow text="framtidsscenarier" />
           </div>
             </>
           )}
@@ -800,27 +780,6 @@ export default function ChatDrawer() {
 // ============================================================
 // Sub-components
 // ============================================================
-
-function CheckRow({ text }: { text: string }) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        fontSize: 11,
-        color: "#1a3a26",
-        whiteSpace: "nowrap",
-      }}
-    >
-      <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
-        <circle cx="6" cy="6" r="6" fill="#2e7d52" />
-        <path d="M3.5 6.2l1.7 1.7L8.5 4.5" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-      </svg>
-      <span>{text}</span>
-    </span>
-  );
-}
 
 function Avatar() {
   return (
