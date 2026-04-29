@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import MobileNav from "./simulator/components/MobileNav";
+import ChatDrawer from "./simulator/components/ChatDrawer";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -67,7 +68,11 @@ export default function RootLayout({
           </div>
         </header>
 
-        <main id="main-content">{children}</main>
+        {/* pb-24 ger plats åt den globala ChatDrawer-peek (84px) längst ned */}
+        <main id="main-content" className="pb-24">{children}</main>
+
+        {/* Global AI-rådgivare — drag-bar bottom drawer på alla sidor */}
+        <ChatDrawer />
 
         <footer className="border-t border-gray-200 bg-white/95 py-8 shadow-sm">
           <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6">

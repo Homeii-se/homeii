@@ -67,27 +67,38 @@ export async function POST(req: NextRequest) {
       { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
-  if (!context || !context.bill) {
-    return new Response(
-      JSON.stringify({ error: "context.bill saknas" }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
-    );
+
+  // Context kan vara null/saknad — då går chatten i "general mode" utan
+  // användarspecifika verktyg eller kunddata. Användbart innan användaren
+  // har laddat upp en faktura (landningssida, om oss, kontakt etc.).
+  const hasUserContext = context && context.bill && context.bill.kwhPerMonth > 0;
+
+  // Bygg system-prompt: statisk kunskap + ev. användarens specifika kontext
+  let fullSystemPrompt = HOMEII_SYSTEM_PROMPT;
+  if (hasUserContext) {
+    fullSystemPrompt += "\n\n" + buildUserContext(context);
+  } else {
+    fullSystemPrompt += `\n\n# ANVÄNDARENS SITUATION
+
+Användaren har inte laddat upp någon faktura än. Du har därmed ingen specifik
+kunddata att referera till. Svara på generella frågor om svensk elmarknad,
+solceller, batterier, värmepumpar, energieffektivisering osv. Om användaren
+ställer en fråga som kräver deras egen data, uppmuntra dem att ladda upp
+en elräkning först — då kan du ge konkreta råd för deras situation.`;
   }
 
-  // Bygg system-prompt: statisk kunskap + användarens specifika kontext
-  const userContextBlock = buildUserContext(context);
-  const fullSystemPrompt = `${HOMEII_SYSTEM_PROMPT}\n\n${userContextBlock}`;
-
-  // Tool dispatch context
+  // Tool dispatch context — bara om vi har bill-data
   const baseUrl = req.nextUrl.origin;
-  const toolCtx: ToolDispatchContext = {
-    bill: context.bill,
-    refinement: context.refinement,
-    seZone: context.seZone,
-    assumptions: context.assumptions,
-    activeUpgrades: context.activeUpgrades,
-    baseUrl,
-  };
+  const toolCtx: ToolDispatchContext | null = hasUserContext
+    ? {
+        bill: context.bill,
+        refinement: context.refinement,
+        seZone: context.seZone,
+        assumptions: context.assumptions,
+        activeUpgrades: context.activeUpgrades,
+        baseUrl,
+      }
+    : null;
 
   // Streamen som vi skickar till klienten (SSE)
   const stream = new ReadableStream({
@@ -120,7 +131,8 @@ export async function POST(req: NextRequest) {
               max_tokens: 1500,
               system: fullSystemPrompt,
               messages: conversation,
-              tools: CHAT_TOOLS,
+              // Tools bara när vi har kunddata att räkna på
+              ...(toolCtx ? { tools: CHAT_TOOLS } : {}),
             }),
           });
 
@@ -152,7 +164,7 @@ export async function POST(req: NextRequest) {
           }
 
           // Om modellen vill anropa verktyg, kör dem och fortsätt loopen
-          if (stopReason === "tool_use") {
+          if (stopReason === "tool_use" && toolCtx) {
             const toolUseBlocks = assistantContent.filter(
               (b): b is { type: "tool_use"; id: string; name: string; input: Record<string, unknown> } =>
                 b.type === "tool_use"

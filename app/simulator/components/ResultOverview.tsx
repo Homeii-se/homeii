@@ -9,8 +9,6 @@ import { getGridPricing, DEFAULT_GRID_PRICING } from "../data/grid-operators";
 import { ELHANDEL_DEFAULTS } from "../data/elhandel-defaults";
 import CostBreakdownCard from "./CostBreakdownCard";
 import SimulationExplorer from "./SimulationExplorer";
-import ChatPanel from "./ChatPanel";
-import { getYearlyData } from "../simulation/annual";
 import ResultScrollFlow from "./ResultV2/ResultScrollFlow";
 
 interface ResultOverviewProps {
@@ -125,28 +123,13 @@ export default function ResultOverview({
       </div>
 
       {resultView === "scroll" ? (
-        <>
-          <div className="-mx-4">
-            <ResultScrollFlow
-              costComponents={currentSituation.costComponents}
-              gridOperatorName={assumptions?.gridOperator ?? billData.natAgare}
-              seZone={seZone}
-            />
-          </div>
-          {/* AI-rådgivare — finns i båda vyerna */}
-          {refinement && (
-            <div className="px-4 py-8">
-              <ChatPanel
-                billData={billData}
-                refinement={refinement}
-                seZone={seZone}
-                assumptions={assumptions}
-                activeUpgrades={{} as ActiveUpgrades}
-                yearlyComparison={getYearlyData(billData, refinement, seZone)}
-              />
-            </div>
-          )}
-        </>
+        <div className="-mx-4">
+          <ResultScrollFlow
+            costComponents={currentSituation.costComponents}
+            gridOperatorName={assumptions?.gridOperator ?? billData.natAgare}
+            seZone={seZone}
+          />
+        </div>
       ) : (
         <>
       {/* Headline */}
@@ -276,17 +259,7 @@ export default function ResultOverview({
         />
       </div>
 
-      {/* AI-rådgivare — chatten kompletterar dagens flöde */}
-      {refinement && (
-        <ChatPanel
-          billData={billData}
-          refinement={refinement}
-          seZone={seZone}
-          assumptions={assumptions}
-          activeUpgrades={{} as ActiveUpgrades}
-          yearlyComparison={getYearlyData(billData, refinement, seZone)}
-        />
-      )}
+      {/* AI-rådgivaren ligger nu globalt i layout.tsx — visas på alla sidor */}
 
       {/* CTA */}
       <div className="flex flex-col gap-3">
