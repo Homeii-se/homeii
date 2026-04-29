@@ -120,15 +120,19 @@ export const REDUCTION_FACTORS: Record<string, number> = {
 };
 
 /**
- * Battery parameters (25 kWh home battery)
- * @source Branschdata (Tesla Powerwall, Huawei LUNA etc.)
- * @updated 2026-04-04
- * @notes Typiska parametrar för ett 25 kWh hembatteri
+ * Battery parameters (25 kWh home battery, 0.5C-rate)
+ * @source Branschdata (Tesla Powerwall, Huawei LUNA, Pixii, BYD)
+ * @updated 2026-04-29
+ * @notes 0.5C = 12.5 kW peak för 25 kWh referensbatteri. Skalas
+ *        proportionellt mot batterySizeKwh i simulate8760.ts:
+ *        20 kWh -> 10 kW, 15 kWh -> 7.5 kW, 10 kWh -> 5 kW.
+ *        0.5C ligger i mitten av dagens marknadsspann
+ *        (Sonnen 0.33C - Tesla Powerwall 3 0.85C).
  */
 export const BATTERY_PARAMS = {
   capacityKwh: 25,
-  maxChargeRateKw: 5,
-  maxDischargeRateKw: 5,
+  maxChargeRateKw: 12.5,
+  maxDischargeRateKw: 12.5,
   roundTripEfficiency: 0.92,
 };
 

@@ -14,8 +14,11 @@ export default function DatePicker({ selectedDate, onChange }: DatePickerProps) 
   const midwinter = `${year}-01-15`;
   const midsummer = `${year}-06-21`;
 
-  const yearStart = `${year}-01-01`;
-  const yearEnd = `${year}-12-31`;
+  // Allow exploration back to 2020-01-01 (Supabase historical data limit).
+  // Useful for simulating 2022 extreme prices via the "fall back to historical"
+  // path in /api/spot-prices.
+  const minDate = "2020-01-01";
+  const maxDate = `${year}-12-31`;
 
   const shiftDay = (delta: number) => {
     const d = new Date(selectedDate + "T12:00:00");
@@ -24,7 +27,7 @@ export default function DatePicker({ selectedDate, onChange }: DatePickerProps) 
     const m = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(d.getDate()).padStart(2, "0");
     const next = `${y}-${m}-${day}`;
-    if (next < yearStart || next > yearEnd) return;
+    if (next < minDate || next > maxDate) return;
     onChange(next);
   };
 
@@ -33,7 +36,7 @@ export default function DatePicker({ selectedDate, onChange }: DatePickerProps) 
       <div className="flex items-center gap-1">
         <button
           onClick={() => shiftDay(-1)}
-          disabled={selectedDate <= yearStart}
+          disabled={selectedDate <= minDate}
           className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-text-secondary hover:text-text-primary hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           aria-label="Föregående dag"
         >
@@ -42,14 +45,14 @@ export default function DatePicker({ selectedDate, onChange }: DatePickerProps) 
         <input
           type="date"
           value={selectedDate}
-          min={yearStart}
-          max={yearEnd}
+          min={minDate}
+          max={maxDate}
           onChange={(e) => onChange(e.target.value)}
           className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-text-primary focus:border-brand-500 focus:outline-none"
         />
         <button
           onClick={() => shiftDay(1)}
-          disabled={selectedDate >= yearEnd}
+          disabled={selectedDate >= maxDate}
           className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-text-secondary hover:text-text-primary hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           aria-label="Nästa dag"
         >
