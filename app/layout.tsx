@@ -68,8 +68,8 @@ export default function RootLayout({
           </div>
         </header>
 
-        {/* pb-24 ger plats åt den globala ChatDrawer-peek (84px) längst ned */}
-        <main id="main-content" className="pb-24">{children}</main>
+        {/* pb-40 ger plats åt den globala ChatDrawer-peek (~140px) längst ned */}
+        <main id="main-content" className="pb-40">{children}</main>
 
         {/* Global AI-rådgivare — drag-bar bottom drawer på alla sidor */}
         <ChatDrawer />

@@ -52,7 +52,7 @@ const STORAGE_KEY_PREFIX = "homeii-chat-";
 const STORAGE_KEY_GENERAL = "homeii-chat-general";
 const SIMULATOR_STATE_KEY = "homeii-state";
 
-const PEEK_HEIGHT = 84;
+const PEEK_HEIGHT = 138;
 const HALF_HEIGHT_VH = 50;
 const FULL_HEIGHT_VH = 90;
 
@@ -437,25 +437,42 @@ export default function ChatDrawer() {
         aria-hidden
       />
 
-      {/* Drawer */}
+      {/* Container — flexbox för att centrera drawern på desktop */}
       <div
-        ref={drawerRef}
         style={{
           position: "fixed",
           left: 0,
           right: 0,
           bottom: 0,
+          display: "flex",
+          justifyContent: "center",
+          pointerEvents: "none",
+          zIndex: 50,
+        }}
+      >
+      {/* Drawer */}
+      <div
+        ref={drawerRef}
+        style={{
+          pointerEvents: "auto",
+          width: "100%",
+          maxWidth: 640,
+          boxSizing: "border-box",
+          margin: "0 14px",
           height: `${drawerHeight}px`,
-          background: "white",
-          borderTop: "1px solid rgba(0,0,0,0.1)",
+          background: "linear-gradient(180deg, #eaf2e8 0%, #f0f6ed 100%)",
+          borderTop: "0.5px solid rgba(46,125,82,0.25)",
+          borderLeft: "0.5px solid rgba(46,125,82,0.25)",
+          borderRight: "0.5px solid rgba(46,125,82,0.25)",
+          borderBottom: "none",
           borderRadius: "16px 16px 0 0",
-          boxShadow: "0 -2px 12px rgba(0,0,0,0.06)",
+          boxShadow: "0 -2px 16px rgba(46,125,82,0.12)",
           transition: dragStateRef.current.isDragging
             ? "none"
             : "height 0.32s cubic-bezier(0.32, 0.72, 0, 1)",
           display: "flex",
           flexDirection: "column",
-          zIndex: 50,
+          overflow: "hidden",
         }}
       >
         {/* Grepp + header */}
@@ -481,54 +498,47 @@ export default function ChatDrawer() {
               margin: "0 auto 10px",
             }}
           />
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+          <p
+            style={{
+              fontSize: 10,
+              fontWeight: 500,
+              color: "#1a5e3a",
+              margin: "0 0 1px",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+            }}
+          >
+            Energy Buddy
+          </p>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <p style={{ fontSize: 15, fontWeight: 600, margin: 0, color: "#1a3a26" }}>
+                Din personlige energirådgivare
+              </p>
               <div
                 style={{
-                  width: 28,
-                  height: 28,
-                  flexShrink: 0,
-                  borderRadius: "50%",
-                  background: "var(--brand-500, #2E7D52)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "white",
-                  fontWeight: 600,
                   fontSize: 12,
+                  color: "#4a6b54",
+                  margin: "3px 0 0",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
                 }}
               >
-                H
-              </div>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "var(--text-primary, #1a1a1a)" }}>
-                  Din personliga Energy Buddy
-                </p>
-                <p
-                  style={{
-                    fontSize: 12,
-                    color: "var(--text-muted, #707070)",
-                    margin: 0,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {drawerHeight <= PEEK_HEIGHT + 20
-                    ? "Generella frågor + din egen energisituation"
-                    : drawerHeight >= fullHeight - 40
-                    ? "Dra ned eller klicka utanför för att stänga"
-                    : "Dra för att ändra storlek"}
-                </p>
+                <span style={{ fontSize: 11, color: "#4a6b54" }}>Fråga mig om..</span>
+                <CheckRow text="Generella frågor" />
+                <CheckRow text="Din energisituation" />
+                <CheckRow text="Framtidsscenarier" />
               </div>
             </div>
             <div
               style={{
                 fontSize: 14,
-                color: "var(--text-muted, #707070)",
+                color: "#2e7d52",
                 transform: `rotate(${expansion * 180}deg)`,
                 transition: "transform 0.3s",
                 flexShrink: 0,
+                marginTop: 2,
               }}
             >
               ↑
@@ -575,15 +585,17 @@ export default function ChatDrawer() {
                 <div
                   style={{
                     flex: 1,
-                    background: "rgba(0,0,0,0.04)",
+                    background: "white",
+                    border: "0.5px solid rgba(46,125,82,0.15)",
                     borderRadius: "14px",
                     borderTopLeftRadius: 4,
                     padding: "10px 14px",
                     fontSize: 13,
                     lineHeight: 1.5,
+                    color: "#1a3a26",
                   }}
                 >
-                  Hej! Din personlige Energy Buddy här. Jag kan svara både på generella frågor och specifikt om din egen energisituation.
+                  Hej! Vad vill du veta mer om?
                 </div>
               </div>
             </div>
@@ -666,7 +678,7 @@ export default function ChatDrawer() {
           <div
             style={{
               padding: "8px 16px 14px",
-              borderTop: "1px solid rgba(0,0,0,0.06)",
+              borderTop: "0.5px solid rgba(46,125,82,0.15)",
               display: "flex",
               gap: 6,
               alignItems: "flex-end",
@@ -717,6 +729,7 @@ export default function ChatDrawer() {
           </div>
         </div>
       </div>
+      </div>
     </>
   );
 }
@@ -724,6 +737,18 @@ export default function ChatDrawer() {
 // ============================================================
 // Sub-components
 // ============================================================
+
+function CheckRow({ text }: { text: string }) {
+  return (
+    <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#1a3a26" }}>
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+        <circle cx="6" cy="6" r="6" fill="#2e7d52" />
+        <path d="M3.5 6.2l1.7 1.7L8.5 4.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      </svg>
+      <span>{text}</span>
+    </span>
+  );
+}
 
 function Avatar() {
   return (
@@ -749,10 +774,11 @@ function Avatar() {
 
 function UserBubble({ text }: { text: string }) {
   return (
-    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+    <div style={{ display: "flex", justifyContent: "flex-end", width: "100%", minWidth: 0 }}>
       <div
         style={{
           maxWidth: "85%",
+          minWidth: 0,
           background: "var(--brand-500, #2E7D52)",
           color: "white",
           borderRadius: 14,
@@ -761,6 +787,8 @@ function UserBubble({ text }: { text: string }) {
           fontSize: 13,
           lineHeight: 1.5,
           whiteSpace: "pre-wrap",
+          overflowWrap: "anywhere",
+          wordBreak: "break-word",
         }}
       >
         {text}
@@ -781,9 +809,9 @@ function AssistantBubble({
   const showThinking = isStreaming && text.length === 0 && (!toolCalls || toolCalls.length === 0);
 
   return (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div style={{ display: "flex", gap: 8, width: "100%", minWidth: 0 }}>
       <Avatar />
-      <div style={{ flex: 1, maxWidth: "85%" }}>
+      <div style={{ flex: 1, minWidth: 0, maxWidth: "85%" }}>
         {toolCalls && toolCalls.length > 0 && (
           <div style={{ marginBottom: 4 }}>
             {toolCalls.map((t, i) => (
@@ -816,6 +844,8 @@ function AssistantBubble({
               fontSize: 13,
               lineHeight: 1.5,
               whiteSpace: "pre-wrap",
+              overflowWrap: "anywhere",
+              wordBreak: "break-word",
             }}
           >
             {showThinking ? <ThinkingDots /> : text}
