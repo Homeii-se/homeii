@@ -577,11 +577,14 @@ export default function ChatDrawer() {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 8,
+              gap: 6,
               flexWrap: "wrap",
               marginTop: 6,
               fontSize: 11,
               color: "#4a6b54",
+              minWidth: 0,
+              maxWidth: "100%",
+              overflow: "hidden",
             }}
           >
             <span style={{ flexShrink: 0 }}>Fråga mig om:</span>
@@ -653,10 +656,14 @@ export default function ChatDrawer() {
             style={{
               flex: 1,
               overflowY: "auto",
+              overflowX: "hidden",
               padding: "8px 16px",
               display: "flex",
               flexDirection: "column",
               gap: 10,
+              minWidth: 0,
+              boxSizing: "border-box",
+              width: "100%",
             }}
           >
             {messages.map((m) =>
@@ -730,6 +737,9 @@ export default function ChatDrawer() {
               gap: 6,
               alignItems: "flex-end",
               flexShrink: 0,
+              minWidth: 0,
+              boxSizing: "border-box",
+              width: "100%",
             }}
           >
             <textarea
@@ -742,7 +752,10 @@ export default function ChatDrawer() {
               rows={1}
               disabled={isLoading}
               style={{
-                flex: 1,
+                flex: "1 1 0",
+                width: "100%",
+                minWidth: 0,
+                boxSizing: "border-box",
                 resize: "none",
                 borderRadius: 12,
                 border: "1px solid rgba(0,0,0,0.15)",
@@ -759,6 +772,7 @@ export default function ChatDrawer() {
               onClick={() => sendMessage(input)}
               disabled={isLoading || !input.trim()}
               style={{
+                flexShrink: 0,
                 background: "var(--cta-orange, #e97a2c)",
                 color: "white",
                 border: "none",
