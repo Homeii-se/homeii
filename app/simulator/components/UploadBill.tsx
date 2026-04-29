@@ -133,7 +133,7 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
       setError(err instanceof Error ? err.message : "Något gick fel vid tolkning av fakturan");
       setPhase("upload");
     }
-  }, [stagedFiles]);
+  }, [stagedFiles, billData, onComplete]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
