@@ -256,19 +256,22 @@ export default function Home() {
 
   return (
     <div className="bg-gradient-main relative min-h-screen pb-12">
-      {/* Step indicator (hidden on landing) */}
+      {/* Step indicator — minimal progress-tråd, bara synlig efter landing */}
       {currentStep > 1 && (
-        <div className="relative z-10 border-b border-gray-200 bg-white/80">
-          <div className="mx-auto flex max-w-2xl items-center justify-between">
-            <StepIndicator currentStep={Math.min(currentStep, TOTAL_STEPS)} totalSteps={TOTAL_STEPS} onStepClick={handleStepClick} />
-            <button
-              onClick={handleRestart}
-              className="mr-4 rounded-lg px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:bg-gray-100 hover:text-text-secondary"
-              title="Börja om från början"
-            >
-              Börja om
-            </button>
-          </div>
+        <div className="relative z-10 bg-white/80">
+          <StepIndicator
+            currentStep={Math.min(currentStep, TOTAL_STEPS)}
+            totalSteps={TOTAL_STEPS}
+            onStepClick={handleStepClick}
+          />
+          {/* "Börja om" — diskret länk uppe i högra hörnet */}
+          <button
+            onClick={handleRestart}
+            className="absolute right-3 top-2 text-xs text-text-muted/70 hover:text-text-secondary transition-colors"
+            title="Börja om från början"
+          >
+            Börja om
+          </button>
         </div>
       )}
 
