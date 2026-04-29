@@ -21,19 +21,28 @@ import { SE_ZONE_CENTROIDS } from "./simulator/data/geocoding";
 const TOTAL_STEPS = 4;
 
 export default function Home() {
-  const [state, setState] = useState<SimulatorState>(() => {
+  // HYDRATION-SAFE: börja alltid med DEFAULT_STATE så server/client matchar.
+  // Läs sparad state från localStorage i useEffect efter hydration nedan.
+  const [state, setState] = useState<SimulatorState>(DEFAULT_STATE);
+  const [hydrated, setHydrated] = useState(false);
+  const [tmyData, setTmyData] = useState<TmyHourlyData[] | null>(null);
+
+  // Ladda sparad state efter hydration (klient-only)
+  useEffect(() => {
     const saved = loadState();
     if (!saved.selectedDate || saved.selectedDate === "2026-03-25") {
       saved.selectedDate = new Date().toISOString().split("T")[0];
     }
-    return saved;
-  });
-  const [tmyData, setTmyData] = useState<TmyHourlyData[] | null>(null);
+    setState(saved);
+    setHydrated(true);
+  }, []);
 
-  // Persist state on every change (after initial load)
+  // Persist state på alla ändringar — men först efter att vi laddat localStorage
+  // (annars skriver vi över sparad state med DEFAULT_STATE i en flicker-frame)
   useEffect(() => {
+    if (!hydrated) return;
     saveState(state);
-  }, [state]);
+  }, [state, hydrated]);
 
   const updateState = useCallback((updates: Partial<SimulatorState>) => {
     setState((prev) => ({ ...prev, ...updates }));

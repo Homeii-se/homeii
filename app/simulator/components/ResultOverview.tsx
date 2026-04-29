@@ -11,6 +11,7 @@ import CostBreakdownCard from "./CostBreakdownCard";
 import SimulationExplorer from "./SimulationExplorer";
 import ChatPanel from "./ChatPanel";
 import { getYearlyData } from "../simulation/annual";
+import ResultScrollFlow from "./ResultV2/ResultScrollFlow";
 
 interface ResultOverviewProps {
   threeScenarios: ThreeScenarioSummary;
@@ -76,6 +77,8 @@ export default function ResultOverview({
     };
   }, [seZone, currentSituation, assumptions, billData]);
 
+  const [resultView, setResultView] = useState<"classic" | "scroll">("classic");
+
   const hasExistingEquipment = refinement && (
     refinement.hasSolar ||
     refinement.hasBattery ||
@@ -85,6 +88,59 @@ export default function ResultOverview({
 
   return (
     <div className="mx-auto max-w-2xl px-4 animate-fade-in">
+      {/* View toggle: Klassisk vy / Ny vy (under utveckling) */}
+      <div className="mb-4 flex gap-1 rounded-xl bg-surface-solid p-1">
+        <button
+          type="button"
+          onClick={() => setResultView("classic")}
+          className={
+            resultView === "classic"
+              ? "flex-1 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white shadow-sm"
+              : "flex-1 rounded-lg px-4 py-2 text-sm font-semibold text-text-primary transition hover:bg-bg-warm"
+          }
+          aria-current={resultView === "classic" ? "page" : undefined}
+        >
+          Klassisk vy
+        </button>
+        <button
+          type="button"
+          onClick={() => setResultView("scroll")}
+          className={
+            resultView === "scroll"
+              ? "flex-1 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white shadow-sm"
+              : "flex-1 rounded-lg px-4 py-2 text-sm font-semibold text-text-primary transition hover:bg-bg-warm"
+          }
+          aria-current={resultView === "scroll" ? "page" : undefined}
+        >
+          Ny vy ✨
+        </button>
+      </div>
+
+      {resultView === "scroll" ? (
+        <>
+          <div className="-mx-4">
+            <ResultScrollFlow
+              costComponents={currentSituation.costComponents}
+              gridOperatorName={assumptions?.gridOperator ?? billData.natAgare}
+              seZone={seZone}
+            />
+          </div>
+          {/* AI-rådgivare — finns i båda vyerna */}
+          {refinement && (
+            <div className="px-4 py-8">
+              <ChatPanel
+                billData={billData}
+                refinement={refinement}
+                seZone={seZone}
+                assumptions={assumptions}
+                activeUpgrades={{} as ActiveUpgrades}
+                yearlyComparison={getYearlyData(billData, refinement, seZone)}
+              />
+            </div>
+          )}
+        </>
+      ) : (
+        <>
       {/* Headline */}
       <div className="card-strong rounded-2xl p-5 mb-5">
         <p className="text-sm text-text-muted mb-1">Uppskattad årlig elkostnad</p>
@@ -236,6 +292,8 @@ export default function ResultOverview({
           Uppskattningen baseras på din faktura och genomsnittliga energipriser för din zon.
         </p>
       </div>
+        </>
+      )}
     </div>
   );
 }
