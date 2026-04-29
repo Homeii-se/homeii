@@ -17,6 +17,17 @@ import { getZoneClimate } from "../climate";
 import { getBlendedHeatingShare, getHeatPumpCOP, getAdjustedSeasonFactors } from "./upgrades";
 import { simulateMonthsWithUpgrades } from "./monthly";
 import type { AnnualCostBreakdown } from "./cost-model";
+import { getAnnualAvgSpotOre } from "../data/energy-prices";
+import { getEnergyTaxRateForYear } from "../data/energy-tax";
+import { ELHANDEL_DEFAULTS } from "../data/elhandel-defaults";
+import { DEFAULT_GRID_PRICING, getGridPricing } from "../data/grid-operators";
+
+/** Första år vi har historisk data för (Supabase + ENTSO-E). */
+const HISTORICAL_FROM_YEAR = 2020;
+/** Antal år framåt vi prognostiserar bortom innevarande år. */
+const FORECAST_YEARS_AHEAD = 1;
+/** Årlig prisuppräkning för år bortom 2026 (innan vi har terminspriser). */
+const ANNUAL_PRICE_ESCALATION = 1.03;
 
 export function calculatePricePerKwh(bill: BillData): number {
   if (bill.kwhPerMonth <= 0) return 0;
@@ -100,46 +111,94 @@ export function estimateZeroEquipmentBill(
   };
 }
 
+/**
+ * Returnera ett 8-årigt fönster av årsförbrukning + årskostnad: 2020 →
+ * (innevarande år + 1).
+ *
+ * För varje år beräknas kostnaden som:
+ *   total_kr = årlig_kWh × (spot_öre + skatt_öre + transferFee_öre + markup_öre) / 100
+ *            + grid_fixed_fee_kr × 12
+ *            + elhandel_monthly_fee_kr × 12
+ *
+ * Där komponenterna kommer från:
+ *  - **Spot**: ENTSO-E månadsmedel (verkligt utfall) för 2020-2025; nuvarande
+ *    prognos (terminspriser) för 2026; 2026 × 1.03 för 2027.
+ *  - **Energiskatt**: Årsspecifik från Skatteverkets historik (2020-2025 verkligt,
+ *    2026 sänkt till 36, 2027 antar oförändrat).
+ *  - **Transferfee, markup, fasta avgifter**: Användarens nuvarande nätbolag och
+ *    elhandlare (samma alla år — historiska nätbolagsavgifter publiceras inte
+ *    enhetligt). Detta ger ~1-5% felmarginal på totalkostnaden men fångar
+ *    huvudvariansen som kommer från spot+skatt.
+ *
+ * Förbrukning är konstant över alla år (visualiserar priseffekten isolerat).
+ *
+ * `isEstimate=false` markerar innevarande år (matchar fakturan); alla andra
+ * år är härledda och markeras `isEstimate=true`.
+ */
 export function getYearlyData(
   bill: BillData,
   refinement: RefinementAnswers,
   seZone: SEZone = "SE3"
 ): YearlyDataPoint[] {
   const currentYear = new Date().getFullYear();
-  const pricePerKwh = calculatePricePerKwh(bill);
 
+  // Användarens TMY-justerade årsförbrukning (kWh)
   const seasonFactors = getAdjustedSeasonFactors(refinement, seZone);
-  const adjustedYearly = seasonFactors.reduce(
+  const annualKwh = seasonFactors.reduce(
     (sum, f) => sum + bill.kwhPerMonth * f,
     0
   );
 
-  const prevYear = Math.round(adjustedYearly * 0.97);
-  const nextYear = Math.round(adjustedYearly * 1.03);
+  // Hämta användarens NUVARANDE elhandel- och nätbolagsdata från fakturan.
+  // Dessa antas oförändrade över alla år i jämförelsen.
+  const transferFeeOre = bill.gridTransferFeeOre
+    ?? (bill.natAgare ? getGridPricing(bill.natAgare).transferFeeOrePerKwh : DEFAULT_GRID_PRICING.transferFeeOrePerKwh);
+  const markupOre = bill.invoiceMarkupOre ?? ELHANDEL_DEFAULTS.avgMarkupOrePerKwh;
+  const gridFixedFeeKr = bill.gridFixedFeeKr
+    ?? (bill.natAgare ? getGridPricing(bill.natAgare).fixedFeeKrPerMonth : DEFAULT_GRID_PRICING.fixedFeeKrPerMonth);
+  const elhandelMonthlyFeeKr = bill.invoiceMonthlyFeeKr ?? ELHANDEL_DEFAULTS.avgMonthlyFeeKr;
 
-  return [
-    {
-      year: currentYear - 1,
-      label: `${currentYear - 1}`,
-      kwh: prevYear,
-      cost: Math.round(prevYear * pricePerKwh * 0.95),
-      isEstimate: true,
-    },
-    {
-      year: currentYear,
-      label: `${currentYear}`,
-      kwh: Math.round(adjustedYearly),
-      cost: Math.round(adjustedYearly * pricePerKwh),
-      isEstimate: false,
-    },
-    {
-      year: currentYear + 1,
-      label: `${currentYear + 1}`,
-      kwh: nextYear,
-      cost: Math.round(nextYear * pricePerKwh * 1.05),
-      isEstimate: true,
-    },
-  ];
+  const result: YearlyDataPoint[] = [];
+
+  for (let year = HISTORICAL_FROM_YEAR; year <= currentYear + FORECAST_YEARS_AHEAD; year++) {
+    // Spotpris-komponent
+    let spotOre: number;
+    let isEstimate = true;
+
+    if (year >= HISTORICAL_FROM_YEAR && year <= 2026) {
+      // Direkt från historisk/prognos-tabell
+      const spot = getAnnualAvgSpotOre(year, seZone);
+      // Fallback till 2026-prognos om något saknas
+      spotOre = spot ?? (getAnnualAvgSpotOre(2026, seZone) ?? 60);
+    } else {
+      // För år bortom 2026: applicera årlig uppräkning från 2026-basen
+      const base = getAnnualAvgSpotOre(2026, seZone) ?? 60;
+      const yearsBeyond2026 = year - 2026;
+      spotOre = base * Math.pow(ANNUAL_PRICE_ESCALATION, yearsBeyond2026);
+    }
+
+    if (year === currentYear) {
+      isEstimate = false; // Innevarande år matchar fakturan
+    }
+
+    const taxOre = getEnergyTaxRateForYear(year, seZone);
+
+    // Kostnad per kWh för det här året (öre/kWh exkl moms)
+    const variableOrePerKwh = spotOre + taxOre + transferFeeOre + markupOre;
+    const variableCostKr = (annualKwh * variableOrePerKwh) / 100;
+    const fixedCostKr = (gridFixedFeeKr + elhandelMonthlyFeeKr) * 12;
+    const totalCostKr = variableCostKr + fixedCostKr;
+
+    result.push({
+      year,
+      label: `${year}`,
+      kwh: Math.round(annualKwh),
+      cost: Math.round(totalCostKr),
+      isEstimate,
+    });
+  }
+
+  return result;
 }
 
 export function getPrecision(answeredQuestions: number): number {

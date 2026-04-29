@@ -3,6 +3,7 @@
  */
 
 import type { SEZone } from "../types";
+import { SE_MONTHLY_DATA } from "../../../lib/prices/markets/sweden";
 
 /**
  * SE Zone VARIABLE energy price (öre/kWh) per month.
@@ -128,4 +129,36 @@ export const SE_ZONE_SPOT_PRICE: Record<SEZone, number[]> = {
  */
 export const DEFAULT_GRID_FEE_KR_PER_MONTH = 320;
 export const DEFAULT_POWER_FEE_KR_PER_KW = 44;
+
+/**
+ * Hämta historiskt årsmedel-spotpris (öre/kWh exkl moms) för en SE-zon.
+ *
+ * Använder ENTSO-E-data (SE_MONTHLY_DATA i lib/prices/markets/sweden.ts) för
+ * 2020-2025 — verkliga månadsmedel aggregerade till årsmedel runtime. För 2026
+ * används prognosvärdet från SE_ZONE_SPOT_PRICE (terminspriser via Nasdaq OMX).
+ * För år utanför täckning returnerar null.
+ *
+ * @param year Året att hämta (2020-2026)
+ * @param zone SE-zon
+ * @returns Årsmedel öre/kWh exkl moms, eller null om data saknas
+ */
+export function getAnnualAvgSpotOre(year: number, zone: SEZone): number | null {
+  // 2026: nuvarande prognos (terminspriser)
+  if (year === 2026) {
+    const months = SE_ZONE_SPOT_PRICE[zone];
+    if (!months || months.length !== 12) return null;
+    return months.reduce((s, m) => s + m, 0) / 12;
+  }
+
+  // Historiska år (2020-2025): aggregera ENTSO-E månadsmedel
+  if (year >= 2020 && year <= 2025) {
+    const months = SE_MONTHLY_DATA.filter(
+      (d) => d.year === year && d.zoneId === zone
+    );
+    if (months.length === 0) return null;
+    return months.reduce((s, m) => s + m.avgOreKwh, 0) / months.length;
+  }
+
+  return null;
+}
   

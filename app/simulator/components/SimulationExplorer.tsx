@@ -318,7 +318,7 @@ export default function SimulationExplorer({
         {period === "manad" && chartUnit === "sek" &&
           "Total månadskostnad inkl. energi, grundavgift och effektavgift"}
         {period === "ar" &&
-          "Årsjämförelse — föregående år (uppskattning) och nästa år (prognos +3%)"}
+          "Historisk jämförelse 2020-2025 (ENTSO-E spotpriser + årsspecifik energiskatt), nuläge 2026 (din faktura), prognos kommande år. Förbrukning antas konstant och nätbolagsavgifter / elhandelsmarkup använder dagens nivåer (~1-5% felmarginal jämfört med exakt historisk faktura)."}
       </div>
     </div>
   );
