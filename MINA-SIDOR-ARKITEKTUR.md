@@ -1,121 +1,306 @@
-# Mina sidor — arkitektur-brief
+# Mina sidor — arkitekturdokument
 
-**Datum:** 2026-04-28 (uppdaterad senare samma dag)
+**Datum:** 2026-04-29
 **Författare:** Gustaf (med stöd från Cowork-resonemang)
-**Mottagare:** Mattias P
-**Status:** Alla öppna frågor besvarade — redo för implementation
+**Status:** Levande dokument — uppdateras i takt med bygget
+
+> Detta dokument konsoliderar och ersätter den tidigare korta arkitektur-brieven samt `MINA-SIDOR-HANDOFF.md` (raderad i samma commit). Fullständig historik för båda finns i Git-loggen före denna commit.
+
+> Det här dokumentet är *självständigt*. Du ska kunna läsa enbart denna fil och förstå vad som ska byggas, varför, och i vilken ordning. Faktiska SQL-statements finns i `supabase/schema.sql`.
+>
+> **Regel:** Varje PR som ändrar ett arkitekturbeslut eller datamodellen ska uppdatera detta dokument i samma commit.
 
 ---
 
-## Bakgrund
+## 1. Sammanfattning
 
-Idag är fakturaflödet helt ephemeralt: PDF → `/api/parse-invoice` → Anthropic → resultat ritas → borta när fliken stängs. För att Homeii ska vara mer än en glorifierad fakturatolk behöver vi spara fakturor över tid. Det är där hela värdet ligger: longitudinell intelligens om hushållet, inte engångsanalys.
+Mina sidor är där en kund **sparar fakturor över tid** och får löpande analys/optimering av sitt elbruk. Det är där Homeii går från en engångsanalys till en kontinuerlig energirådgivare.
 
-Mattias är på väg att koppla in Supabase (kvar att göra: `npm install @supabase/supabase-js`, env vars i Vercel, schema, RLS). När det är på plats bygger vi Mina sidor på den grunden.
+**Vi har låst:** Arkitektur, datamodell, RLS-policys, implementationssekvens, schemafil.
+
+**Vi har inte byggt än:** Kod (Auth, UI, save-flöden) — pausat tills simuleringskorrektheten är på plats.
+
+**När arbetet återupptas:** Följ implementationssekvensen i avsnitt 7 nedan. Allt nödvändigt är dokumenterat.
 
 ---
 
-## Beslutade arkitekturpunkter
+## 2. Varför Mina sidor
 
-### 1. Tre nivåer: Teaser → Bas → Premium
+Idag är fakturaflödet **helt ephemeralt**: PDF laddas upp → parsas via Anthropic → resultat visas → försvinner när fliken stängs. Ingen persistens.
 
-**Teaser (utan inlogg)** — det användaren får direkt vid faktura-uppladdning. Innehåller:
-- Uppskattning av total betalning per år
-- Tydlig synliggörning av vad användaren faktiskt betalar (mål: väcka känslan "du betalar mer än du tror")
-- Jämförelse av nuläget mot referensgrupper (grannar / Sverige-snitt / villaägare etc)
+För Homeii som produkt är detta otillräckligt. Hela värdet ligger i **longitudinell intelligens** — att över tid se hur ett hushåll konsumerar och lära sig optimera. Utan att spara fakturor är vi en glorifierad fakturatolk. Med sparade fakturor blir vi en energirådgivare som lär sig hushållet.
 
-**Bas (efter kontoskapande)** — grundläggande kontofunktionalitet, sparade fakturor, Mina sidor, historik över tid. Permanent gratis i grundutförande.
+---
 
-**Premium** — specifika rekommendationer, djupare analyser, framtida funktioner som läggs till över tid. Prismodell ej låst (kan vara $X/mån, B2B-paket för mäklare/banker, etc).
+## 3. Arkitekturbeslut (11 låsta)
 
-*Idé för konvertering Teaser→Bas:* visa blurrad teaser av Bas-funktionaliteten — "Skapa konto för att spara analysen och få fler insikter".
+### 3.1 Tre prismässiga nivåer
 
-### 2. Spara både PDF och JSON
+| Nivå | Tröskel | Innehåll |
+|---|---|---|
+| **Teaser** | Anonym uppladdning | Uppskattning årlig betalning + synliggörande av vad användaren betalar + jämförelse mot grannar/Sverige/villaägare |
+| **Bas** | Skapa konto | Sparade fakturor, Mina sidor, historik över tid (permanent gratis) |
+| **Premium** | Framtid | Specifika rekommendationer + framtida funktioner. Prismodell ej låst (kan vara $X/mån, B2B, etc) |
 
-Inte bara den parsade datan. Storage är försumbart (~$1/mån för 1 000 hushåll × 24 fakturor i Supabase). Att behålla PDF:en ger oss option att re-parsa när modellerna blir bättre, och låter användarna ladda ner sina egna fakturor sen.
+Konvertering Teaser→Bas sker vid wow-ögonblicket efter att användaren sett analysen, inte före.
 
-### 3. Adress som nav, inte användare
+### 3.2 Spara både PDF och JSON
 
-Flera användare kan vara medlemmar av samma adress. Hanterar sambo, flytt, sommarhus naturligt. Bättre privacy-story: "Homeii vet ditt hem", inte "Homeii vet dig".
+Inte bara parsad data. Storage är försumbart i Supabase (~$1/mån för 1 000 hushåll × 24 fakturor). Att behålla PDF:en ger oss option att re-parsa när modellerna blir bättre, och låter användarna ladda ner sina egna fakturor.
 
-### 4. Soft delete vid konto/data-radering
+### 3.3 Adress som nav, inte användare
 
-PDF raderas direkt. JSON behålls med PII strippad (bara konsumtionsmönster + region kvar) för aggregat-modell. Kräver tydlig text i integritetspolicyn.
+Användare attacheras till adresser, inte tvärtom. Hanterar sambo, flytt, sommarhus naturligt. Bättre privacy-story: "Homeii vet ditt hem" istället för "Homeii vet dig".
 
-### 5. Adressverifiering = explicit invite från ägaren (v1)
+### 3.4 Soft delete vid borttagning
 
-Bara för att Erik laddar upp en faktura som visar "Storgatan 5" får han inte automatiskt se Annas data. Existerande adress-ägare måste explicit invitera nya medlemmar via mejl. Säkerhet > bekvämlighet i v1.
+PDF raderas direkt, JSON behålls med PII strippad (bara konsumtionsmönster + region kvar) för aggregat-modell. Kräver tydlig text i integritetspolicyn.
 
-### 6. Konsumtions-anläggningsID som primary key
+### 3.5 Adressverifiering = explicit invite
 
-INTE bara "anläggnings-ID" generellt. Distinktionen är viktig: solcellshushåll har två separata anläggnings-ID — ett för konsumtion (uttag) och ett för produktion (inmatning). Konsumtions-ID finns på *alla* svenska elhushåll, så det är den universella nyckeln.
+Existerande ägare måste explicit bjuda in nya medlemmar via mejl. Säkerhet > bekvämlighet i v1 — det räcker inte att Erik laddar upp en faktura med "Storgatan 5" för att få se Annas data automatiskt.
 
-### 7. Produktions-anläggningsID som valfri koppling
+### 3.6 Konsumtions-anläggningsID som primary key
+
+Inte bara "anläggnings-ID" generellt. Solcellshushåll har två separata anläggnings-ID — ett för konsumtion (uttag) och ett för produktion (inmatning). Konsumtions-ID finns på **alla** svenska elhushåll (även icke-solcellshushåll), så det är den universella nyckeln.
+
+### 3.7 Produktions-anläggningsID som valfri koppling
 
 För solcellshushåll. Hänger på samma fysiska adress som konsumtions-anläggningen men är distinkt i elnätet. Förbereder för framtida solcellsanalys utan schema-ändring.
 
-### 8. Produktprincip: bekräfta över ifyllnad
+### 3.8 Produktprincip: bekräfta över ifyllnad
 
-All data som går att extrahera från fakturan ska auto-fyllas och bara *bekräftas* av användaren — aldrig manuellt knappas in från noll. Detta gäller adress, anläggnings-ID, elhandelsbolag, period, förbrukning, kostnader. Skiljer Homeii från typiska kalkylatorer där användaren själv klickar in 50 fält. Inverkan på UI: kontoskapande-flödet är ett "bekräfta dina uppgifter"-steg, inte ett formulär.
+All data som kan extraheras från fakturan ska auto-fyllas och bara **bekräftas** av användaren — aldrig manuellt knappas in från noll. Gäller adress, anläggnings-ID, elhandelsbolag, period, förbrukning, kostnader. Skiljer Homeii från typiska kalkylatorer där användaren själv klickar in 50 fält.
 
-### 9. Adress autodetekteras från fakturan, bekräftas av användaren
+### 3.9 Adress autodetekteras från fakturan
 
-Adressen läses från fakturan automatiskt. När användaren skapar konto efter sin Teaser-analys är första steget en bekräftelse: "Vi tolkade adressen som *Storgatan 5, 113 33 Stockholm* — stämmer det?". Detta är direkt tillämpning av princip #8.
+När användaren skapar konto efter sin Teaser-analys är första steget en bekräftelse: *"Vi tolkade adressen som Storgatan 5, 113 33 Stockholm — stämmer det?"*. Direkt tillämpning av princip 3.8.
 
-### 10. v1: 1 konsumtions-anläggningsID = 1 "hem" i Homeii
+### 3.10 v1: 1 konsumtions-anläggningsID = 1 "hem"
 
-För edge-case villa med flera mätare (huvud + garage) ser användaren två separata "hem" i dashboarden, t.ex. "Storgatan 5 (huvud)" och "Storgatan 5 (garage)". Inga extra entiteter i schemat. När/om frågan blir akut kan v2 lägga till en optional `household_group_id`-kolumn för frivillig gruppering — additiv ändring, ingen migration. BRF-lägenheter är inte detta problem (varje lägenhet har eget anläggnings-ID = eget "hem").
+Edge case: villa med separat mätare för garage/uthyrd källare → användaren ser två "hem" i dashboarden, t.ex. "Storgatan 5 (huvud)" och "Storgatan 5 (garage)". Inget `household_group_id` i v1 — additiv ändring för v2 om det blir akut. BRF-lägenheter är **inte** detta problem (varje lägenhet har eget anläggnings-ID = eget "hem" naturligt).
 
-### 11. Ägarskap kan överföras (flytt, avslut)
+### 3.11 Roll-modell: Owner = admin/billing, Member = full operativ åtkomst
 
-Vid flytt eller om ägaren lämnar tjänsten ska ägarskap kunna överföras till annan medlem av adressen. Tre situationer att stödja:
+| Action | Owner | Member |
+|---|---|---|
+| Läsa, ladda upp, redigera, radera fakturor | ✓ | ✓ |
+| Ändra mätarpunkt-inställningar | ✓ | ✓ |
+| Bjuda in ny medlem | ✓ | ✓ |
+| Sparka ut medlem | ✓ | ✗ |
+| Överlåta ägarskap | ✓ | ✗ |
+| Stänga hela kontot | ✓ | ✗ |
+| Hantera Premium-prenumeration | ✓ | ✗ |
 
-- **Flytt med kvarvarande medlemmar:** ägaren initierar överlåtelse till annan medlem, lämnar sedan adressen. Hens tidigare uppladdade fakturor stannar med adressen (data tillhör adressen, inte personen).
-- **Flytt utan andra medlemmar (ensamhushåll):** användaren kan välja att (a) lämna adressen, varvid den blir föräldralös tills ny ägare registrerar samma konsumtions-ID, eller (b) arkivera och radera adressen helt.
-- **Användare lämnar tjänsten helt:** soft delete enligt punkt 4. Om hen var ensam ägare blir adressen föräldralös.
+Som Spotify Family — den inbjudna kan göra allt utom de oåterkalleliga och ekonomiska besluten. Modell stödjer flytt och övergång (ägaren kan överlåta ägarskap till annan medlem).
 
 ---
 
-## Datamodell
+## 4. Datamodell
 
 ```
-addresses (fysisk plats — gata, postnummer, stad, kommun)
-  └─ consumption_metering_points (PK = konsumtions-anläggningsID)
-       ├─ production_metering_point (valfri, FK — för solcellshushåll)
-       ├─ members (users med roll: ägare / medlem)
-       ├─ invoices (PDF-blob + parsed JSON, period, uppladdad_av)
-       └─ consumption_data (timserie eller månadssnitt)
-
-users (Supabase Auth — magic link, ingen lösen)
+auth.users (Supabase Auth — magic link + Google OAuth, ingen lösenordshantering)
+    │
+    ├──► user_profiles (tier, namn, notif-preferenser)
+    │
+    └──► metering_point_members (join: user × mätarpunkt + roll)
+              │
+              ▼
+    consumption_metering_points  ◄── PK = konsumtions-anläggningsID
+         │  ("ETT HEM" i Homeii)
+         │
+         ├──► addresses (gata, postnr, stad, kommun, koordinater)
+         ├──► production_metering_points (valfri, för solceller)
+         ├──► invoices (PDF i Storage + JSON parsed_data)
+         ├──► consumption_data (timme/dag/månad-kWh)
+         └──► metering_point_invitations (pending invites)
 ```
 
-Nyckelpoänger:
-- En `address` kan ha flera `consumption_metering_points` om det är ett flerbostadshus med separata mätare. Konsumtions-ID:t är det som unikt identifierar "ett hem" i Homeii-bemärkelse.
-- En `user` kan vara medlem i flera adresser (sommarhus, flytt med övergångsperiod).
-- En `invoice` tillhör ett konsumtions-metering-point, inte direkt en user. `uploaded_by` är bara metadata om vem som laddade upp.
+**Tabellöversikt (8 tabeller, definierade i `supabase/schema.sql`):**
+
+| Tabell | Roll |
+|---|---|
+| `user_profiles` | Hemii-specifik användardata, kopplad 1:1 till `auth.users` |
+| `addresses` | Fysisk plats — flera mätarpunkter kan dela adress |
+| `consumption_metering_points` | Navet — "ett hem". PK = konsumtions-anläggningsID |
+| `production_metering_points` | Solcellsproduktion, valfri koppling till consumption |
+| `metering_point_members` | Vem har åtkomst till vilken mätarpunkt + roll |
+| `metering_point_invitations` | Pending-invites, engångs-tokens |
+| `invoices` | Sparad faktura (storage path + parsed JSON + denormaliserade fält) |
+| `consumption_data` | Granular kWh-data (timme/dag/månad) |
 
 ---
 
-## Implementations-sekvens
+## 5. Strukturella designval — varför schemat ser ut som det gör
 
-1. **`npm install @supabase/supabase-js`** + commita uppdaterad package.json/lock
-2. **Skapa Supabase-projektet**, sätt `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` i Vercel
-3. **Schema**: `addresses`, `consumption_metering_points`, `production_metering_points`, `address_members`, `invoices`, `consumption_data`
-4. **RLS-policys**: en användare ser bara konsumtions-metering-points hen är medlem av. Storage-bucket samma princip.
-5. **Auth-flöde**: Supabase magic link via mejl. Ingen lösen.
-6. **UI v1**: efter lyckad faktura-uppladdning → "Spara den här analysen, skapa konto med din mejl" → magic link → fakturan kopplas till nyskapad konsumtions-anläggning ägd av användaren.
-7. **Mina sidor v1**: lista över sparade fakturor per adress, klicka för att se historik. Invite-medlem via mejl-knapp.
+Det här är de viktigaste *icke-uppenbara* valen i schemat. När du läser `schema.sql` och undrar "varför så här?", här finns motiveringen.
+
+### 5.1 `user_profiles` extends `auth.users` istället för en custom `users`-tabell
+
+Supabase Auth hanterar registrering, magic links, sessioner i den interna tabellen `auth.users`. Vi äger inte den tabellen — Supabase kan ändra den vid uppdateringar. Därför skapar vi en parallell tabell `public.user_profiles` med samma `id` (UUID) för Homeii-specifik data: tier, mejlnotiser, namn.
+
+En trigger (`on_auth_user_created`) auto-skapar profil-raden vid registrering. Standard Supabase-mönster — minskar mängden auth-kod vi behöver underhålla.
+
+### 5.2 `anlaggnings_id` som `text`, inte `bigint`
+
+Anläggnings-ID är 18 siffror men vi lagrar som text:
+
+- **Inledande nollor** bevaras (talsystem skulle tappa dem)
+- **Framtida formatändringar** (bindestreck, prefix) hanteras utan migration
+- Vi gör aldrig matte på fältet — det är en identifierare, inte ett mätvärde
+- Prestandaskillnaden är osynlig vid hushållsvolymer
+
+Samma logik som telefonnummer.
+
+### 5.3 Denormaliserade snabb-läs-fält på `invoices`
+
+Hela parsade JSON-objektet sparas i `parsed_data jsonb`, men de fyra mest använda fälten (`total_kr`, `consumption_kwh`, `spot_price_ore_kwh`, `electricity_supplier`) sparas **också** som egna kolumner.
+
+Skälet: dashboards och grafer som gör `SELECT total_kr FROM invoices WHERE ...` ska inte behöva JSON-parsa varje rad. För 1000 användares dashboard-rendering är skillnaden 50–100×.
+
+Vid uppladdning skrivs båda samtidigt — ingen synkproblematik.
+
+### 5.4 Soft delete via `deleted_at`-kolumner
+
+När en användare raderar en faktura sätts en tidsstämpel istället för att radera raden direkt. Queries filtrerar `WHERE deleted_at IS NULL`.
+
+Skäl:
+- Misstag kan ångras (support kan återställa direkt)
+- GDPR-grace-period (typiskt 30 dagar innan permanent radering)
+- Forensik vid disputer
+- Stripa PII och behålla anonymiserade konsumtionsmönster för aggregat-modell
+
+En framtida cron-job hard-deletar rader vars `deleted_at` är äldre än X dagar.
+
+### 5.5 RLS via hjälpfunktioner `user_is_member()` / `user_is_owner()`
+
+Row-Level Security policys ligger på databasen själv — säkerheten är inte beroende av att applikationskoden gör rätt. Istället för att duplicera samma EXISTS-subquery i varje tabells policy är logiken centraliserad i två funktioner som varje policy bara anropar.
+
+Skäl: en typisk RLS-bug är att uppdatera logik på 7 av 8 tabeller och glömma den åttonde — tyst säkerhetshål. Med centraliserade funktioner finns det bara ett ställe att uppdatera.
+
+### 5.6 Partial unique index = max en aktiv ägare per mätarpunkt
+
+```sql
+create unique index idx_one_active_owner_per_metering_point
+  on public.metering_point_members(anlaggnings_id)
+  where role = 'owner' and left_at is null;
+```
+
+Index-villkoret garanterar **på databasnivå** att det finns högst en aktiv ägare per mätarpunkt. Försöker applikationskoden av misstag skapa två ägare (race condition, bugg, manuell admin-fix) så vägrar databasen.
+
+Vid ägarskaps-överlåtelse: i en transaktion, demota gamla ägaren (sätt `left_at`), promota nya. Glömmer du första steget → databasen kastar fel, transaktionen rullas tillbaka.
+
+"Partial" betyder att begränsningen bara gäller aktiva ägare. Du kan ha flera *före detta* ägare per mätarpunkt — bara inte två aktuella.
 
 ---
 
-## Kvarstående produktfrågor (inte arkitektur — kan besvaras under bygget)
+## 6. RLS-modell i sammandrag
 
-- **Innehållet i Bas-nivån i detalj.** Vilka exakta funktioner är "grundläggande kontofunktionalitet"? Lämnar för senare definition under utveckling.
-- **Premium-prismodell.** $X/mån, B2B, freemium-features, eller något annat? Beslut behövs först när Premium-funktionerna börjar byggas.
-- **Föräldralösa adresser.** Hur länge stannar en föräldralös adress innan den auto-arkiveras? GDPR-fråga som behöver tänkas igenom när retention-policy skrivs.
+| Tabell | Vem läser | Vem skriver |
+|---|---|---|
+| `user_profiles` | Användaren själv | Användaren själv |
+| `addresses` | Medlemmar i kopplad mätarpunkt | (inget direkt — skapas via flöden) |
+| `consumption_metering_points` | Medlemmar | Medlemmar (uppdatera), Owner (delete) |
+| `production_metering_points` | Medlemmar i kopplad konsumtion | (kopplas vid solcells-flöde) |
+| `metering_point_members` | Medlemmar i samma mätarpunkt | Medlemmar (lägga till `member`), Owner (ändra roller, ta bort) |
+| `metering_point_invitations` | Medlemmar (sina), mottagare (sina egna) | Medlemmar (skapa invite) |
+| `invoices` | Medlemmar | Medlemmar (full CRUD) |
+| `consumption_data` | Medlemmar | (skrivs av systemet) |
+| Storage `invoices`-bucket | Medlemmar i kopplad mätarpunkt | Medlemmar |
+
+Service-role-nyckeln bypassar RLS — använd bara server-side för admin-jobb (t.ex. cron-rensning), aldrig klient-side.
 
 ---
 
-## Sammanfattning för minnet
+## 7. Implementationssekvens
 
-11 låsta beslut: tre-nivå-modell (Teaser/Bas/Premium); PDF + JSON; adress som nav; soft delete; explicit invite; konsumtions-anläggningsID som PK; produktions-anläggningsID som valfri koppling; *bekräfta över ifyllnad* som genomgående produktprincip; adress autodetekteras från faktura; 1 konsumtions-ID = 1 "hem" i v1; ägarskap kan överföras vid flytt/avslut. Datamodellen är klar, implementations-sekvensen är klar. Saknas: Supabase uppsatt + paketet i package.json. Det är där Mattias börjar imorgon.
+I strikt prioritetsordning. Bygg inte parallellt — varje steg bygger på föregående.
+
+### Steg 1: Förberedelser i Supabase (~30 min)
+
+1. Skapa Homeii-organisationen i Supabase och flytta projektet dit (om inte gjort) — fakturering ska ligga på orgen, inte privatkontot
+2. SQL Editor → kör hela `supabase/schema.sql` (skapar 8 tabeller + alla RLS-policys + triggers)
+3. Storage → New bucket `invoices`, private, 10 MB file limit
+4. Lägg till Storage RLS-policys (template kommenterad i slutet av `schema.sql`)
+5. Verifiera Vercel env vars — alla fyra för Production, Preview *och* Development:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+
+### Steg 2: Auth-flöde (~1-2 dagar)
+
+- Magic link via `supabase.auth.signInWithOtp({ email })` och Google OAuth via `supabase.auth.signInWithOAuth({ provider: 'google' })` — ingen lösenordshantering
+- Global inloggad/utloggad state via Supabase Auth-listener
+- Skydda `/mina-sidor`-routes via Next.js middleware
+- Logga ut + session refresh
+
+### Steg 3: "Spara faktura"-flöde (~2-3 dagar)
+
+- Efter lyckad anonym uppladdning → CTA "Skapa konto för att spara analysen"
+- Magic link → användaren bekräftar adressen som extraherats från fakturan ("Vi tolkade som *Storgatan 5* — stämmer?")
+- Vid bekräftelse, atomisk transaktion:
+  1. Skapa eller hitta `addresses`-rad
+  2. Skapa `consumption_metering_points` med konsumtions-ID från fakturan
+  3. Skapa `metering_point_members`-rad med `role='owner'`
+  4. Ladda upp PDF till Storage-bucket
+  5. Skapa `invoices`-rad med `pdf_storage_path` + `parsed_data` JSON + denormaliserade fält
+
+### Steg 4: Mina sidor v1 UI (~2-3 dagar)
+
+- `/mina-sidor`-vy: lista över sparade fakturor grupperade per mätarpunkt
+- Klick på faktura → öppna sparad analys (samma vy som anonym uppladdning visade)
+- Mätarpunkt-inställningar: ändra display-namn, lämna mätarpunkt
+- Användarprofil: tier, mejlnotiser, kontoinställningar
+
+### Steg 5: Invite-medlem-flöde (~1-2 dagar)
+
+- Bjud-in-knapp i Mina sidor → mejladress
+- Skapa rad i `metering_point_invitations` med engångs-token + 7 dagars expiry
+- Skicka mejl med länk: `/invitation/accept?token=<uuid>`
+- Acceptera-flow:
+  - Validera token (status='pending', inte expirerad, mejl matchar)
+  - Skapa `metering_point_members`-rad med `role='member'`
+  - Sätt invitation status='accepted'
+  - Redirect till Mina sidor
+
+### Steg 6: Premium-gate UI (senare, ~1-2 dagar)
+
+- Visa **blurrad** teaser av detaljerade rekommendationer för Bas-användare
+- "Uppgradera till Premium" CTA
+- Prismodell ej låst — UI-skiss tills affärsmodell är fastställd
+- Stripe/Klarna-integration kommer separat
+
+---
+
+## 8. Vad som inte ska göras under pausen
+
+- ❌ INTE köra `schema.sql` i Supabase än — databasen ska vara tom tills aktivt arbete startar
+- ❌ INTE ta bort eller ändra env vars i Vercel (de gör ingen skada och slipper att sätta om)
+- ❌ INTE radera Supabase-projektet
+- ❌ INTE börja koda Auth, Mina sidor UI eller andra Steg-2+-uppgifter
+
+---
+
+## 9. Öppna produktfrågor
+
+Inte arkitekturkritiska — kan besvaras under bygget.
+
+- **Innehållet i Bas-nivån i detalj.** Vilka exakta funktioner är "grundläggande kontofunktionalitet"?
+- **Premium-prismodell.** $X/mån, B2B, freemium-features, eller något annat? Beslut behövs först när Premium-funktioner börjar byggas.
+- **Föräldralösa adresser.** När sista medlemmen lämnar — hur länge stannar adressen innan auto-arkivering? GDPR-fråga som behöver tänkas igenom när retention-policy skrivs.
+
+---
+
+## 10. Referenser
+
+- **`supabase/schema.sql`** — komplett databasschema (CREATE TABLE, RLS-policys, triggers). Kör i Supabase SQL Editor när du är redo.
+- **Supabase Auth-dokumentation:** https://supabase.com/docs/guides/auth
+- **Supabase RLS-dokumentation:** https://supabase.com/docs/guides/auth/row-level-security
+- **Anläggnings-ID-konceptet (Svenska kraftnät):** sökord "anläggningsidentifierare elnät"
+
+---
+
+## Frågor?
+
+Skicka tillbaka konkreta frågor så fort något i detta dokument är otydligt eller verkar fel — innan kod skrivs ovanpå antaganden. Allt som skrevs här bygger på resonemang i ett videomöte 2026-04-28 och kan justeras om något inte håller mot verkligheten.
