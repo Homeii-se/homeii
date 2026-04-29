@@ -761,7 +761,9 @@ export default function ChatDrawer() {
                 border: "1px solid rgba(0,0,0,0.15)",
                 background: "white",
                 padding: "8px 12px",
-                fontSize: 13,
+                // 16px MÅSTE användas för att iOS Safari inte ska auto-zooma
+                // när användaren fokuserar fältet (vilket bryter layouten)
+                fontSize: 16,
                 fontFamily: "inherit",
                 minHeight: 36,
                 maxHeight: 100,
