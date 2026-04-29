@@ -1,30 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import { STRINGS } from "../data/strings";
-import UploadModal from "./UploadModal";
-import type { BillData } from "../types";
 
 interface LandingHeroProps {
-  /** Anropas med bill-data när modalen lyckats parsa en faktura.
-   *  Föräldern (page.tsx) ska då navigera direkt till steg 2 (Bekräfta). */
-  onUploadComplete: (data: BillData) => void;
+  onStart: () => void;
 }
 
-export default function LandingHero({ onUploadComplete }: LandingHeroProps) {
-  const [modalOpen, setModalOpen] = useState(false);
-
-  const handleClose = () => setModalOpen(false);
-  const handleComplete = (data: BillData) => {
-    setModalOpen(false);
-    onUploadComplete(data);
-  };
-
-  const onStart = () => setModalOpen(true);
-
+export default function LandingHero({ onStart }: LandingHeroProps) {
   return (
     <div className="animate-fade-in">
-      <UploadModal open={modalOpen} onClose={handleClose} onComplete={handleComplete} />
       {/* Hero section */}
       <div className="flex min-h-[75vh] flex-col items-center justify-center px-4 text-center">
         {/* Eyebrow badge */}

@@ -101,15 +101,10 @@ export default function Home() {
   }, [state.billData, state.refinement, state.seZone, state.assumptions, state.recommendations, tmyData]);
 
   // Step handlers
-  // Vid lyckad upload från landingens modal — hoppa direkt till steg 2 (Bekräfta)
-  const handleLandingUploadComplete = useCallback(
-    (billData: BillData) => {
-      updateState({ completedStep: 2, billData });
-    },
-    [updateState]
-  );
+  const handleStart = useCallback(() => {
+    updateState({ completedStep: 1 });
+  }, [updateState]);
 
-  // Behållen för bakåtkompatibilitet med UploadBill-komponenten (om den nås på annat sätt)
   const handleBillComplete = useCallback(
     (billData: BillData) => {
       updateState({ completedStep: 2, billData });
@@ -282,7 +277,7 @@ export default function Home() {
 
       <div className="relative z-10 mx-auto max-w-2xl pt-8">
         {/* Step 0: Landing */}
-        {currentStep === 1 && <LandingHero onUploadComplete={handleLandingUploadComplete} />}
+        {currentStep === 1 && <LandingHero onStart={handleStart} />}
 
         {/* Step 1: Upload bill */}
         {currentStep === 2 && (
