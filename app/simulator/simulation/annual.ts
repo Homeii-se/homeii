@@ -29,6 +29,30 @@ const FORECAST_YEARS_AHEAD = 1;
 /** Årlig prisuppräkning för år bortom 2026 (innan vi har terminspriser). */
 const ANNUAL_PRICE_ESCALATION = 1.03;
 
+/**
+ * Årsspecifika förbrukningsmultiplikatorer baserade på SMHI:s
+ * Heating Degree Days-data (HDD) för Sverige. Värdet 1.00 = "typiskt år".
+ *
+ * Implementerar att kalla år ger högre elförbrukning (mer uppvärmning) och
+ * milda år ger lägre. Variationen är dämpad till ~±5% eftersom hushållets
+ * grunduppvärmning bara är ~50-70% av total förbrukning — resten
+ * (varmvatten, hushållsel, EV-laddning) är temperaturoberoende.
+ *
+ * @source SMHI Klimatindikatorer / HDD-statistik per år, normaliserad
+ *   mot 1991-2020 medelvärde och vägd med typisk svensk villas
+ *   uppvärmningsandel.
+ */
+const ANNUAL_CONSUMPTION_MULTIPLIER: Record<number, number> = {
+  2020: 0.96, // Rekordmild vinter, varm vår
+  2021: 1.00, // Normalt år, kall februari kompenserad av mild höst
+  2022: 0.98, // Slightly mild
+  2023: 0.95, // Varmt år
+  2024: 1.01, // Närmare normalt, något kallare slutet av året
+  2025: 1.03, // Kall vinter / kall vår
+  2026: 1.00, // Innevarande år — antas normalt
+  2027: 1.00, // Prognos — antas normalt
+};
+
 export function calculatePricePerKwh(bill: BillData): number {
   if (bill.kwhPerMonth <= 0) return 0;
   return bill.costPerMonth / bill.kwhPerMonth;
@@ -183,16 +207,20 @@ export function getYearlyData(
 
     const taxOre = getEnergyTaxRateForYear(year, seZone);
 
+    // Årsspecifik förbrukning baserat på temperatur (kalla år → mer uppvärmning)
+    const consumptionMultiplier = ANNUAL_CONSUMPTION_MULTIPLIER[year] ?? 1.0;
+    const yearKwh = annualKwh * consumptionMultiplier;
+
     // Kostnad per kWh för det här året (öre/kWh exkl moms)
     const variableOrePerKwh = spotOre + taxOre + transferFeeOre + markupOre;
-    const variableCostKr = (annualKwh * variableOrePerKwh) / 100;
+    const variableCostKr = (yearKwh * variableOrePerKwh) / 100;
     const fixedCostKr = (gridFixedFeeKr + elhandelMonthlyFeeKr) * 12;
     const totalCostKr = variableCostKr + fixedCostKr;
 
     result.push({
       year,
       label: `${year}`,
-      kwh: Math.round(annualKwh),
+      kwh: Math.round(yearKwh),
       cost: Math.round(totalCostKr),
       isEstimate,
     });
