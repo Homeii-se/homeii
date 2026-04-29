@@ -101,25 +101,33 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
         setValidationResult(null);
       }
 
-      setBillData((prev) => {
-        let merged = prev;
-        for (const invoice of invoices) {
-          const extracted = parsedInvoiceToBillData(invoice);
-          console.log('[UPLOAD] Extracted BillData:', JSON.stringify(extracted));
-          merged = mergeBillData(merged, extracted);
-          console.log('[UPLOAD] After merge:', JSON.stringify({
-            kwhPerMonth: merged.kwhPerMonth,
-            annualKwh: merged.annualKwh,
-            costPerMonth: merged.costPerMonth,
-            seZone: merged.seZone,
-            natAgare: merged.natAgare,
-            spotPriceRatio: merged.spotPriceRatio,
-          }));
-        }
-        return merged;
-      });
+      // Merge parserns output med eventuell tidigare bill-data (för fall där användaren
+      // laddat upp flera fakturor i sekvens) och advance:a direkt till nästa steg —
+      // användaren får bekräfta + komplettera på den kombinerade VerificationScreen.
+      let mergedBill = billData;
+      for (const invoice of invoices) {
+        const extracted = parsedInvoiceToBillData(invoice);
+        console.log('[UPLOAD] Extracted BillData:', JSON.stringify(extracted));
+        mergedBill = mergeBillData(mergedBill, extracted);
+      }
+      console.log('[UPLOAD] After merge:', JSON.stringify({
+        kwhPerMonth: mergedBill.kwhPerMonth,
+        annualKwh: mergedBill.annualKwh,
+        costPerMonth: mergedBill.costPerMonth,
+        seZone: mergedBill.seZone,
+        natAgare: mergedBill.natAgare,
+        spotPriceRatio: mergedBill.spotPriceRatio,
+      }));
+      setBillData(mergedBill);
       setStagedFiles([]);
-      setPhase("result");
+
+      // Hoppa direkt till onComplete — VerificationScreen visar nu parsed data + hus-frågor i en vy
+      if (mergedBill.kwhPerMonth > 0 && mergedBill.costPerMonth > 0) {
+        onComplete(mergedBill);
+      } else {
+        // Saknas grunddata — visa fortfarande result-fasen så användaren kan komplettera
+        setPhase("result");
+      }
     } catch (err: unknown) {
       console.error("Invoice parse error:", err);
       setError(err instanceof Error ? err.message : "Något gick fel vid tolkning av fakturan");

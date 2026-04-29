@@ -110,15 +110,88 @@ export default function VerificationScreen({ billData, initialRefinement, initia
     <div className="mx-auto max-w-md px-4 animate-fade-in">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-text-primary">
-          Berätta om ditt hem
+          Bekräfta &amp; komplettera
         </h2>
         <p className="mt-1 text-sm text-text-secondary">
-          Vi behöver dessa uppgifter för att ge dig en träffsäker analys.
-          Baserat på din elräkning ser vi en årsförbrukning på cirka{" "}
-          <span className="font-semibold text-brand-600">
-            {Math.round(annualKwh).toLocaleString("sv-SE")} kWh
-          </span>.
+          Kontrollera fakturadatan vi tolkat och fyll i några uppgifter om ditt hem
+          för en träffsäker analys.
         </p>
+      </div>
+
+      {/* Vi hittade följande — parsed bill data */}
+      <div className="mb-5 rounded-2xl border border-brand-200 bg-brand-50/40 p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-text-primary">Vi hittade följande på din faktura</h3>
+          <span className="text-[10px] font-medium uppercase tracking-wider text-brand-600">automatiskt tolkat</span>
+        </div>
+        <div className="flex flex-col gap-2 text-sm">
+          {billData.invoicePeriodKwh && billData.invoiceMonth !== undefined && (
+            <div className="flex justify-between">
+              <span className="text-text-secondary">
+                Förbrukning ({["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"][billData.invoiceMonth]})
+              </span>
+              <span className="font-semibold text-text-primary">{Math.round(billData.invoicePeriodKwh).toLocaleString("sv-SE")} kWh</span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span className="text-text-secondary">Beräknad årsförbrukning</span>
+            <span className="font-semibold text-text-primary">{Math.round(annualKwh).toLocaleString("sv-SE")} kWh</span>
+          </div>
+          {billData.costPerMonth > 0 && (
+            <div className="flex justify-between">
+              <span className="text-text-secondary">Periodens kostnad</span>
+              <span className="font-semibold text-text-primary">{Math.round(billData.costPerMonth).toLocaleString("sv-SE")} kr</span>
+            </div>
+          )}
+          {billData.seZone && (
+            <div className="flex justify-between">
+              <span className="text-text-secondary">Elområde</span>
+              <span className="font-semibold text-text-primary">{billData.seZone}</span>
+            </div>
+          )}
+          {billData.elhandlare && (
+            <div className="flex justify-between">
+              <span className="text-text-secondary">Elhandlare</span>
+              <span className="font-semibold text-text-primary">{billData.elhandlare}</span>
+            </div>
+          )}
+          {billData.natAgare && (
+            <div className="flex justify-between">
+              <span className="text-text-secondary">Nätbolag</span>
+              <span className="font-semibold text-text-primary">{billData.natAgare}</span>
+            </div>
+          )}
+          {billData.elContractType && (
+            <div className="flex justify-between">
+              <span className="text-text-secondary">Avtalstyp</span>
+              <span className="font-semibold text-text-primary">
+                {billData.elContractType === "dynamic" ? "Timspot" :
+                 billData.elContractType === "monthly" ? "Månadsmedel" :
+                 "Fastpris"}
+              </span>
+            </div>
+          )}
+          {billData.invoiceSpotPriceOre !== undefined && (
+            <div className="flex justify-between">
+              <span className="text-text-secondary">Spotpris (snitt)</span>
+              <span className="font-semibold text-text-primary">{billData.invoiceSpotPriceOre.toFixed(1)} öre/kWh</span>
+            </div>
+          )}
+          {billData.invoiceMarkupOre !== undefined && (
+            <div className="flex justify-between">
+              <span className="text-text-secondary">Påslag</span>
+              <span className="font-semibold text-text-primary">{billData.invoiceMarkupOre.toFixed(1)} öre/kWh</span>
+            </div>
+          )}
+        </div>
+        <p className="mt-3 text-xs text-text-muted">
+          Stämmer det inte? <button type="button" className="underline hover:text-text-secondary" onClick={() => window.history.back()}>Tillbaka för att ladda upp fler fakturor</button>
+        </p>
+      </div>
+
+      <div className="mb-4">
+        <h3 className="text-base font-semibold text-text-primary">Berätta om ditt hem</h3>
+        <p className="mt-0.5 text-xs text-text-secondary">Hjälper oss anpassa simuleringen efter din situation.</p>
       </div>
 
       <div className="flex flex-col gap-5">

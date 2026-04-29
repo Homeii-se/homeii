@@ -18,7 +18,7 @@ import { fetchTmyData } from "./simulator/data/pvgis-tmy";
 import type { TmyHourlyData } from "./simulator/data/pvgis-tmy";
 import { SE_ZONE_CENTROIDS } from "./simulator/data/geocoding";
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 3;
 
 export default function Home() {
   // HYDRATION-SAFE: börja alltid med DEFAULT_STATE så server/client matchar.
@@ -163,8 +163,10 @@ export default function Home() {
     [state.billData, state.assumptions, updateState]
   );
 
+  // Steg 3 = Resultat & åtgärder är nu sista numrerade steget. CTA:n från resultat-sidan
+  // leder direkt till Dashboard (detaljerad analys), inte till en separat rekommendations-sida.
   const handleViewRecommendations = useCallback(() => {
-    updateState({ completedStep: 4 });
+    updateState({ completedStep: 5 });
   }, [updateState]);
 
   const handleViewDashboard = useCallback(() => {
@@ -172,7 +174,8 @@ export default function Home() {
   }, [updateState]);
 
   const handleBackToRecommendations = useCallback(() => {
-    updateState({ completedStep: 4 });
+    // Tillbaka från Dashboard → resultat-sidan (steg 3)
+    updateState({ completedStep: 3 });
   }, [updateState]);
 
   const handleSEZoneChange = useCallback(
@@ -223,12 +226,11 @@ export default function Home() {
   );
 
   const handleStepClick = useCallback((step: number) => {
-    // Step indicator shows steps 1-4, which map to completedStep values:
-    // Step 1 (Elräkning)       → completedStep 1 → currentStep 2
-    // Step 2 (Bekräfta)        → completedStep 2 → currentStep 3
-    // Step 3 (Resultat)        → completedStep 3 → currentStep 4
-    // Step 4 (Rekommendation)  → completedStep 4 → currentStep 5
-    // Dashboard (beyond indicator) → completedStep 5 → currentStep 6
+    // Step indicator shows steps 1-3, which map to completedStep values:
+    // Step 1 (Elräkning)              → completedStep 1 → currentStep 2 = UploadBill
+    // Step 2 (Bekräfta)               → completedStep 2 → currentStep 3 = VerificationScreen
+    // Step 3 (Resultat & åtgärder)    → completedStep 3 → currentStep 4 = ResultOverview (sista numrerade steget)
+    // Dashboard (bortom indikatorn)   → completedStep 5 → currentStep 6 = Dashboard
     // Clicking a completed step navigates back to it
     updateState({ completedStep: step });
   }, [updateState]);

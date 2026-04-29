@@ -1,6 +1,6 @@
 "use client";
 
-const STEP_LABELS = ["Elräkning", "Bekräfta", "Resultat", "Rekommendation"];
+const STEP_LABELS = ["Elräkning", "Bekräfta", "Resultat & åtgärder"];
 
 interface StepIndicatorProps {
   currentStep: number;
