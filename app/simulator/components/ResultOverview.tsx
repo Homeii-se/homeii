@@ -9,6 +9,8 @@ import { getGridPricing, DEFAULT_GRID_PRICING } from "../data/grid-operators";
 import { ELHANDEL_DEFAULTS } from "../data/elhandel-defaults";
 import CostBreakdownCard from "./CostBreakdownCard";
 import SimulationExplorer from "./SimulationExplorer";
+import ChatPanel from "./ChatPanel";
+import { getYearlyData } from "../simulation/annual";
 
 interface ResultOverviewProps {
   threeScenarios: ThreeScenarioSummary;
@@ -209,6 +211,18 @@ export default function ResultOverview({
           tmyData={tmyData}
         />
       </div>
+
+      {/* AI-rådgivare — chatten kompletterar dagens flöde */}
+      {refinement && (
+        <ChatPanel
+          billData={billData}
+          refinement={refinement}
+          seZone={seZone}
+          assumptions={assumptions}
+          activeUpgrades={{} as ActiveUpgrades}
+          yearlyComparison={getYearlyData(billData, refinement, seZone)}
+        />
+      )}
 
       {/* CTA */}
       <div className="flex flex-col gap-3">
