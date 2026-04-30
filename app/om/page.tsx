@@ -43,12 +43,11 @@ export default function OmHubPage() {
           Om HOMEii
         </p>
         <h1 className="mb-4 text-3xl font-light leading-tight text-brand-900 sm:text-4xl font-[family-name:var(--font-fraunces)]">
-          Vi hjälper svenska hushåll <em className="text-brand-500">förstå</em> sin energiekonomi.
+          Vi hjälper dig <em className="text-brand-500">förstå</em> din energiekonomi och hjälper dig på resan mot mer pengar i plånboken.
         </h1>
         <p className="text-base leading-relaxed text-text-secondary">
           HOMEii är en oberoende tjänst som analyserar din elräkning och visar vad du faktiskt
-          betalar för, vad du kan spara — och vilka åtgärder som lönar sig. Helt gratis, utan
-          dolda agendor och utan att vi säljer någonting.
+          betalar för, vad du kan spara — och vilka åtgärder som lönar sig.
         </p>
       </div>
 
