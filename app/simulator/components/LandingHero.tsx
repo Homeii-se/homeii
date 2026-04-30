@@ -1,12 +1,12 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { STRINGS } from "../data/strings";
 
-interface LandingHeroProps {
-  onStart: () => void;
-}
+export default function LandingHero() {
+  const router = useRouter();
+  const onStart = () => router.push("/analys");
 
-export default function LandingHero({ onStart }: LandingHeroProps) {
   return (
     <div className="animate-fade-in">
       {/* Hero section */}
