@@ -128,6 +128,14 @@ export default function ResultOverview({
             costComponents={currentSituation.costComponents}
             gridOperatorName={assumptions?.gridOperator ?? billData.natAgare}
             seZone={seZone}
+            latitude={billData.latitude}
+            longitude={billData.longitude}
+            area={refinement?.area}
+            heatingTypes={
+              refinement?.heatingTypes ??
+              (refinement?.heatingType ? [refinement.heatingType] : undefined)
+            }
+            potentialSavingsKr={threeScenarios.potentialSavingsKr}
           />
         </div>
       ) : (

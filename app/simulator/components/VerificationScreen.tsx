@@ -310,12 +310,16 @@ export default function VerificationScreen({ billData, initialRefinement, initia
           </div>
         </div>
 
-        {/* Boarea (slider) */}
+        {/* Total bostadsyta (slider) */}
         <div className="card-strong rounded-2xl p-4">
           <div className="flex items-center justify-between">
-            <label className="text-sm font-semibold text-text-primary">Boarea</label>
+            <label className="text-sm font-semibold text-text-primary">Total bostadsyta</label>
             <span className="text-sm font-bold text-brand-600">{area} m²</span>
           </div>
+          <p className="mt-1 text-[11px] text-text-muted leading-relaxed">
+            All uppvärmd yta tillsammans — boarea + biarea (källare, garage,
+            vind eller tillbyggnad som du värmer upp).
+          </p>
           <input
             type="range"
             min={20}
