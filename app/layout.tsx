@@ -55,11 +55,11 @@ export default function RootLayout({
               <Link href="/" className="rounded-lg px-3 py-2 text-sm font-medium text-white/65 transition-colors hover:text-white hover:bg-white/10">
                 Hem
               </Link>
-              <Link href="/" className="rounded-lg px-3 py-2 text-sm font-medium text-white/65 transition-colors hover:text-white hover:bg-white/10">
-                Simulator
-              </Link>
-              <Link href="/" className="rounded-lg px-3 py-2 text-sm font-medium text-white/65 transition-colors hover:text-white hover:bg-white/10">
+              <Link href="/om" className="rounded-lg px-3 py-2 text-sm font-medium text-white/65 transition-colors hover:text-white hover:bg-white/10">
                 Om HOMEii
+              </Link>
+              <Link href="/mina-sidor" className="rounded-lg px-3 py-2 text-sm font-medium text-white/65 transition-colors hover:text-white hover:bg-white/10">
+                Mina sidor
               </Link>
             </nav>
 
