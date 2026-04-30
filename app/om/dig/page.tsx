@@ -54,7 +54,7 @@ export default function OmDigPage() {
         <div className="mt-8 rounded-2xl bg-card-green border border-brand-500/20 p-6">
           <p className="text-sm leading-relaxed text-text-secondary">
             <strong className="text-brand-900">Transparens i praktiken:</strong> Om du ser en länk
-            "Byt till elhandlare X" i en rekommendation — fråga oss varför just X föreslogs. Vi
+            &bdquo;Byt till elhandlare X&rdquo; i en rekommendation — fråga oss varför just X föreslogs. Vi
             visar exakt vilka faktorer som vägde in (markup på din nuvarande, tillgänglighet i
             din zon, recension/betyg, om vi får provision) och du ser alltid jämförelsen mot
             alternativen.
