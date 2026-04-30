@@ -25,8 +25,9 @@ import {
   // withVat removed — costComponents är redan inkl moms
   type GridOperatorPricing,
 } from "../../data/grid-operators";
-import { SE_ZONE_SPOT_PRICE } from "../../data/energy-prices";
 import type { SEZone } from "../../types";
+import MotGrannar from "./MotGrannar";
+import Energyscore from "./Energyscore";
 
 interface MinaSidorScrollFlowProps {
   /** Aggregerade kostnader (samma struktur som CostBreakdownCard använder). */
@@ -39,6 +40,16 @@ interface MinaSidorScrollFlowProps {
   monthlyTotalPriceOre?: number[];
   /** SE-zon — driver vilken spotpris-array som används i månadsdiagrammet. */
   seZone?: SEZone;
+  /** Geokodad latitud — drivar "Mot dina grannar"-jämförelsen via lib/comparison. */
+  latitude?: number;
+  /** Geokodad longitud — drivar "Mot dina grannar"-jämförelsen via lib/comparison. */
+  longitude?: number;
+  /** Husets uppvärmda area (m²) — aktiverar kr/m²-jämförelse i "Mot grannar". */
+  area?: number;
+  /** Användarens uppvärmningssätt — för fjärrvärme-disclaimer i "Mot grannar". */
+  heatingTypes?: import("../../types").HeatingType[];
+  /** Konkret besparing från rekommenderade åtgärder — drivar Energyscore-möjligheten. */
+  potentialSavingsKr?: number;
 }
 
 const SECTIONS = [
@@ -55,14 +66,15 @@ function formatKr(n: number): string {
 export default function MinaSidorScrollFlow({
   costComponents,
   gridOperatorName,
-  monthlyKwh,
-  monthlyTotalPriceOre,
+  // monthlyKwh, monthlyTotalPriceOre — kvar i interface för API-stabilitet
+  // men används inte längre sedan månads-charten flyttats från Section 1.
   seZone = "SE3",
+  latitude,
+  longitude,
+  area,
+  heatingTypes,
+  potentialSavingsKr,
 }: MinaSidorScrollFlowProps) {
-  // Räkna ut månadskost från real kWh+pris om tillgängligt, annars schablon
-  const monthlyKr = monthlyKwh && monthlyTotalPriceOre && monthlyKwh.length === 12
-    ? monthlyKwh.map((kwh, i) => kwh * (monthlyTotalPriceOre[i] ?? 0) / 100)
-    : undefined;
   const [activeIdx, setActiveIdx] = useState(0);
   const sectionRefs = useRef<(HTMLElement | null)[]>([]);
 
@@ -119,7 +131,16 @@ export default function MinaSidorScrollFlow({
         id="chock"
         className="flex min-h-[90vh] items-center justify-center bg-bg-warm px-4 py-16"
       >
-        <Section1Chock totalKr={totalKr} monthlyKr={monthlyKr} operator={operator} seZone={seZone} />
+        <Section1Chock
+          totalKr={totalKr}
+          operator={operator}
+          seZone={seZone}
+          latitude={latitude}
+          longitude={longitude}
+          area={area}
+          heatingTypes={heatingTypes}
+          potentialSavingsKr={potentialSavingsKr}
+        />
       </section>
 
       {/* Section 2: Vart pengarna går */}
@@ -178,8 +199,7 @@ function ProgressRail({ activeIdx, onClick }: { activeIdx: number; onClick: (idx
   return createPortal(
     <>
       {/* Desktop: vertikal rail right-aligned strax till vänster om content.
-          right-edge sitter ~24px utanför content-edgen, labels expanderar åt vänster
-          så de aldrig krockar med content. (content max-w-2xl = 21rem half) */}
+          Alla sektioner alltid synliga — aktiv är mörk/bold, inaktiva är ljusare. */}
       <div className="fixed top-1/2 z-40 hidden -translate-y-1/2 lg:block right-[calc(50%+22.5rem)]">
         <div className="flex flex-col items-end gap-4">
           {SECTIONS.map((sec, idx) => (
@@ -191,10 +211,10 @@ function ProgressRail({ activeIdx, onClick }: { activeIdx: number; onClick: (idx
               aria-label={`Gå till ${sec.label}`}
             >
               <span
-                className={`whitespace-nowrap text-xs font-medium transition-all ${
+                className={`whitespace-nowrap text-xs transition-all ${
                   activeIdx === idx
-                    ? "text-text-primary opacity-100"
-                    : "text-text-muted opacity-0 group-hover:opacity-100"
+                    ? "font-bold text-text-primary"
+                    : "font-medium text-text-muted opacity-60 group-hover:opacity-100 group-hover:text-text-secondary"
                 }`}
               >
                 {sec.label}
@@ -202,8 +222,8 @@ function ProgressRail({ activeIdx, onClick }: { activeIdx: number; onClick: (idx
               <div
                 className={`rounded-full transition-all ${
                   activeIdx === idx
-                    ? "h-2 w-8 bg-brand-500"
-                    : "h-2 w-2 bg-border group-hover:bg-brand-300"
+                    ? "h-2.5 w-8 bg-brand-500"
+                    : "h-2 w-2 bg-border opacity-60 group-hover:bg-brand-300 group-hover:opacity-100"
                 }`}
               />
             </button>
@@ -211,18 +231,22 @@ function ProgressRail({ activeIdx, onClick }: { activeIdx: number; onClick: (idx
         </div>
       </div>
 
-      {/* Mobile: horisontell rail top — fixed istallet for sticky for samma anledning */}
-      <div className="fixed left-0 right-0 top-0 z-40 flex items-center justify-center gap-2 bg-bg-warm/90 px-4 py-2 backdrop-blur-sm lg:hidden">
+      {/* Mobile: horisontell rail top — alla labels alltid synliga, aktiv är mörk/bold. */}
+      <div className="fixed left-0 right-0 top-0 z-40 flex items-center justify-center gap-1 bg-bg-warm/95 px-2 py-2 backdrop-blur-sm lg:hidden">
         {SECTIONS.map((sec, idx) => (
           <button
             key={sec.id}
             type="button"
             onClick={() => onClick(idx)}
-            className={`rounded-full transition-all ${
-              activeIdx === idx ? "h-2 w-8 bg-brand-500" : "h-2 w-2 bg-border"
+            className={`flex-1 rounded-full px-2 py-1 text-[10px] transition-all ${
+              activeIdx === idx
+                ? "bg-brand-500 font-bold text-white"
+                : "font-medium text-text-muted opacity-60 hover:opacity-100"
             }`}
             aria-label={`Gå till ${sec.label}`}
-          />
+          >
+            <span className="block truncate">{sec.label}</span>
+          </button>
         ))}
       </div>
     </>,
@@ -231,134 +255,31 @@ function ProgressRail({ activeIdx, onClick }: { activeIdx: number; onClick: (idx
 }
 
 /* =========================================================================
-   SECTION 1 — CHOCK
+   SECTION 1 — DIN KOSTNAD
+   Hero (totalsumma) + insight bubble + Mot dina grannar + Energyscore.
+   Den gamla månads-fördelningschart:en är borttagen — den passar bättre
+   som deep-dive i "Vart pengarna går"-sektionen senare.
    ========================================================================= */
-
-type ChartVariant = "rolling" | "forward" | "calendar";
-
-const VARIANT_LABELS: Record<ChartVariant, string> = {
-  rolling: "Senaste året",
-  forward: "Kommande år",
-  calendar: "Senaste helåret 2025",
-};
-
-const VARIANT_CAPTIONS: Record<ChartVariant, string> = {
-  rolling: "Faktiska priser från senaste 12 månaderna · Energimarknadsbyrån / Nord Pool",
-  forward: "Uppskattade priser för kommande 12 månader · terminspriser via elpriser24.se",
-  calendar: "Genomsnitt från senaste helåret · 2025 spotpriser per månad",
-};
-
-const MONTH_NAMES_SV = ["Jan", "Feb", "Mar", "Apr", "Maj", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dec"];
-const WINTER_MONTH_INDICES = new Set([10, 11, 0, 1, 2]);
-
-function distributeCost(weights: number[], totalKr: number): number[] {
-  // Blanda fast (40%) + spotpris-driven (60%) — ger realistisk månadsvariation
-  const fixedShare = 0.4;
-  const variableShare = 0.6;
-  const totalWeight = weights.reduce((a, b) => a + b, 0) || 1;
-  return weights.map((w) => (totalKr * fixedShare) / 12 + (totalKr * variableShare * w) / totalWeight);
-}
-
-function buildChartData(
-  variant: ChartVariant,
-  totalKr: number,
-  seZone: SEZone,
-  historic2025: number[] | null
-): { bars: number[]; labels: string[]; isWinter: boolean[]; usingRealData: boolean } {
-  // Olika spotpris-källor per variant:
-  //  - rolling: 12 senaste månaderna = senaste delen av 2025 + början av 2026
-  //  - forward: SE_ZONE_SPOT_PRICE 2026 (jan-mar actual + apr-dec terminspriser)
-  //  - calendar: hela 2025 (fetched från Supabase)
-  const futurePrices = SE_ZONE_SPOT_PRICE[seZone];
-
-  let priceByCalendarIdx: number[];
-  let usingRealData = false;
-
-  if (variant === "calendar" && historic2025) {
-    priceByCalendarIdx = historic2025;
-    usingRealData = true;
-  } else if (variant === "rolling") {
-    if (historic2025) {
-      // Bygg rolling 12 månader: senaste delen av 2025 + början av 2026
-      const now = new Date();
-      const currentMonthIdx = now.getMonth();
-      // Indices: maj förra året (curr - 11) ... apr i år (curr)
-      const rollingPrices = new Array(12);
-      for (let i = 0; i < 12; i++) {
-        const monthIdx = (currentMonthIdx - 11 + i + 12) % 12;
-        // Om denna månad redan passerats i ÅR, använd 2026-priser; annars 2025
-        const isThisYear = i + (currentMonthIdx - 11) >= 0 && i >= (12 - currentMonthIdx - 1);
-        rollingPrices[monthIdx] = isThisYear ? futurePrices[monthIdx] : historic2025[monthIdx];
-      }
-      priceByCalendarIdx = rollingPrices;
-      usingRealData = true;
-    } else {
-      priceByCalendarIdx = futurePrices;
-    }
-  } else {
-    // forward = SE_ZONE_SPOT_PRICE (terminspriser apr-dec 2026)
-    priceByCalendarIdx = futurePrices;
-  }
-
-  const costByCalendarIdx = distributeCost(priceByCalendarIdx, totalKr);
-
-  const now = new Date();
-  const currentMonthIdx = now.getMonth();
-
-  let monthIndices: number[];
-  if (variant === "rolling") {
-    monthIndices = Array.from({ length: 12 }, (_, i) => (currentMonthIdx - 11 + i + 12) % 12);
-  } else if (variant === "forward") {
-    monthIndices = Array.from({ length: 12 }, (_, i) => (currentMonthIdx + i) % 12);
-  } else {
-    monthIndices = Array.from({ length: 12 }, (_, i) => i);
-  }
-
-  const bars = monthIndices.map((idx) => costByCalendarIdx[idx] ?? 0);
-  const labels = monthIndices.map((idx) => MONTH_NAMES_SV[idx]);
-  const isWinter = monthIndices.map((idx) => WINTER_MONTH_INDICES.has(idx));
-
-  return { bars, labels, isWinter, usingRealData };
-}
 
 function Section1Chock({
   totalKr,
   operator,
   seZone,
+  latitude,
+  longitude,
+  area,
+  heatingTypes,
+  potentialSavingsKr,
 }: {
   totalKr: number;
-  monthlyKr?: number[];
   operator: GridOperatorPricing | null;
   seZone: SEZone;
+  latitude?: number;
+  longitude?: number;
+  area?: number;
+  heatingTypes?: import("../../types").HeatingType[];
+  potentialSavingsKr?: number;
 }) {
-  const [variant, setVariant] = useState<ChartVariant>("rolling");
-
-  // Fetch riktiga manadsmedel fran Supabase nar zoner/variant andras
-  const [historic2025, setHistoric2025] = useState<number[] | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    // Sätter loading synkront i effect-kroppen för att visa spinner direkt när seZone ändras. Medvetet.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
-    fetch(`/api/monthly-spot-averages?zone=${seZone}&year=2025`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (cancelled) return;
-        if (data && Array.isArray(data.monthlyAvgsOreExklMoms)) {
-          setHistoric2025(data.monthlyAvgsOreExklMoms as number[]);
-        }
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [seZone]);
-
-  const { bars: monthly, labels: monthLabels, isWinter } = buildChartData(variant, totalKr, seZone, historic2025);
-  const maxMonthly = Math.max(...monthly);
-  const winterShareKr = monthly.reduce((sum, val, idx) => sum + (isWinter[idx] ? val : 0), 0);
-  const winterPct = totalKr > 0 ? Math.round((winterShareKr / totalKr) * 100) : 0;
   const monthlyAvg = totalKr / 12;
 
   return (
@@ -400,59 +321,24 @@ function Section1Chock({
         </p>
       </div>
 
-      <div className="border-t border-border pt-6">
-        <div className="mb-4 text-center text-xs font-semibold uppercase tracking-wide text-text-muted">
-          Hur kostnaden fördelar sig över året
-        </div>
-        <div className="mx-auto grid max-w-lg grid-cols-12 items-end gap-1.5" style={{ height: 140 }}>
-          {monthly.map((m, idx) => {
-            const heightPct = (m / maxMonthly) * 100;
-            return (
-              <div
-                key={idx}
-                className={`rounded-t ${isWinter[idx] ? "bg-brand-900" : "bg-brand-500"}`}
-                style={{ height: `${Math.max(heightPct, 4)}%` }}
-                title={`${formatKr(m)} kr · ${monthLabels[idx]}`}
-              />
-            );
-          })}
-        </div>
-        <div className="mx-auto grid max-w-lg grid-cols-12 gap-1.5 pt-2 text-center text-[9px] font-semibold uppercase tracking-wide text-text-muted">
-          {monthLabels.map((m, idx) => <span key={`${m}-${idx}`}>{m}</span>)}
-        </div>
-        {/* kr-labels under varje stapel */}
-        <div className="mx-auto grid max-w-lg grid-cols-12 gap-1.5 pt-1 text-center text-[9px] font-semibold tabular-nums text-text-secondary">
-          {monthly.map((m, idx) => (
-            <span key={`kr-${idx}`} className="leading-tight">{Math.round(m / 100) * 100 >= 1000 ? `${(m / 1000).toFixed(1)}k` : Math.round(m).toString()}</span>
-          ))}
-        </div>
+      {/* Mot dina grannar — modellerad jämförelse via lib/comparison */}
+      <MotGrannar
+        yearlyKr={totalKr}
+        latitude={latitude}
+        longitude={longitude}
+        seZone={seZone}
+        area={area}
+        heatingTypes={heatingTypes}
+      />
 
-        {/* Variant-toggle: tre chips */}
-        <div className="mx-auto mt-5 flex max-w-lg flex-wrap justify-center gap-2">
-          {(["rolling", "forward", "calendar"] as ChartVariant[]).map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setVariant(v)}
-              className={
-                variant === v
-                  ? "rounded-full bg-brand-500 px-4 py-1.5 text-xs font-semibold text-white shadow-sm"
-                  : "rounded-full border border-border bg-white px-4 py-1.5 text-xs font-semibold text-text-secondary hover:bg-bg-warm"
-              }
-            >
-              {VARIANT_LABELS[v]}
-            </button>
-          ))}
-        </div>
-        {/* Datakälla-caption */}
-        <div className="mx-auto mt-2 max-w-lg text-center text-[11px] italic text-text-muted">
-          {loading && variant !== "forward" ? "Laddar historiska priser…" : VARIANT_CAPTIONS[variant]}
-        </div>
-        <div className="mt-3 text-center text-sm text-text-muted">
-          <strong className="font-semibold text-text-primary">Vintern står för {winterPct} %</strong>
-          {" "}av din årskostnad — drygt {formatKr(winterShareKr)} kr av {formatKr(totalKr)}.
-        </div>
-      </div>
+      {/* Energyscore — gauge + möjlighet att förbättra (kr) */}
+      <Energyscore
+        yearlyKr={totalKr}
+        latitude={latitude}
+        longitude={longitude}
+        seZone={seZone}
+        potentialSavingsKr={potentialSavingsKr}
+      />
 
       <div className="mt-9 text-center text-xs text-text-muted">
         Scrolla för att se vart pengarna tar vägen ↓
