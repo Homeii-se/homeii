@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { NAV_ITEMS } from "@/lib/nav-items";
 
 export default function MobileNav() {
   const [open, setOpen] = useState(false);
@@ -27,27 +28,16 @@ export default function MobileNav() {
       {open && (
         <div className="absolute left-0 right-0 top-14 z-40 border-b border-gray-200 bg-white/98 shadow-lg">
           <nav className="mx-auto flex max-w-5xl flex-col px-4 py-3">
-            <Link
-              href="/"
-              onClick={() => setOpen(false)}
-              className="rounded-lg px-4 py-3 text-sm font-medium text-text-secondary transition-colors hover:bg-gray-100"
-            >
-              Hem
-            </Link>
-            <Link
-              href="/"
-              onClick={() => setOpen(false)}
-              className="rounded-lg px-4 py-3 text-sm font-medium text-text-secondary transition-colors hover:bg-gray-100"
-            >
-              Simulator
-            </Link>
-            <Link
-              href="/"
-              onClick={() => setOpen(false)}
-              className="rounded-lg px-4 py-3 text-sm font-medium text-text-secondary transition-colors hover:bg-gray-100"
-            >
-              Om HOMEii
-            </Link>
+            {NAV_ITEMS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className="rounded-lg px-4 py-3 text-sm font-medium text-text-secondary transition-colors hover:bg-gray-100"
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
         </div>
       )}
