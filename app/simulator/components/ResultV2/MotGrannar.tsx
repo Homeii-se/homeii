@@ -17,6 +17,7 @@
 
 import { useMemo } from "react";
 import { computeComparison, resolveLan, getAvgAreaM2 } from "../../../../lib/comparison";
+import type { BillContext } from "../../../../lib/comparison";
 import { SE_ZONE_CENTROIDS } from "../../data/geocoding";
 import type { SEZone, HeatingType } from "../../types";
 import { MOT_GRANNAR } from "./strings";
@@ -34,6 +35,13 @@ interface MotGrannarProps {
   area?: number;
   /** Heating types — used to detect fjärrvärme and show a disclaimer. */
   heatingTypes?: HeatingType[];
+  /**
+   * Optional bill context — when provided, the comparison runs through the
+   * new kWh→cost-model pipeline so that the median villa is priced at the
+   * user's actual tariff (operator + contract type). When absent, falls
+   * back to the legacy zone-linear kr table.
+   */
+  billData?: BillContext;
 }
 
 /**
@@ -69,6 +77,7 @@ export default function MotGrannar({
   seZone,
   area,
   heatingTypes,
+  billData,
 }: MotGrannarProps) {
   const result = useMemo(() => {
     let lat = latitude;
@@ -79,11 +88,17 @@ export default function MotGrannar({
       lon = centroid.lon;
     }
     if (lat == null || lon == null) return null;
-    const r = computeComparison({ yearlyKr, latitude: lat, longitude: lon, area });
+    const r = computeComparison({
+      yearlyKr,
+      latitude: lat,
+      longitude: lon,
+      area,
+      billData,
+    });
     const lanCode = resolveLan(lat, lon);
     const lanAvgM2 = getAvgAreaM2(lanCode);
     return { ...r, lanAvgM2 };
-  }, [yearlyKr, latitude, longitude, seZone, area]);
+  }, [yearlyKr, latitude, longitude, seZone, area, billData]);
 
   if (!result) return null;
 

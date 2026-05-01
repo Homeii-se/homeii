@@ -14,9 +14,18 @@
 
 export { computeComparison, findPercentile } from "./compute";
 export { resolveLan } from "./scope";
+export {
+  kwhToAnnualKr,
+  kwhDistributionToKr,
+  estimatePeakKw,
+} from "./kr-conversion";
+export type { BillContext } from "./kr-conversion";
+export { resolveInsightCopy, classifyInsight } from "./insight";
+export type { InsightContext, InsightCopyData, InsightSegment } from "./insight";
 export { LAN_INFO, ALL_LAN_CODES } from "./data/lan";
 export {
   getModeledDistribution,
+  getModeledKwhDistribution,
   getSampleSize,
   getAvgAreaM2,
   getFixedCostForLan,
@@ -30,4 +39,5 @@ export type {
   ComparisonInput,
   ComparisonResult,
   CostDistribution,
+  KwhDistribution,
 } from "./types";

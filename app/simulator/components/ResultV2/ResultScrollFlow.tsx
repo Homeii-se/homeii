@@ -16,7 +16,7 @@
  * är inte byggt än). Knapparna leder till # tills vidare.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { AnnualCostComponents } from "../../types";
 import {
@@ -28,6 +28,13 @@ import {
 import type { SEZone } from "../../types";
 import MotGrannar from "./MotGrannar";
 import Energyscore from "./Energyscore";
+import {
+  computeComparison,
+  resolveInsightCopy,
+  type BillContext,
+} from "../../../../lib/comparison";
+import { SE_ZONE_CENTROIDS } from "../../data/geocoding";
+import { INSIGHT_BUBBLE } from "./strings";
 
 interface MinaSidorScrollFlowProps {
   /** Aggregerade kostnader (samma struktur som CostBreakdownCard använder). */
@@ -282,6 +289,62 @@ function Section1Chock({
 }) {
   const monthlyAvg = totalKr / 12;
 
+  // Build BillContext from operator + zone — drives the new kWh-pipeline
+  // in MotGrannar so the median villa is priced at the user's tariff.
+  const billData: BillContext = useMemo(
+    () => ({
+      seZone,
+      gridOperator: operator?.name,
+      gridFixedFeeKr: operator?.fixedFeeKrPerMonth,
+      gridTransferFeeOre: operator?.transferFeeOrePerKwh,
+      gridPowerChargeKrPerKw: operator?.powerChargeKrPerKw,
+      gridHasPowerCharge: operator?.hasPowerCharge,
+    }),
+    [operator, seZone]
+  );
+
+  // Compute comparison locally for the insight bubble. MotGrannar
+  // recomputes internally — both calls memoize, so cost is negligible.
+  const insight = useMemo(() => {
+    let lat = latitude;
+    let lon = longitude;
+    if ((lat == null || lon == null) && seZone) {
+      const centroid = SE_ZONE_CENTROIDS[seZone];
+      lat = centroid.lat;
+      lon = centroid.lon;
+    }
+    if (lat == null || lon == null) return null;
+    const result = computeComparison({
+      yearlyKr: totalKr,
+      latitude: lat,
+      longitude: lon,
+      area,
+      billData,
+    });
+    const data = resolveInsightCopy(result, {
+      operatorName: operator?.name,
+      potentialSavingsKr,
+      hasFjarrvarme: heatingTypes?.includes("fjarrvarme") ?? false,
+    });
+    // Special-case title for fjärrvärme + wellBelow — the låga räkning är
+    // missvisande utan att kalla ut att uppvärmningen sker via fjärrvärme.
+    const title =
+      data.segment === "wellBelow" && data.hasFjarrvarme
+        ? INSIGHT_BUBBLE.titles.wellBelowFjarrvarme
+        : INSIGHT_BUBBLE.titles[data.segment];
+    const body =
+      data.segment === "wellBelow"
+        ? INSIGHT_BUBBLE.bodyWellBelow(data)
+        : data.segment === "below"
+        ? INSIGHT_BUBBLE.bodyBelow(data)
+        : data.segment === "near"
+        ? INSIGHT_BUBBLE.bodyNear()
+        : data.segment === "above"
+        ? INSIGHT_BUBBLE.bodyAbove(data)
+        : INSIGHT_BUBBLE.bodyWellAbove(data);
+    return { title, body };
+  }, [totalKr, latitude, longitude, seZone, area, billData, operator, potentialSavingsKr, heatingTypes]);
+
   return (
     <div className="mx-auto w-full max-w-2xl">
       <header className="mb-7 text-center">
@@ -303,23 +366,16 @@ function Section1Chock({
         </p>
       </header>
 
-      <div className="mb-7 flex items-center gap-4 rounded-2xl border border-border bg-surface p-5 text-sm text-text-primary">
-        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-brand-50 text-xl text-brand-500">📊</div>
-        <p className="leading-relaxed">
-          {operator ? (
-            <>
-              <strong className="font-semibold">Lite över snittet</strong> för en
-              villa med {operator.name}. Den största delen av skillnaden ligger i
-              hur du använder el — inte vilket bolag du har.
-            </>
-          ) : (
-            <>
-              Skillnaden mellan ett genomsnittshus och ditt ligger främst i hur
-              ni använder el — inte vilket bolag ni har.
-            </>
-          )}
-        </p>
-      </div>
+      {insight && (
+        <div className="mb-7 flex items-center gap-4 rounded-2xl border border-border bg-surface p-5 text-sm text-text-primary">
+          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-brand-50 text-xl text-brand-500">📊</div>
+          <p className="leading-relaxed">
+            <strong className="font-semibold">{insight.title}</strong>
+            {" — "}
+            {insight.body}
+          </p>
+        </div>
+      )}
 
       {/* Mot dina grannar — modellerad jämförelse via lib/comparison */}
       <MotGrannar
@@ -329,6 +385,7 @@ function Section1Chock({
         seZone={seZone}
         area={area}
         heatingTypes={heatingTypes}
+        billData={billData}
       />
 
       {/* Energyscore — gauge + möjlighet att förbättra (kr) */}

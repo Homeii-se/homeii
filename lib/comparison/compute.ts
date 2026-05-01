@@ -3,14 +3,17 @@ import type {
   ComparisonResult,
   ComparisonScope,
   CostDistribution,
+  KwhDistribution,
 } from "./types";
 import { resolveLan } from "./scope";
 import {
   getModeledDistribution,
+  getModeledKwhDistribution,
   getSampleSize,
   getAvgAreaM2,
   getFixedCostForLan,
 } from "./data/distributions";
+import { kwhDistributionToKr } from "./kr-conversion";
 
 export function findPercentile(value: number, dist: CostDistribution): number {
   const { p10, p50, p90 } = dist;
@@ -64,14 +67,11 @@ function buildScope(
 }
 
 /**
- * Scale a cost distribution to a specific house size.
+ * Scale a cost distribution to a specific house size (legacy kr-domain).
  *
  * Assumption: cost = fixed + variable × area (approximately). We hold the
  * fixed part constant and scale the variable part by ratio = userArea / lanAvgArea,
  * clamped to [0.5, 2.0] to avoid extreme values.
- *
- * Result: a distribution representing "villas of the user's size in the län"
- * instead of "all villas in the län".
  */
 function scaleDistributionForSize(
   dist: CostDistribution,
@@ -85,19 +85,51 @@ function scaleDistributionForSize(
   return { p10: scale(dist.p10), p50: scale(dist.p50), p90: scale(dist.p90) };
 }
 
+/**
+ * Scale a kWh distribution to a specific house size.
+ *
+ * Linear scaling on kWh: a 200 m² villa uses ~ratio× as much kWh as the
+ * län-average villa. No fixed-component to hold constant — fixed costs
+ * enter via cost-model.ts during kr conversion. Clamped to [0.5, 2.0].
+ */
+function scaleKwhDistributionForSize(
+  dist: KwhDistribution,
+  userArea: number,
+  lanAvgArea: number
+): KwhDistribution {
+  const ratio = Math.max(0.5, Math.min(2.0, userArea / lanAvgArea));
+  return {
+    p10: Math.round(dist.p10 * ratio),
+    p50: Math.round(dist.p50 * ratio),
+    p90: Math.round(dist.p90 * ratio),
+  };
+}
+
 export function computeComparison(input: ComparisonInput): ComparisonResult {
   const lan = resolveLan(input.latitude, input.longitude);
-  const baseDistribution = getModeledDistribution(lan);
   const scope = buildScope(lan, input.area);
 
-  const distribution = input.area
-    ? scaleDistributionForSize(
-        baseDistribution,
-        getFixedCostForLan(lan),
-        input.area,
-        getAvgAreaM2(lan)
-      )
-    : baseDistribution;
+  let distribution: CostDistribution;
+
+  if (input.billData) {
+    // --- New pipeline: kWh distribution → per-user tariff via cost-model ---
+    const baseKwhDist = getModeledKwhDistribution(lan);
+    const kwhDist = input.area
+      ? scaleKwhDistributionForSize(baseKwhDist, input.area, getAvgAreaM2(lan))
+      : baseKwhDist;
+    distribution = kwhDistributionToKr(kwhDist, input.billData);
+  } else {
+    // --- Legacy pipeline: zone-linear kr table ---
+    const baseDistribution = getModeledDistribution(lan);
+    distribution = input.area
+      ? scaleDistributionForSize(
+          baseDistribution,
+          getFixedCostForLan(lan),
+          input.area,
+          getAvgAreaM2(lan)
+        )
+      : baseDistribution;
+  }
 
   const percentile = findPercentile(input.yearlyKr, distribution);
   const diffFromMedian = input.yearlyKr - distribution.p50;

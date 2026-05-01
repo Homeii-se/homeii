@@ -7,8 +7,48 @@
  * fit + zone-specific kr conversion. See data/scb-2024.md for details.
  */
 
-import type { CostDistribution, LanCode } from "../types";
+import type { CostDistribution, KwhDistribution, LanCode } from "../types";
 import type { SEZone } from "../../../app/simulator/types";
+
+/**
+ * Modeled annual kWh distribution per län — derived from Energimyndigheten
+ * 2024 T3.12 (GWh/län) + T3.2 (antal villor) with zone-σ from SCB.
+ *
+ * These values are the *upstream* data — they describe how many kWh a villa
+ * in each län uses per year. The kr distribution below is downstream, derived
+ * via a zone-linear approximation (kr = fixed + rate × kWh). When the new
+ * pipeline lands (Phase 3), kr is computed per-user via cost-model.ts using
+ * the actual grid operator from the user's invoice, instead of the
+ * approximation.
+ *
+ * Phase 1 note: this table is currently derived by inverting the linear kr
+ * model on LAN_DISTRIBUTIONS — so feeding these kWh values back through the
+ * same default tariff gives the original kr values exactly. That is the
+ * intended Phase 3 validation point.
+ */
+const LAN_KWH_DISTRIBUTIONS: Record<LanCode, KwhDistribution> = {
+  AB: { p10:  8900, p50: 13500, p90: 20700 },
+  AC: { p10:  5300, p50: 11100, p90: 23400 },
+  BD: { p10:  4800, p50: 10000, p90: 21300 },
+  C:  { p10:  6900, p50: 10500, p90: 16100 },
+  D:  { p10:  7500, p50: 11500, p90: 17700 },
+  E:  { p10:  6100, p50:  9300, p90: 14200 },
+  F:  { p10:  6600, p50: 10100, p90: 15300 },
+  G:  { p10:  4900, p50:  7600, p90: 11900 },
+  H:  { p10:  5100, p50:  7800, p90: 11900 },
+  I:  { p10:  5900, p50:  8900, p90: 13700 },
+  K:  { p10:  5700, p50:  8800, p90: 13800 },
+  M:  { p10:  6500, p50: 10200, p90: 15800 },
+  N:  { p10:  6800, p50: 10500, p90: 16400 },
+  O:  { p10:  6900, p50: 10600, p90: 16200 },
+  S:  { p10:  6900, p50: 10600, p90: 16200 },
+  T:  { p10:  7100, p50: 10800, p90: 16500 },
+  U:  { p10:  8200, p50: 12500, p90: 19100 },
+  W:  { p10:  7000, p50: 10700, p90: 16300 },
+  X:  { p10:  8400, p50: 12900, p90: 19700 },
+  Y:  { p10:  7800, p50: 12400, p90: 20100 },
+  Z:  { p10:  8000, p50: 12900, p90: 20800 },
+};
 
 const LAN_DISTRIBUTIONS: Record<LanCode, CostDistribution> = {
   AB: { p10: 21300, p50: 28300, p90: 39000 },
@@ -76,6 +116,15 @@ const ZONE_FIXED_COST: Record<SEZone, number> = {
 
 export function getModeledDistribution(lan: LanCode): CostDistribution {
   return LAN_DISTRIBUTIONS[lan];
+}
+
+/**
+ * Annual kWh distribution for a län (P10/P50/P90).
+ * Used by the new pipeline as the upstream data source before per-user
+ * kr conversion via cost-model.ts.
+ */
+export function getModeledKwhDistribution(lan: LanCode): KwhDistribution {
+  return LAN_KWH_DISTRIBUTIONS[lan];
 }
 
 export function getSampleSize(lan: LanCode): number {

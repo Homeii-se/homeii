@@ -31,6 +31,56 @@ export const MOT_GRANNAR = {
   insightDirectionLess: "betalar mindre än du",
 } as const;
 
+/**
+ * Insight bubble copy — picked by segment from
+ * lib/comparison/insight.ts -> resolveInsightCopy().
+ *
+ * Each segment renders as { title } in bold + { body } as continuation.
+ * Helper functions below assemble interpolated bodies.
+ *
+ * Tone: Sofia-persona — kronor before percent, "snitthuset i ditt område"
+ * not jargon, warm vardagston, no exclamation marks. Hög räkning vänds till
+ * en möjlighet ("goda nyheter"), inte ett misslyckande.
+ */
+export const INSIGHT_BUBBLE = {
+  // Titles per segment.
+  titles: {
+    wellBelow: "Snyggt jobbat",
+    wellBelowFjarrvarme: "Du har fjärrvärme",
+    below: "Lite mindre än grannarna",
+    near: "Mitt i mängden",
+    above: "Lite mer än grannarna",
+    wellAbove: "Här finns mest att vinna",
+  },
+  // Body builders — receive resolved data, return body string.
+  bodyWellBelow: (data: { percentMore: number; hasFjarrvarme: boolean }) => {
+    if (data.hasFjarrvarme) {
+      return "Din elräkning är låg eftersom värmen kommer från fjärrvärme. Den syns inte här, så hela energinotan kan se annorlunda ut.";
+    }
+    return `Bara ${data.percentMore} av 100 villor i ditt område drar mindre el än din. Något ni gör fungerar.`;
+  },
+  bodyBelow: (data: { diffKr: number }) =>
+    `Du betalar runt ${formatKr(data.diffKr)} kr mindre per år än snitthuset i ditt område. Det märks i plånboken.`,
+  bodyNear: () =>
+    "Din räkning är ungefär lika stor som de flesta i ditt område. Inget oroande — men det går nästan alltid att hitta några tusen att kapa.",
+  bodyAbove: (data: { diffKr: number; savingsKr?: number }) => {
+    const savings = data.savingsKr
+      ? ` Vi har räknat fram att ${formatKr(data.savingsKr)} kr/år går att kapa — utan att behöva frysa.`
+      : " Det är oftast små vanor som ger den skillnaden.";
+    return `Du betalar runt ${formatKr(data.diffKr)} kr mer per år än snitthuset i ditt område.${savings}`;
+  },
+  bodyWellAbove: (data: { savingsKr?: number }) => {
+    const savings = data.savingsKr
+      ? ` Vi har räknat fram att ${formatKr(data.savingsKr)} kr/år går att kapa.`
+      : " Det betyder att det finns mycket att vinna med rätt åtgärder.";
+    return `Räkningen är hög — och det är faktiskt goda nyheter.${savings}`;
+  },
+} as const;
+
+function formatKr(n: number): string {
+  return new Intl.NumberFormat("sv-SE").format(Math.round(n));
+}
+
 export const ENERGYSCORE = {
   cardLabel: "Din energyscore",
   betaTag: "⚠ Beta",
