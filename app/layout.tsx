@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import MobileNav from "./simulator/components/MobileNav";
 import ChatDrawer from "./simulator/components/ChatDrawer";
+import { NAV_ITEMS } from "@/lib/nav-items";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -52,21 +53,15 @@ export default function RootLayout({
 
             {/* Desktop nav */}
             <nav className="hidden sm:flex items-center gap-1">
-              <Link href="/" className="rounded-lg px-3 py-2 text-sm font-medium text-white/65 transition-colors hover:text-white hover:bg-white/10">
-                Hem
-              </Link>
-              <Link href="/kunskap" className="rounded-lg px-3 py-2 text-sm font-medium text-white/65 transition-colors hover:text-white hover:bg-white/10">
-                Kunskap
-              </Link>
-              <Link href="/om" className="rounded-lg px-3 py-2 text-sm font-medium text-white/65 transition-colors hover:text-white hover:bg-white/10">
-                Om HOMEii
-              </Link>
-              <Link href="/partners" className="rounded-lg px-3 py-2 text-sm font-medium text-white/65 transition-colors hover:text-white hover:bg-white/10">
-                Partners
-              </Link>
-              <Link href="/mina-sidor" className="rounded-lg px-3 py-2 text-sm font-medium text-white/65 transition-colors hover:text-white hover:bg-white/10">
-                Mina sidor
-              </Link>
+              {NAV_ITEMS.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="rounded-lg px-3 py-2 text-sm font-medium text-white/65 transition-colors hover:text-white hover:bg-white/10"
+                >
+                  {item.label}
+                </Link>
+              ))}
             </nav>
 
             {/* Mobile nav */}
