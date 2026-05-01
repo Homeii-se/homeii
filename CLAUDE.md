@@ -16,6 +16,41 @@ skapa konto för att spara fakturor och bygga en historik över tid ("Mina sidor
 
 Magic link + Google OAuth. Ingen lösenordshantering — Supabase Auth sköter allt.
 
+## Affärsmodell &amp; spridning
+
+**Spridning (hur Homeii når slutkund):**
+
+Primärkanal är **partners** — banker, försäkringsbolag, intresseorganisationer (typ
+Villaägarna), arbetsgivarförbund, energirörelser. De erbjuder Homeii som värdeadd till
+sina medlemmar/kunder. Installatörer är medvetet INTE primär spridningskanal — vi vill
+förbli oberoende från enskilda leverantörer.
+
+**Intäktsmodell:**
+
+Homeii är en **förmedlare**, inte en rådgivare som rekommenderar enskilda installatörer.
+Konkret betyder det:
+
+- ✅ Förmedla anonyma offertförfrågningar till flera installatörer/tillverkare samtidigt
+  (kunden jämför själv och väljer)
+- ✅ Affiliate-ersättning från elhandlare (Tibber, Greenely m.fl.) när kunden själv väljer
+  att byta — alltid med alla rimliga alternativ synliga, sorterade efter kundens nytta
+- ✅ Lead-ersättning från installatörer/tillverkare för förfrågningar (inte specifika
+  rekommendationer)
+- ❌ INTE: rekommendera enskild installatör/tillverkare som "den bästa för dig"
+- ❌ INTE: rangordna leverantörer efter provisionsstorlek
+
+Den oberoende positionen är produktens viktigaste tillgång. Allt vi bygger ska skydda
+den även när det kortsiktigt minskar konvertering.
+
+**Konsekvenser för UI &amp; copy:**
+
+- Vid upgrade-rekommendationer ("solceller skulle spara X kr/år") → erbjud "vill du
+  ha 3 offerter från lokala installatörer?" inte "vi rekommenderar firma Y"
+- Vid byt-elhandlare-flöden → visa alla rimliga alternativ med tydliga faktiska
+  besparingar, även när några ger oss provision och andra inte
+- `/partners`-sidan riktar sig BREDARE än bara installatörer — banker, försäkring,
+  intresseorganisationer, energihandlare, nätbolag, tillverkare
+
 ## Arbetsflöde
 
 Korta PR:ar mot `master`. En branch per implementationssteg — namnmönster:
