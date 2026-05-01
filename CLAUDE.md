@@ -49,3 +49,28 @@ npm run build
 ```
 
 Båda ska vara gröna innan en branch pushas.
+
+---
+
+## Tekniska skulder och prio 3-arbete
+
+### Stripe-integration (prio 3)
+
+Premiumprenumerationer hanteras via en framtida Stripe-integration. Schemat har förberett
+tre fält på `user_profiles` (`subscription_status`, `subscription_external_id`,
+`subscription_active_until`) som väntar på att aktiveras när Stripe byggs. Beslut om
+prismodell, faktureringsfrekvens och feature-gating tas separat innan Stripe-arbetet startar.
+
+### home_equipment-typsystem
+
+`home_equipment`-tabellen i Supabase är ett key-value-lager där `equipment_data` är jsonb.
+Strukturen för `equipment_data` per `equipment_key` definieras i
+`lib/types/home-equipment.ts` — det är källa till sanning för equipment-schemat.
+När du lägger till ny utrustningstyp:
+
+1. Lägg till värdet i `EquipmentKey`-unionen
+2. Skapa interface för datafält
+3. Lägg till mappingen i `EquipmentDataMap`
+4. Lägg till värdet i `isEquipmentKey`-funktionens lista
+
+Mattias' analyskod och frontend-formulär ska importera typer härifrån.
