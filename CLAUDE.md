@@ -74,3 +74,7 @@ När du lägger till ny utrustningstyp:
 4. Lägg till värdet i `isEquipmentKey`-funktionens lista
 
 Mattias' analyskod och frontend-formulär ska importera typer härifrån.
+
+### Single-country-antaganden
+
+Schemat förutsätter Sverige som primär marknad. Specifika antaganden listas i MINA-SIDOR-ARKITEKTUR.md sektion 11. Vid internationell expansion kommer schemajustering krävas — främst zone-constraint och anlaggnings_id-konceptet. Inte arkitekturkris, men kräver medveten migration när det blir aktuellt.

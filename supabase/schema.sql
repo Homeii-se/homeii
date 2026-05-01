@@ -139,6 +139,7 @@ create table if not exists public.consumption_metering_points (
   apartment_number text,
   grid_operator text,
   zone text check (zone in ('SE1', 'SE2', 'SE3', 'SE4') or zone is null),
+  country text not null default 'SE',
 
   deleted_at timestamptz,
   created_at timestamptz not null default now(),

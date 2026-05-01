@@ -391,7 +391,26 @@ Inte arkitekturkritiska — kan besvaras under bygget.
 
 ---
 
-## 10. Referenser
+## 10. Internationaliseringsstatus
+
+Schemat är primärt designat för svenska elhushåll. Inför internationell expansion (Europa) behöver följande adresseras:
+
+**Förberedda men inte aktiva:**
+- addresses.country defaultar till 'SE' men accepterar valfri landskod (text-fält utan check-constraint)
+- consumption_metering_points har country-fältet som identifierar mätpunktens land
+- Latitude och longitude är universella
+
+**Låst till Sverige idag:**
+- consumption_metering_points.zone har check-constraint för SE1-SE4. Andra länder har egna budområden (t.ex. Norge NO1-NO5, Tyskland en helt annan struktur). Constraintet behöver utvidgas eller refaktoreras vid expansion.
+- Konceptet anlaggnings_id är svenskt (Svenska kraftnäts 18-siffriga ID). Andra länder har egna ID-system (Målepunkt-ID i Norge, MaLo/MeLo-ID i Tyskland, MPAN i UK). Vid expansion krävs antingen en kompromiss där "ett hem" identifieras annorlunda, eller en land-specifik ID-strategi.
+- /api/parse-invoice använder en Anthropic-prompt som specifikt beskriver svenska elräkningar. Multilanguage-stöd kräver land-specifika prompts.
+- Befintliga spot_prices och monthly_avg_prices-tabeller har market_id-fält som antyder förberedelse för fler marknader, men sammankopplingen med Mina sidor-tabellerna är inte etablerad.
+
+**Vid första utländska lansering:** Detta blir en separat migration som adresserar punkterna ovan. Inte arkitekturkris, men inte heller en trivial ändring.
+
+---
+
+## 11. Referenser
 
 - **`supabase/schema.sql`** — komplett databasschema (11 tabeller, RLS-policys, triggers, `transfer_ownership`). Kör i Supabase SQL Editor när du är redo.
 - **`lib/types/home-equipment.ts`** — TypeScript-typer för `home_equipment.equipment_data` per `equipment_key`. Källa till sanning för equipment-schemat.
