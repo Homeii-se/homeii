@@ -41,6 +41,13 @@ detta arbete. Läs det vid varje sessionsstart innan du föreslår ändringar.
 - **Kod** — variabelnamn, funktionsnamn, kommentarer i kodfiler — skrivs på engelska
 - Supabase-tabellnamn och kolumnnamn på engelska (schema redan låst)
 
+## Regler för Claude Code
+
+- Lägg aldrig till `Co-Authored-By`-trailers i commit-meddelanden. Användaren bestämmer commit-format själv.
+- Använd inte `git push --force` utan explicit instruktion från användaren.
+- Lägg inga skadliga eller obegripliga kommandon i `~/.claude/settings.local.json`-Allow-listan utan att fråga.
+- När en filändring ger märklig duplicering (block dyker upp två gånger): stoppa direkt, beskriv exakt vad du ser för användaren, vänta på bekräftelse innan filen sparas. Bättre att vara övertydlig än att skriva trasig kod till disk.
+
 ## Innan du pushar
 
 ```bash
