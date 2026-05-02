@@ -19,53 +19,6 @@
 
 
 -- ============================================================
--- HJÄLPFUNKTIONER (skapas först — används av RLS-policies)
--- ============================================================
-
-create or replace function public.user_is_member(p_anlaggnings_id text)
-returns boolean as $$
-  select exists (
-    select 1 from public.metering_point_members
-    where user_id = auth.uid()
-      and anlaggnings_id = p_anlaggnings_id
-      and left_at is null
-  );
-$$ language sql security definer stable;
-
-create or replace function public.user_is_owner(p_anlaggnings_id text)
-returns boolean as $$
-  select exists (
-    select 1 from public.metering_point_members
-    where user_id = auth.uid()
-      and anlaggnings_id = p_anlaggnings_id
-      and role = 'owner'
-      and left_at is null
-  );
-$$ language sql security definer stable;
-
--- Skrivbehörighet: owner och member kan skriva, read_only kan inte
-create or replace function public.user_can_write(p_anlaggnings_id text)
-returns boolean as $$
-  select exists (
-    select 1 from public.metering_point_members
-    where user_id = auth.uid()
-      and anlaggnings_id = p_anlaggnings_id
-      and role in ('owner', 'member')
-      and left_at is null
-  );
-$$ language sql security definer stable;
-
-create or replace function public.user_email_matches(p_email text)
-returns boolean as $$
-  select exists (
-    select 1 from auth.users
-    where id = auth.uid()
-      and email = p_email
-  );
-$$ language sql security definer stable;
-
-
--- ============================================================
 -- 1. user_profiles
 -- ============================================================
 
@@ -423,6 +376,53 @@ begin
     and anlaggnings_id = p_anlaggnings_id;
 end;
 $$ language plpgsql security definer;
+
+
+-- ============================================================
+-- HJÄLPFUNKTIONER (används av RLS-policies)
+-- ============================================================
+
+create or replace function public.user_is_member(p_anlaggnings_id text)
+returns boolean as $$
+  select exists (
+    select 1 from public.metering_point_members
+    where user_id = auth.uid()
+      and anlaggnings_id = p_anlaggnings_id
+      and left_at is null
+  );
+$$ language sql security definer stable;
+
+create or replace function public.user_is_owner(p_anlaggnings_id text)
+returns boolean as $$
+  select exists (
+    select 1 from public.metering_point_members
+    where user_id = auth.uid()
+      and anlaggnings_id = p_anlaggnings_id
+      and role = 'owner'
+      and left_at is null
+  );
+$$ language sql security definer stable;
+
+-- Skrivbehörighet: owner och member kan skriva, read_only kan inte
+create or replace function public.user_can_write(p_anlaggnings_id text)
+returns boolean as $$
+  select exists (
+    select 1 from public.metering_point_members
+    where user_id = auth.uid()
+      and anlaggnings_id = p_anlaggnings_id
+      and role in ('owner', 'member')
+      and left_at is null
+  );
+$$ language sql security definer stable;
+
+create or replace function public.user_email_matches(p_email text)
+returns boolean as $$
+  select exists (
+    select 1 from auth.users
+    where id = auth.uid()
+      and email = p_email
+  );
+$$ language sql security definer stable;
 
 
 -- ============================================================
