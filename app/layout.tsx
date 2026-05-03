@@ -49,14 +49,14 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} ${dmSans.variable} min-h-screen antialiased text-text-primary`}>
         <a href="#main-content" className="sr-only sr-only-focusable">Hoppa till innehåll</a>
 
-        <header className="sticky top-0 z-50 border-b border-brand-900/10 bg-bg-warm">
+        <header className="sticky top-0 z-50 border-b border-brand-900 bg-brand-900">
           <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
             <Link
               href="/"
               aria-label="homeii — gå till startsidan"
-              className="flex items-center rounded-md outline-none ring-brand-500 focus-visible:ring-2"
+              className="flex items-center rounded-md outline-none ring-green-light focus-visible:ring-2"
             >
-              <Logo size="header" />
+              <Logo size="header" tone="light" />
             </Link>
 
             {/* Desktop nav */}
@@ -65,7 +65,7 @@ export default function RootLayout({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="rounded-lg px-3 py-2 text-sm font-medium text-brand-900/70 transition-colors hover:text-brand-900 hover:bg-brand-900/5"
+                  className="rounded-lg px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:text-white hover:bg-white/10"
                 >
                   {item.label}
                 </Link>
