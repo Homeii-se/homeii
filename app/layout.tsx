@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Geist, Geist_Mono, Fraunces } from "next/font/google";
+import { Geist, Geist_Mono, Fraunces, DM_Sans } from "next/font/google";
 import MobileNav from "./simulator/components/MobileNav";
 import ChatDrawer from "./simulator/components/ChatDrawer";
+import Logo from "./components/Logo";
 import { NAV_ITEMS } from "@/lib/nav-items";
 import "./globals.css";
 
@@ -23,6 +24,15 @@ const fraunces = Fraunces({
   style: ["normal", "italic"],
 });
 
+// DM Sans drives the brand wordmark in <Logo />. Loaded here so the typography
+// is consistent with the rest of the UI even when DM Sans isn't installed
+// system-wide.
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
+  subsets: ["latin"],
+  weight: ["300", "400", "500"],
+});
+
 export const metadata: Metadata = {
   title: "HOMEii – Din oberoende energirådgivare",
   description:
@@ -36,19 +46,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="sv">
-      <body className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} min-h-screen antialiased text-text-primary`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} ${dmSans.variable} min-h-screen antialiased text-text-primary`}>
         <a href="#main-content" className="sr-only sr-only-focusable">Hoppa till innehåll</a>
 
-        <header className="sticky top-0 z-50 border-b border-brand-900 bg-brand-900">
-          <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
-            <Link href="/" className="flex items-center gap-2.5 rounded-md outline-none ring-green-light focus-visible:ring-2">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-green-light shadow-sm">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <circle cx="12" cy="12" r="6.5" stroke="white" strokeWidth="1.8" />
-                  <circle cx="12" cy="12" r="2.2" fill="white" />
-                </svg>
-              </span>
-              <span className="text-lg font-bold text-white tracking-tight font-[family-name:var(--font-fraunces)]">HOMEii</span>
+        <header className="sticky top-0 z-50 border-b border-brand-900/10 bg-bg-warm">
+          <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
+            <Link
+              href="/"
+              aria-label="homeii — gå till startsidan"
+              className="flex items-center rounded-md outline-none ring-brand-500 focus-visible:ring-2"
+            >
+              <Logo size="header" />
             </Link>
 
             {/* Desktop nav */}
@@ -57,7 +65,7 @@ export default function RootLayout({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="rounded-lg px-3 py-2 text-sm font-medium text-white/65 transition-colors hover:text-white hover:bg-white/10"
+                  className="rounded-lg px-3 py-2 text-sm font-medium text-brand-900/70 transition-colors hover:text-brand-900 hover:bg-brand-900/5"
                 >
                   {item.label}
                 </Link>
@@ -75,17 +83,11 @@ export default function RootLayout({
         {/* Global AI-rådgivare — drag-bar bottom drawer på alla sidor */}
         <ChatDrawer />
 
-        <footer className="border-t border-gray-200 bg-white/95 py-8 shadow-sm">
+        <footer className="border-t border-brand-900/10 bg-bg-warm py-8">
           <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6">
-            <div className="flex items-center gap-2">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-lg bg-brand-500">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <circle cx="12" cy="12" r="6.2" stroke="white" strokeWidth="1.8" />
-                  <circle cx="12" cy="12" r="2.1" fill="white" />
-                </svg>
-              </span>
-              <span className="font-semibold text-brand-900">HOMEii</span>
-            </div>
+            <span className="font-[family-name:var(--font-dm-sans)] text-xl font-light tracking-[-0.04em] text-brand-900">
+              homeii<span className="text-green-light">.</span>
+            </span>
             <p className="text-center text-sm text-text-secondary sm:text-left">
               Oberoende energirådgivning — vi säljer ingenting
             </p>
