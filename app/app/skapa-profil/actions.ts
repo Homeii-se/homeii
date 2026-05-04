@@ -101,9 +101,10 @@ export async function saveProfile(
     })
     .eq('id', user.id);
 
-  if (updateError) {
-    return { error: 'Kunde inte spara profilen. Försök igen.' };
-  }
+    if (updateError) {
+        console.error('Profile update error:', JSON.stringify(updateError, null, 2));
+        return { error: 'Kunde inte spara profilen. Försök igen.' };
+      }
 
   revalidatePath('/app');
   redirect('/app/hem');
