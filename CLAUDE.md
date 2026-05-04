@@ -44,6 +44,32 @@ detta arbete. Läs det vid varje sessionsstart innan du föreslår ändringar.
 
 **Nästa:** PR #9B – bygg ut `/app/spara-analys` med adressbekräftelse från fakturan. PR #9C – atomisk databas-skrivning.
 
+## Roadmap
+
+Grov plan för Mina sidor v1. Ordningen kan justeras baserat på vad som blir relevant först.
+
+### Steg 3 – Spara-flöde (pågående)
+- **PR #9C:** Atomisk databas-skrivning. Ersätter console.log i `actions.ts` med faktisk persistering. Address → consumption_metering_point → metering_point_member → document → analysis → home_profile. PDF lagras i Storage. Hantering av duplicat-faktura.
+
+### Steg 4 – Mina sidor-vyer
+- **PR #10:** Bygg ut `/app/hem` till riktig dashboard. Visa sparade fakturor, total kostnad, översikt över anslutna fastigheter.
+- **PR #11:** `/app/min-uppfoljning` – jämförelser av användarens nuvarande läge kontra tidigare.
+- **PR #12:** `/app/min-plan` – rekommendationer baserat på alla sparade analyser, prioriterad sparpotential.
+- **PR #13:** `/app/mitt-hem` – redigera home_profile, hantera flera fastigheter, byta mellan dem.
+- **PR #14:** `/app/mina-offerter` – offerter för åtgärder från rekommendationerna (vänster på prio-listan).
+
+### Steg 5 – Inbjudningar och delning
+- **PR #15:** Bjuda in andra medlemmar till en fastighet med roller (member/read_only). Använder befintlig `metering_point_invitations`-tabell.
+- **PR #16:** Acceptera inbjudningar, hantera invitations-flödet.
+
+### Steg 6 – Bra-att-ha
+- **PR #17:** Notiser och inställningar (mejl, push i framtiden).
+- **PR #18:** Adminkonsol – kommer när första riktiga användare finns och GDPR-förfrågningar börjar dyka upp. Se Tekniska skulder.
+- **PR #19:** Användarradering med korrekt hantering av ägarskap. Soft-delete-kolumner finns redan i schemat. Se Beslut-arkiv för regler.
+
+### Steg 7 – Stripe (efter Mina sidor v1)
+Premiumprenumerationer. Förberedelser i schemat finns redan. Se Tekniska skulder för plan.
+
 ## Beslut-arkiv
 
 Beslut som tagits utanför arkitekturdokumentet och inte hör till en specifik PR.
