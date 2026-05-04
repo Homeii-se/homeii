@@ -38,6 +38,14 @@ export interface ParsedInvoice {
   historicalSpotPriceOre?: number;
   /** Delivery address from invoice */
   address?: string;
+  /** Street and number portion */
+  street?: string;
+  /** 5-digit postal code without spaces */
+  postalCode?: string;
+  /** City name */
+  city?: string;
+  /** 18-digit anläggnings-ID / mätpunkts-ID, digits only */
+  anlaggningsId?: string;
   /** Latitude from geocoded address (server-side) */
   latitude?: number;
   /** Longitude from geocoded address (server-side) */
@@ -148,6 +156,13 @@ export function parsedInvoiceToBillData(parsed: ParsedInvoice): Partial<BillData
 
   // Historical spot price (server-side fetched)
   if (parsed.historicalSpotPriceOre !== undefined) result.historicalSpotPriceOre = parsed.historicalSpotPriceOre;
+
+  // Address fields (from invoice)
+  if (parsed.address !== undefined) result.address = parsed.address;
+  if (parsed.street !== undefined) result.street = parsed.street;
+  if (parsed.postalCode !== undefined) result.postalCode = parsed.postalCode;
+  if (parsed.city !== undefined) result.city = parsed.city;
+  if (parsed.anlaggningsId !== undefined) result.anlaggningsId = parsed.anlaggningsId;
 
   // Geocoded coordinates (server-side)
   if (parsed.latitude !== undefined) result.latitude = parsed.latitude;
