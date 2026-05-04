@@ -24,8 +24,21 @@
 
 create table if not exists public.user_profiles (
   id uuid primary key references auth.users(id) on delete cascade,
-  full_name text,
   email text not null unique,
+
+  -- Profilinformation (samlas in vid kontoskapande)
+  first_name text,
+  last_name text,
+  phone_country_code text check (phone_country_code in ('SE', 'NO', 'DK', 'FI', 'IS') or phone_country_code is null),
+  phone_number text,
+  birth_year integer check (birth_year between 1900 and 2010 or birth_year is null),
+  referral_source text,
+
+  -- Samtycken (timestamp = när samtycket gavs, för GDPR)
+  privacy_policy_accepted_at timestamptz,
+  marketing_consent boolean not null default false,
+
+  -- Tier och notiser
   tier text not null default 'bas' check (tier in ('bas', 'premium')),
   notification_email boolean not null default true,
 
