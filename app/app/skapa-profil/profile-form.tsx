@@ -40,15 +40,18 @@ type InitialValues = {
 
 export function ProfileForm({
   email,
+  next,
   initialValues,
 }: {
   email: string;
+  next?: string;
   initialValues: InitialValues;
 }) {
   const [state, formAction, isPending] = useActionState(saveProfile, {});
 
   return (
     <form action={formAction} className="space-y-6">
+      {next && <input type="hidden" name="next" value={next} />}
       {/* Förnamn */}
       <div>
         <label htmlFor="first_name" className="block text-sm font-medium mb-1">

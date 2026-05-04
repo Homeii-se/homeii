@@ -108,8 +108,11 @@ export async function saveProfile(
         return { error: 'Kunde inte spara profilen. Försök igen.' };
       }
 
-  revalidatePath('/app');
-  redirect('/app/hem');
+      const next = formData.get('next')?.toString();
+      const safeNext = next?.startsWith('/') && !next.startsWith('//') ? next : '/app/hem';
+    
+      revalidatePath('/app');
+      redirect(safeNext);
 }
 
 function isValidPhoneLength(countryCode: string, digits: string): boolean {

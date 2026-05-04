@@ -52,7 +52,7 @@ if (
   !request.nextUrl.pathname.startsWith('/app/skapa-profil')
 ) {
   const { data: profile, error: profileError } = await supabase
-  .from('profiles')
+  .from('user_profiles')
   .select('first_name, last_name, privacy_policy_accepted_at')
   .eq('id', user.id)
   .single();
@@ -64,11 +64,12 @@ const isIncomplete =
     !profile?.last_name ||
     !profile?.privacy_policy_accepted_at);
 
-  if (isIncomplete) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/app/skapa-profil';
-    return NextResponse.redirect(url);
-  }
+    if (isIncomplete) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/app/skapa-profil';
+      url.searchParams.set('next', request.nextUrl.pathname);
+      return NextResponse.redirect(url);
+    }
 }
   return response;
 }
