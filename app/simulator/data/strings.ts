@@ -13,6 +13,8 @@ export const STRINGS = {
   uploadDrop: "Släpp fil här eller klicka för att välja",
   uploadAccept: "Bilder (JPG, PNG) eller PDF",
   processingTitle: "Analyserar din elräkning...",
+  processingTimeoutError: "Det tog längre tid än väntat. Försök igen om en stund.",
+  processingGenericError: "Något gick fel vid tolkning av fakturan",
   confirmTitle: "Bekräfta dina uppgifter",
   confirmSubtitle: "Vi hittade följande uppgifter. Korrigera om något inte stämmer.",
   dashboardTitle: "Detaljerad analys",

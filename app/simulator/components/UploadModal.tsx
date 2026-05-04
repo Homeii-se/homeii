@@ -21,6 +21,7 @@ import {
   validateExtraction,
 } from "../inference/bill-parser";
 import type { ParsedInvoice, ValidationResult } from "../inference/bill-parser";
+import { STRINGS } from "../data/strings";
 import ProcessingAnimation from "./ProcessingAnimation";
 
 interface UploadModalProps {
@@ -33,12 +34,22 @@ type Phase = "upload" | "processing" | "validation-failed";
 
 const EMPTY_BILL: BillData = { kwhPerMonth: 0, costPerMonth: 0 };
 
+// Maximum time to wait for /api/parse-invoice before aborting. Anthropic
+// usually responds in 10–30 s; 45 s gives healthy headroom while still
+// rescuing the user from an indefinite hang if the upstream is unhealthy.
+const PARSE_TIMEOUT_MS = 45_000;
+
 export default function UploadModal({ open, onClose, onComplete }: UploadModalProps) {
   const [phase, setPhase] = useState<Phase>("upload");
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+  // Signals to ProcessingAnimation that the API call has finished (success
+  // or recoverable failure). Keeps the animation's last-step spinner active
+  // while the request is still in flight so the user does not see a "done"
+  // state before the work is really done.
+  const [apiCompleted, setApiCompleted] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset när modalen stängs så nästa öppning är ren
@@ -48,6 +59,7 @@ export default function UploadModal({ open, onClose, onComplete }: UploadModalPr
       setStagedFiles([]);
       setError(null);
       setValidationResult(null);
+      setApiCompleted(false);
     }
   }, [open]);
 
@@ -92,7 +104,14 @@ export default function UploadModal({ open, onClose, onComplete }: UploadModalPr
   const handleSubmit = useCallback(async () => {
     if (stagedFiles.length === 0) return;
     setError(null);
+    setApiCompleted(false);
     setPhase("processing");
+
+    // Abort the request if it takes longer than PARSE_TIMEOUT_MS. Without
+    // this the user can sit on the processing screen indefinitely if the
+    // upstream Anthropic call hangs.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), PARSE_TIMEOUT_MS);
 
     try {
       const formData = new FormData();
@@ -103,6 +122,7 @@ export default function UploadModal({ open, onClose, onComplete }: UploadModalPr
       const response = await fetch("/api/parse-invoice", {
         method: "POST",
         body: formData,
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -132,6 +152,8 @@ export default function UploadModal({ open, onClose, onComplete }: UploadModalPr
         mergedBill = mergeBillData(mergedBill, extracted);
       }
 
+      setApiCompleted(true);
+
       if (mergedBill.kwhPerMonth > 0 && mergedBill.costPerMonth > 0) {
         // Klart — stäng modal och navigera till nästa steg
         onComplete(mergedBill);
@@ -140,9 +162,18 @@ export default function UploadModal({ open, onClose, onComplete }: UploadModalPr
         setPhase("upload");
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Något gick fel vid tolkning av fakturan";
+      // AbortError = our 45 s timeout fired — give the user a clear,
+      // actionable message instead of the generic parse error.
+      const isTimeout = err instanceof DOMException && err.name === "AbortError";
+      const msg = isTimeout
+        ? STRINGS.processingTimeoutError
+        : err instanceof Error
+        ? err.message
+        : STRINGS.processingGenericError;
       setError(msg);
       setPhase("upload");
+    } finally {
+      clearTimeout(timeoutId);
     }
   }, [stagedFiles, onComplete]);
 
@@ -260,7 +291,10 @@ export default function UploadModal({ open, onClose, onComplete }: UploadModalPr
 
           {phase === "processing" && (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "30px 0", gap: 14 }}>
-              <ProcessingAnimation onComplete={() => { /* drivs av API-svar, inte av animationens onComplete */ }} />
+              <ProcessingAnimation
+                onComplete={() => { /* drivs av API-svar, inte av animationens onComplete */ }}
+                apiCompleted={apiCompleted}
+              />
               <p style={{ fontSize: 14, color: "#1a3a26", margin: 0 }}>Tolkar din räkning...</p>
               <p style={{ fontSize: 12, color: "#4a6b54", margin: 0 }}>Detta tar oftast 10-30 sekunder</p>
             </div>
