@@ -16,6 +16,11 @@ type Phase = "upload" | "processing" | "result" | "confirm" | "validation-failed
 
 const EMPTY_BILL: BillData = { kwhPerMonth: 0, costPerMonth: 0 };
 
+// Maximum time to wait for /api/parse-invoice before aborting. Anthropic
+// usually responds in 10–30 s; 45 s gives healthy headroom while still
+// rescuing the user from an indefinite hang if the upstream is unhealthy.
+const PARSE_TIMEOUT_MS = 45_000;
+
 export default function UploadBill({ onComplete, initialData }: UploadBillProps) {
   const [phase, setPhase] = useState<Phase>("upload");
   const [billData, setBillData] = useState<BillData>(initialData ?? EMPTY_BILL);
@@ -23,6 +28,11 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+  // Signals to ProcessingAnimation that the API call has finished (success
+  // or recoverable failure). Keeps the animation's last-step spinner active
+  // while the request is still in flight so the user does not see a "done"
+  // state before the work is really done.
+  const [apiCompleted, setApiCompleted] = useState(false);
 
   // Staged files — user can add multiple before submitting
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
@@ -55,7 +65,14 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
 
     setFileNames(stagedFiles.map((f) => f.name));
     setError(null);
+    setApiCompleted(false);
     setPhase("processing");
+
+    // Abort the request if it takes longer than PARSE_TIMEOUT_MS. Without
+    // this the user can sit on the processing screen indefinitely if the
+    // upstream Anthropic call hangs.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), PARSE_TIMEOUT_MS);
 
     try {
       const formData = new FormData();
@@ -66,6 +83,7 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
       const response = await fetch("/api/parse-invoice", {
         method: "POST",
         body: formData,
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -120,6 +138,7 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
       }));
       setBillData(mergedBill);
       setStagedFiles([]);
+      setApiCompleted(true);
 
       // Hoppa direkt till onComplete — VerificationScreen visar nu parsed data + hus-frågor i en vy
       if (mergedBill.kwhPerMonth > 0 && mergedBill.costPerMonth > 0) {
@@ -130,8 +149,19 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
       }
     } catch (err: unknown) {
       console.error("Invoice parse error:", err);
-      setError(err instanceof Error ? err.message : "Något gick fel vid tolkning av fakturan");
+      // AbortError = our 45 s timeout fired — give the user a clear,
+      // actionable message instead of the generic parse error.
+      const isTimeout = err instanceof DOMException && err.name === "AbortError";
+      setError(
+        isTimeout
+          ? STRINGS.processingTimeoutError
+          : err instanceof Error
+          ? err.message
+          : STRINGS.processingGenericError
+      );
       setPhase("upload");
+    } finally {
+      clearTimeout(timeoutId);
     }
   }, [stagedFiles, billData, onComplete]);
 
@@ -176,7 +206,10 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
   // Processing phase
   if (phase === "processing") {
     return (
-      <ProcessingAnimation onComplete={() => {}} />
+      <ProcessingAnimation
+        onComplete={() => {}}
+        apiCompleted={apiCompleted}
+      />
     );
   }
 
