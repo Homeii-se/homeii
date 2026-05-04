@@ -17,7 +17,7 @@ export default async function SparaAnalysPage() {
       <h1 className="mb-2 text-3xl font-semibold">Bekräfta din adress</h1>
       <p className="mb-8 text-sm text-gray-600">
         Vi har läst följande från din faktura. Kontrollera att uppgifterna stämmer
-        innan vi sparar analysen permanent.
+        innan vi sparar uppgifterna.
       </p>
 
       <AddressForm />
