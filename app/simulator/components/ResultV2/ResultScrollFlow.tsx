@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import type { AnnualCostComponents } from "../../types";
 import {
@@ -82,8 +83,14 @@ export default function MinaSidorScrollFlow({
   heatingTypes,
   potentialSavingsKr,
 }: MinaSidorScrollFlowProps) {
+  const router = useRouter();
   const [activeIdx, setActiveIdx] = useState(0);
   const sectionRefs = useRef<(HTMLElement | null)[]>([]);
+
+  const handleSignup = () => {
+    router.push("/logga-in?next=/app/spara-analys");
+  };
+
 
   // IntersectionObserver för att highlighta aktuell sektion i progress-rail
   useEffect(() => {
@@ -173,7 +180,7 @@ export default function MinaSidorScrollFlow({
         id="framtiden"
         className="flex min-h-[90vh] items-center justify-center bg-bg-warm px-4 py-16"
       >
-        <Section4Framtiden totalKr={totalKr} spotCostKr={costComponents.spotCostKr} />
+        <Section4Framtiden totalKr={totalKr} spotCostKr={costComponents.spotCostKr} onSignup={handleSignup} />
       </section>
 
       {/* Section 4: Vad du kan göra — efter framtiden för att svara på "vad gör jag åt det?" */}
@@ -182,7 +189,7 @@ export default function MinaSidorScrollFlow({
         id="vadgora"
         className="flex min-h-[90vh] items-center justify-center bg-surface-bright px-4 py-16"
       >
-        <Section3VadGora hasEffekt={hasEffekt} anvandaKr={anvandaKr} effektKr={effektKr} fastaKr={fastaKr} totalKr={totalKr} />
+       <Section3VadGora hasEffekt={hasEffekt} anvandaKr={anvandaKr} effektKr={effektKr} fastaKr={fastaKr} totalKr={totalKr} onSignup={handleSignup} />
       </section>
     </div>
   );
@@ -572,13 +579,14 @@ function Section2VartPengarnaGar({
    ========================================================================= */
 
 function Section3VadGora({
-  hasEffekt, anvandaKr, effektKr, fastaKr, totalKr,
+  hasEffekt, anvandaKr, effektKr, fastaKr, totalKr, onSignup,
 }: {
   hasEffekt: boolean;
   anvandaKr: number;
   effektKr: number;
   fastaKr: number;
   totalKr: number;
+  onSignup: () => void;
 }) {
   // Realistiska procent baserat på branschdata
   const anvandaSavings = Math.round(anvandaKr * 0.55);    // Värmepump+solceller+isolering ~55% av kWh-kostnaden
@@ -650,6 +658,7 @@ function Section3VadGora({
         eyebrow="★ Ditt nästa steg"
         title="Få en personlig sparplan för ditt hus"
         desc="Med ett gratis konto räknar vi exakt sparpotential för varje åtgärd, i vilken ordning du bör göra dem, och sparar din historik så du kan följa utvecklingen månad för månad."
+        onSignup={onSignup}
       />
     </div>
   );
@@ -660,10 +669,11 @@ function Section3VadGora({
    ========================================================================= */
 
 function Section4Framtiden({
-  totalKr, spotCostKr,
-}: {
-  totalKr: number;
-  spotCostKr: number;
+   totalKr, spotCostKr, onSignup,
+  }: {
+   totalKr: number;
+   spotCostKr: number;
+   onSignup: () => void;
 }) {
   // Scenarie-deltas baseras på spotpris-känslighet (det enda som varierar)
   // Energikrisen 2022: spotpris 2.4× → spotCost ökar med 1.4× (140%)
@@ -727,6 +737,7 @@ function Section4Framtiden({
         eyebrow="★ Ditt nästa steg"
         title="Få en personlig sparplan + alla scenarier"
         desc="Vi räknar de två sannolika scenarierna, sparpotential för alla åtgärder, sparar historik och meddelar när priserna ändras."
+        onSignup={onSignup}
       />
     </div>
   );
@@ -909,7 +920,7 @@ function MoreScenariosBlock() {
   );
 }
 
-function SignupCta({ eyebrow, title, desc }: { eyebrow: string; title: string; desc: string }) {
+function SignupCta({ eyebrow, title, desc, onSignup }: { eyebrow: string; title: string; desc: string; onSignup: () => void }) {
   return (
     <div className="mt-7 rounded-2xl border border-border bg-white p-7 text-center">
       <div className="mb-2 text-xs font-bold uppercase tracking-widest text-brand-500">{eyebrow}</div>
@@ -917,10 +928,10 @@ function SignupCta({ eyebrow, title, desc }: { eyebrow: string; title: string; d
       <p className="mx-auto mb-5 max-w-md text-sm leading-relaxed text-text-muted">{desc}</p>
       <button
         type="button"
-        disabled
-        className="cursor-not-allowed rounded-2xl bg-brand-500/60 px-7 py-4 text-base font-bold text-white shadow-lg disabled:opacity-70"
+        onClick={onSignup}
+        className="rounded-2xl bg-brand-500 px-7 py-4 text-base font-bold text-white shadow-lg hover:bg-brand-600 transition-colors"
       >
-        Skapa konto — gratis (kommer snart)
+        Skapa konto – kostnadsfritt
       </button>
       <div className="mt-3 text-xs text-text-muted">
         <strong className="font-semibold text-text-primary">Inga kortuppgifter</strong> · Magic link via mejl · Tar 30 sek
