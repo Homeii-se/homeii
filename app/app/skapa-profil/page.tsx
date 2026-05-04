@@ -2,7 +2,13 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { ProfileForm } from './profile-form';
 
-export default async function SkapaProfilPage() {
+export default async function SkapaProfilPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const params = await searchParams;
+  const next = params.next;
   const supabase = await createClient();
   const {
     data: { user },
@@ -33,6 +39,7 @@ export default async function SkapaProfilPage() {
 
       <ProfileForm
         email={user.email ?? ''}
+        next={next}
         initialValues={{
           first_name: profile?.first_name ?? '',
           last_name: profile?.last_name ?? '',
