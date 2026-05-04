@@ -29,6 +29,43 @@ detta arbete. Läs det vid varje sessionsstart innan du föreslår ändringar.
 **Regel:** Varje PR som ändrar ett arkitekturbeslut eller datamodellen ska uppdatera
 `MINA-SIDOR-ARKITEKTUR.md` i samma commit.
 
+## Status
+
+**Klart i master för "Mina Sidor":**
+- PR #1-3: Dokumentation, schema (11 tabeller, RLS, GRANT-permissions)
+- PR #5: Supabase-klienter, login `/logga-in`, callback `/auth/callback`
+- PR #6: Proxy.ts skyddar `/app/*`, stub-sida `/app/hem`, logga ut-knapp
+- PR #7: Schema-utökning `user_profiles` (first_name, last_name, telefon, samtycken)
+- PR #8A: Profilformulär `/app/skapa-profil` med server action
+- PR #8B: Profil-skydd i proxy redirectar ofullständiga profiler
+- PR #9A: SignupCta aktiverad i simulator-flödet, stub-sida `/app/spara-analys`, next-param bevaras genom hela registreringsflödet
+
+**Verifierat end-to-end:** Anonym besökare laddar upp faktura → analys → klickar "Skapa konto" → magic link → profilformulär → landar på `/app/spara-analys` med inloggad session.
+
+**Nästa:** PR #9B – bygg ut `/app/spara-analys` med adressbekräftelse från fakturan. PR #9C – atomisk databas-skrivning.
+
+## Beslut-arkiv
+
+Beslut som tagits utanför arkitekturdokumentet och inte hör till en specifik PR.
+
+### PDF-sökväg i Storage
+PDF:er lagras under `documents/{anlaggnings_id}/{document_id}.pdf` — inte under `{user_id}/...`. Skälet: knyter dokumentet till fastigheten, inte till uppladdaren. Överlever ägarbyten och radering av enskilda användare.
+
+### Användarradering
+Vid radering (självvald, admin eller dödsfall):
+- Hindra radering av owner med andra medlemmar — måste först överföra ägarskap via `transfer_ownership`-funktionen
+- Om ensam användare på fastighet: radera både användare och fastighet
+- Princip: undvik föräldralösa fastigheter
+- Vid dödsfall: hantera manuellt när familj kontaktar Homeii
+
+Implementeras inte nu — soft-delete-kolumner finns redan i schemat. Reglerna kodifieras när användarradering byggs.
+
+### Datatransfer mellan anonym analys och spara-flow
+Använder `localStorage`-nyckeln `homeii-state` (befintlig konvention från simulator). Sidan `/app/spara-analys` läser den direkt — ingen separat sessionStorage-överföring. Trade-off: per browser-domän, men accepterad för v1.
+
+### Hantering av duplicat-faktura
+Om användaren försöker spara en faktura med ett `anlaggnings_id` som redan är kopplat till samma användare: avvisa med "Du har redan denna faktura sparad". Ingen auto-uppdatering eller duplicat tillåts i v1.
+
 ## Konventioner
 
 - UI-strängar bör skrivas så de är förberedda för översättning. Konkret val av i18n-lager
@@ -85,3 +122,13 @@ Mattias' analyskod och frontend-formulär ska importera typer härifrån.
 ### Single-country-antaganden
 
 Schemat förutsätter Sverige som primär marknad. Specifika antaganden listas i MINA-SIDOR-ARKITEKTUR.md sektion 11. Vid internationell expansion kommer schemajustering krävas — främst zone-constraint och anlaggnings_id-konceptet. Inte arkitekturkris, men kräver medveten migration när det blir aktuellt.
+
+### Adminkonsol
+
+Skjuts upp till efter Mina sidor v1 är levererad. Behövs när:
+- Riktiga användare börjar registrera sig
+- GDPR-förfrågningar kommer in (radera, exportera, rätta)
+- Kollegor utan SQL-kunskaper behöver hjälpa till med supportärenden
+- Volymen blir för stor för att läsa user_profiles-tabellen direkt
+
+Fram tills dess: ändringar görs manuellt via Supabase-dashboarden eller SQL Editor. Adminkonsol kräver autentiseringsmodell, behörighetslager (vem är admin?) och audit-logg — uppskattat 1-2 veckors arbete och inte värt att bygga förrän behovet är konkret.
