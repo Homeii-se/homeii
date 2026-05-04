@@ -130,8 +130,12 @@ Return JSON with these fields (omit any not found):
   "hasProductionRevenue": <boolean — true if production/export revenue found>,
   "solarExportKwh": <number — exported kWh if found>,
   "solarExportRevenueKr": <number — export revenue kr if found>,
-  "address": "<string — leveransadress / anläggningsadress if visible on invoice>",
-  "confidence": <number 0-1 — how confident you are in the extraction>
+  "address": "<string – full leveransadress / anläggningsadress if visible on invoice (e.g. 'Storgatan 5, 412 65 Göteborg')>",
+  "street": "<string – just the street and number portion of the address (e.g. 'Storgatan 5')>",
+  "postalCode": "<string – just the 5-digit postal code without spaces (e.g. '41265')>",
+  "city": "<string – just the city name (e.g. 'Göteborg')>",
+  "anlaggningsId": "<string – 18-digit anläggnings-ID / mätpunkts-ID (EIC code, e.g. '735999...') if visible on invoice, normalized to digits only without spaces>",
+  "confidence": <number 0-1 – how confident you are in the extraction>
 }`;
 
     const messages = [

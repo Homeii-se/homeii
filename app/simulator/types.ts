@@ -95,6 +95,18 @@ export interface BillData {
   /** Elnät invoice total (kr inkl moms) */
   invoiceElnatTotalKr?: number;
 
+// --- Address fields (from invoice) ---
+  /** Full delivery/installation address as written on invoice */
+  address?: string;
+  /** Street and number, e.g. "Storgatan 5" */
+  street?: string;
+  /** 5-digit postal code without spaces, e.g. "41265" */
+  postalCode?: string;
+  /** City name, e.g. "Göteborg" */
+  city?: string;
+  /** 18-digit anläggnings-ID / mätpunkts-ID (EIC code), digits only */
+  anlaggningsId?: string;
+
   // --- Location (from geocoding) ---
   /** Latitude from geocoded address */
   latitude?: number;
