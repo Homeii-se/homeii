@@ -45,6 +45,31 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+// Skydda /app/*-routes mot ofullständiga profiler
+if (
+  user &&
+  request.nextUrl.pathname.startsWith('/app') &&
+  !request.nextUrl.pathname.startsWith('/app/skapa-profil')
+) {
+  const { data: profile, error: profileError } = await supabase
+  .from('profiles')
+  .select('first_name, last_name, privacy_policy_accepted_at')
+  .eq('id', user.id)
+  .single();
+
+// Om queryn misslyckas, låt användaren passera — undvik felaktig redirect
+const isIncomplete =
+  !profileError &&
+  (!profile?.first_name ||
+    !profile?.last_name ||
+    !profile?.privacy_policy_accepted_at);
+
+  if (isIncomplete) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/app/skapa-profil';
+    return NextResponse.redirect(url);
+  }
+}
   return response;
 }
 
