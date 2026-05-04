@@ -42,7 +42,10 @@ export async function saveProfile(
   const fieldErrors: ProfileFormState['fieldErrors'] = {};
 
   if (!firstName) fieldErrors.first_name = 'Förnamn krävs.';
+  else if (firstName.length > 100) fieldErrors.first_name = 'Förnamn är för långt.';
+  
   if (!lastName) fieldErrors.last_name = 'Efternamn krävs.';
+  else if (lastName.length > 100) fieldErrors.last_name = 'Efternamn är för långt.';
 
   // Telefon: båda tomma OK, båda ifyllda OK, mellantillstånd inte OK
   let phoneNumberSaved: string | null = null;
@@ -102,7 +105,6 @@ export async function saveProfile(
     .eq('id', user.id);
 
     if (updateError) {
-        console.error('Profile update error:', JSON.stringify(updateError, null, 2));
         return { error: 'Kunde inte spara profilen. Försök igen.' };
       }
 
