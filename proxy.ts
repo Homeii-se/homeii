@@ -51,16 +51,18 @@ if (
   request.nextUrl.pathname.startsWith('/app') &&
   !request.nextUrl.pathname.startsWith('/app/skapa-profil')
 ) {
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('first_name, last_name, privacy_policy_accepted_at')
-    .eq('id', user.id)
-    .single();
+  const { data: profile, error: profileError } = await supabase
+  .from('profiles')
+  .select('first_name, last_name, privacy_policy_accepted_at')
+  .eq('id', user.id)
+  .single();
 
-  const isIncomplete =
-    !profile?.first_name ||
+// Om queryn misslyckas, låt användaren passera — undvik felaktig redirect
+const isIncomplete =
+  !profileError &&
+  (!profile?.first_name ||
     !profile?.last_name ||
-    !profile?.privacy_policy_accepted_at;
+    !profile?.privacy_policy_accepted_at);
 
   if (isIncomplete) {
     const url = request.nextUrl.clone();
