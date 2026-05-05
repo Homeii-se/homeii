@@ -39,10 +39,11 @@ detta arbete. Läs det vid varje sessionsstart innan du föreslår ändringar.
 - PR #8A: Profilformulär `/app/skapa-profil` med server action
 - PR #8B: Profil-skydd i proxy redirectar ofullständiga profiler
 - PR #9A: SignupCta aktiverad i simulator-flödet, stub-sida `/app/spara-analys`, next-param bevaras genom hela registreringsflödet
+- PR #SCAFFOLD: Scaffold av alla Mina sidor-rutter med stub-sidor och gemensam sidomeny (`app/app/layout.tsx`)
 
 **Verifierat end-to-end:** Anonym besökare laddar upp faktura → analys → klickar "Skapa konto" → magic link → profilformulär → landar på `/app/spara-analys` med inloggad session.
 
-**Nästa:** PR #9B – bygg ut `/app/spara-analys` med adressbekräftelse från fakturan. PR #9C – atomisk databas-skrivning.
+**Nästa:** PR #9C-prep – PDF som base64 i `homeii-state` (förberedelse för databas-skrivning). PR #9C – atomisk databas-skrivning.
 
 ## Roadmap
 
@@ -51,12 +52,14 @@ Grov plan för Mina sidor v1. Ordningen kan justeras baserat på vad som blir re
 ### Steg 3 – Spara-flöde (pågående)
 - **PR #9C:** Atomisk databas-skrivning. Ersätter console.log i `actions.ts` med faktisk persistering. Address → consumption_metering_point → metering_point_member → document → analysis → home_profile. PDF lagras i Storage. Hantering av duplicat-faktura.
 
-### Steg 4 – Mina sidor-vyer
+### Steg 4 – Mina sidor-vyer (sidorna är scaffoldade, fyll med innehåll)
 - **PR #10:** Bygg ut `/app/hem` till riktig dashboard. Visa sparade fakturor, total kostnad, översikt över anslutna fastigheter.
 - **PR #11:** `/app/min-uppfoljning` – jämförelser av användarens nuvarande läge kontra tidigare.
 - **PR #12:** `/app/min-plan` – rekommendationer baserat på alla sparade analyser, prioriterad sparpotential.
 - **PR #13:** `/app/mitt-hem` – redigera home_profile, hantera flera fastigheter, byta mellan dem.
 - **PR #14:** `/app/mina-offerter` – offerter för åtgärder från rekommendationerna (vänster på prio-listan).
+- **PR #14B:** `/app/mina-dokument` – dokumentrepository med filter per fastighet (alla typer av uppladdade dokument).
+- **PR #14C:** `/app/mina-erbjudanden` – partnersamarbeten (placeholder tills partners är på plats).
 
 ### Steg 5 – Inbjudningar och delning
 - **PR #15:** Bjuda in andra medlemmar till en fastighet med roller (member/read_only). Använder befintlig `metering_point_invitations`-tabell.

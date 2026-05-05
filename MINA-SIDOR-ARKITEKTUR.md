@@ -43,7 +43,9 @@ Idag är fakturaflödet helt ephemeralt: PDF laddas upp → parsas via Anthropic
 | `/app/hem` | Hemöversikt / dashboard | 1 |
 | `/app/min-plan` | Min plan — personliga rekommendationer | 1 |
 | `/app/mitt-hem` | Mitt hem — husdata och utrustning | 2 |
+| `/app/mina-dokument` | Mina dokument — repository för alla uppladdade dokument | 2 |
 | `/app/mina-offerter` | Offerter från installatörer | 2 |
+| `/app/mina-erbjudanden` | Erbjudanden från partners (framtida) | 3 |
 | `/app/min-uppfoljning` | Uppföljning — historik och trender | 2 |
 | `/app/min-kunskap` | Personaliserad kunskapshub | 2 |
 | `/app/notiser` | Notiser | 3 |
@@ -71,7 +73,9 @@ Idag är fakturaflödet helt ephemeralt: PDF laddas upp → parsas via Anthropic
 | Hem | `/app/hem` | **1** | Startvy vid inloggning. Senaste faktura, elbesparing YTD, genvägar till plan och uppföljning. |
 | Min plan | `/app/min-plan` | **1** | Personliga rekommendationer baserade på fakturahistorik och hemdata. Länk till relevanta offerter. |
 | Mitt hem | `/app/mitt-hem` | **2** | Hemdata: adress, boyta, byggår, byggnadstyp, befintlig utrustning (värmepump, solceller, batteri m.m.). Auto-fylls från faktura, bekräftas av användaren. |
-| Mina offerter | `/app/mina-offerter` | **2** | Inkomna offerter från installatörer, kopplade till rekommenderade åtgärder. |
+| Mina dokument | `/app/mina-dokument` | **2** | Dokumentrepository för alla uppladdade dokument oavsett typ — elhandelsfakturor, elnätsfakturor, offerter och övriga dokument. Filtrerbar per fastighet. Kompletterar `/app/mina-offerter` (som är specialiserad på offert-analys). |
+| Mina offerter | `/app/mina-offerter` | **2** | Inkomna offerter från installatörer, kopplade till rekommenderade åtgärder. Specialvy för offert-analys (jämförelse, bedömning) — komplement till generella `/app/mina-dokument`. |
+| Mina erbjudanden | `/app/mina-erbjudanden` | **3** | Erbjudanden från Homeii-partners (tillverkare, leverantörer). Placeholder i v1 — innehåll kommer när partnersamarbeten är på plats. |
 | Min uppföljning | `/app/min-uppfoljning` | **2** | Fakturahistorik, förbrukningsgrafer, jämförelse mot föregående period och liknande hushåll. |
 | Min kunskap | `/app/min-kunskap` | **2** | Filtrerad version av publika `/kunskap` baserat på `home_profile` och `home_equipment`. |
 | Inställningar | `/app/installningar` | **2** | Kontoinställningar, notifpreferenser, hantera members och roller, prenumerationsinfo. |
@@ -347,6 +351,16 @@ I strikt prioritetsordning. Bygg inte parallellt — varje steg bygger på före
   5. Skapa `documents`-rad med `document_type='invoice'`, PDF-path och `parsed_data`
   6. Skapa `analyses`-rad med Anthropic-resultat kopplat till dokumentet
   7. Skapa `home_profile`-rad med data extraherad från fakturan (bekräftas i nästa steg)
+
+### Steg 3.5: Scaffolda Mina sidor-rutter och navigation (~0.5 dag) — KLART
+
+Skapa alla `/app/*`-rutter som tomma stubs plus en gemensam sidomeny i
+`app/app/layout.tsx`. Syfte: kollegor kan börja jobba parallellt med
+innehållet på varje sida medan databas-arbetet (Steg 3) pågår eller
+fortsätter därefter. Tio rutter scaffoldade: `/app/hem`, `/app/min-plan`,
+`/app/min-uppfoljning`, `/app/mitt-hem`, `/app/mina-dokument`,
+`/app/mina-offerter`, `/app/mina-erbjudanden`, `/app/min-kunskap`,
+`/app/notiser`, `/app/installningar`.
 
 ### Steg 4: Mina sidor prio-1 UI (~2–3 dagar)
 
