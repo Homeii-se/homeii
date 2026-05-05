@@ -15,11 +15,17 @@ interface StepIndicatorProps {
   currentStep: number;
   totalSteps: number;
   onStepClick?: (step: number) => void;
+  /**
+   * Optional "start over" handler. When provided, renders a subtle
+   * "Börja om"-link next to the "Tillbaka"-button so they don't fight
+   * for the same absolute-positioned slot in the page header.
+   */
+  onRestart?: () => void;
 }
 
 const STEP_LABELS = ["Elräkning", "Bekräfta", "Resultat & åtgärder"];
 
-export default function StepIndicator({ currentStep, totalSteps, onStepClick }: StepIndicatorProps) {
+export default function StepIndicator({ currentStep, totalSteps, onStepClick, onRestart }: StepIndicatorProps) {
   // currentStep är 1-indexerat. Visa 0% innan steg 1 är klart, 100% när alla är klara.
   // För 3 steg: steg 1 = 33%, steg 2 = 66%, steg 3 = 100%
   const progressPct = Math.min(100, Math.max(0, (currentStep / totalSteps) * 100));
@@ -44,17 +50,30 @@ export default function StepIndicator({ currentStep, totalSteps, onStepClick }: 
           )}
         </p>
 
-        {/* Osynliga klickbara zoner för att navigera tillbaka — endast föregående steg */}
-        {onStepClick && currentStep > 1 && (
-          <button
-            type="button"
-            onClick={() => onStepClick(currentStep - 1)}
-            className="text-xs text-text-muted hover:text-text-secondary transition-colors"
-            aria-label={`Tillbaka till ${STEP_LABELS[currentStep - 2]}`}
-          >
-            ← Tillbaka
-          </button>
-        )}
+        {/* Höger-sida: "Börja om" (subtil) + "← Tillbaka" som primär. Båda
+            är optional så vi kan dölja dem på första steget. */}
+        <div className="flex items-center gap-3">
+          {onRestart && currentStep > 1 && (
+            <button
+              type="button"
+              onClick={onRestart}
+              className="text-[11px] text-text-muted/70 hover:text-text-secondary transition-colors"
+              title="Börja om från början"
+            >
+              Börja om
+            </button>
+          )}
+          {onStepClick && currentStep > 1 && (
+            <button
+              type="button"
+              onClick={() => onStepClick(currentStep - 1)}
+              className="text-xs text-text-muted hover:text-text-secondary transition-colors"
+              aria-label={`Tillbaka till ${STEP_LABELS[currentStep - 2]}`}
+            >
+              ← Tillbaka
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
