@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server';
-import { LogoutButton } from './logout-button';
 
 export default async function HemPage() {
   const supabase = await createClient();
@@ -19,9 +18,7 @@ export default async function HemPage() {
         <p className="text-gray-700">{user?.email}</p>
       </div>
 
-      <div className="mt-8">
-        <LogoutButton />
-      </div>
+    
     </main>
   );
 }
