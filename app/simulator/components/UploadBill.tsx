@@ -16,6 +16,30 @@ type Phase = "upload" | "processing" | "result" | "confirm" | "validation-failed
 
 const EMPTY_BILL: BillData = { kwhPerMonth: 0, costPerMonth: 0 };
 
+// Reads a File object as a base64 string (without the "data:..." prefix).
+// Used to persist uploaded PDFs in homeii-state so they survive navigation
+// to /app/spara-analys and can be uploaded to Supabase Storage on save.
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== 'string') {
+        reject(new Error('FileReader did not return a string'));
+        return;
+      }
+      // result is "data:application/pdf;base64,XXXXX" — we want only XXXXX
+      const base64 = result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = () => reject(reader.error ?? new Error('FileReader error'));
+    reader.readAsDataURL(file);
+  });
+}
+
+// Error message shown when the user uploads invoices for different metering points.
+const ERR_MULTIPLE_METERING_POINTS =
+  'Fakturorna kommer från olika fastigheter (olika anläggnings-ID). Vi kan bara analysera ett hem åt gången — ta bort fakturorna som hör till andra fastigheter och försök igen.';
 // Maximum time to wait for /api/parse-invoice before aborting. Anthropic
 // usually responds in 10–30 s; 45 s gives healthy headroom while still
 // rescuing the user from an indefinite hang if the upstream is unhealthy.
@@ -119,6 +143,20 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
         setValidationResult(null);
       }
 
+      // Block if invoices come from different metering points (different anlaggnings_id).
+      // We can only save one home at a time — schema has anlaggnings_id as primary key
+      // on consumption_metering_points, so two different IDs can't coexist in one save.
+      const uniqueMeteringPoints = new Set(
+        invoices
+          .map((i) => i.anlaggningsId)
+          .filter((id): id is string => Boolean(id)),
+      );
+      if (uniqueMeteringPoints.size > 1) {
+        setError(ERR_MULTIPLE_METERING_POINTS);
+        setPhase("upload");
+        return;
+      }
+
       // Merge parserns output med eventuell tidigare bill-data (för fall där användaren
       // laddat upp flera fakturor i sekvens) och advance:a direkt till nästa steg —
       // användaren får bekräfta + komplettera på den kombinerade VerificationScreen.
@@ -136,8 +174,32 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
         natAgare: mergedBill.natAgare,
         spotPriceRatio: mergedBill.spotPriceRatio,
       }));
-      setBillData(mergedBill);
-      setStagedFiles([]);
+
+    // Read all uploaded PDFs as base64 and attach to billData. Bilder hoppas över
+    // — bara PDF:er kan sparas som dokument i v1 (Supabase Storage-bucket är
+    // konfigurerad för PDF). Stöd för bilder kan läggas till senare om behov uppstår.
+    const pdfFiles = stagedFiles.filter((f) => f.type === "application/pdf");
+    if (pdfFiles.length > 0) {
+      try {
+        const documents = await Promise.all(
+          pdfFiles.map(async (file) => ({
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            base64: await fileToBase64(file),
+          })),
+        );
+        mergedBill = { ...mergedBill, uploadedDocuments: documents };
+        console.log(`[UPLOAD] Encoded ${documents.length} PDF(s) as base64 for storage`);
+      } catch (err) {
+        // base64-konvertering felade — logga men blockera inte. Användaren kan
+        // fortfarande se sin analys, men kan inte spara den till databas senare.
+        console.error('[UPLOAD] Failed to encode PDF(s) as base64:', err);
+      }
+    }
+
+    setBillData(mergedBill);
+    setStagedFiles([]);
       setApiCompleted(true);
 
       // Hoppa direkt till onComplete — VerificationScreen visar nu parsed data + hus-frågor i en vy

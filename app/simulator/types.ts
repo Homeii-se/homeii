@@ -137,6 +137,18 @@ export interface BillData {
   uploadedInvoiceTypes?: ("elhandel" | "elnat")[];
   /** Parser confidence 0-1 */
   parserConfidence?: number;
+
+  /** Uploaded PDF documents as base64 — used to persist files to Supabase Storage on save */
+  uploadedDocuments?: Array<{
+    /** Original filename, e.g. "elraekning-mars.pdf" */
+    name: string;
+    /** MIME type, e.g. "application/pdf" */
+    type: string;
+    /** Size in bytes */
+    size: number;
+    /** Raw base64 string, no "data:..." prefix */
+    base64: string;
+  }>;
 }
 
 export interface RefinementAnswers {
