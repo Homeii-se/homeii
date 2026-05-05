@@ -227,20 +227,16 @@ export default function AnalysPage() {
 
   return (
     <div className="bg-gradient-main relative min-h-screen pb-12">
-      {/* Step indicator — minimal progress-tråd */}
+      {/* Step indicator — minimal progress-tråd. "Börja om" och
+          "← Tillbaka" lever båda inuti StepIndicator nu så de inte
+          slåss om samma absolut-positionerade slot. */}
       <div className="relative z-10 bg-white/80">
         <StepIndicator
           currentStep={Math.min(currentStep, TOTAL_STEPS)}
           totalSteps={TOTAL_STEPS}
           onStepClick={handleStepClick}
+          onRestart={handleRestart}
         />
-        <button
-          onClick={handleRestart}
-          className="absolute right-3 top-2 text-xs text-text-muted/70 hover:text-text-secondary transition-colors"
-          title="Börja om från början"
-        >
-          Börja om
-        </button>
       </div>
 
       <div className="relative z-10 mx-auto max-w-2xl pt-8">
