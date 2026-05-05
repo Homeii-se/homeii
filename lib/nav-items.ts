@@ -19,5 +19,5 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/kunskap", label: "Kunskap" },
   { href: "/om", label: "Om HOMEii" },
   { href: "/partners", label: "Partners" },
-  { href: "/mina-sidor", label: "Mina sidor" },
+  { href: "/app/hem", label: "Mina sidor" },
 ] as const;
