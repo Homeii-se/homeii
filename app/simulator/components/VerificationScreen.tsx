@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type {
   RefinementAnswers,
   SEZone,
@@ -12,6 +12,7 @@ import type {
 } from "../types";
 import { STRINGS } from "../data/strings";
 import { BIG_CONSUMER_PROFILES } from "../data/energy-profiles";
+import { GRID_OPERATORS } from "../data/grid-operators";
 
 const SE_ZONES: { value: SEZone; label: string; description: string }[] = [
   { value: "SE1", label: "SE1", description: "Norra Sverige (Luleå)" },
@@ -51,10 +52,410 @@ interface ProfileFormProps {
   billData: BillData;
   initialRefinement?: RefinementAnswers;
   initialSeZone?: SEZone;
-  onComplete: (seZone: SEZone, refinement: RefinementAnswers, answeredQuestions: number) => void;
+  /**
+   * Called when the user submits. The 4th argument carries any inline
+   * edits the user made to the AI-extracted bill data — the parent should
+   * persist this back into state.billData so downstream consumers
+   * (recommendations, comparison) see the corrected values.
+   */
+  onComplete: (
+    seZone: SEZone,
+    refinement: RefinementAnswers,
+    answeredQuestions: number,
+    editedBillData: BillData
+  ) => void;
+}
+
+/**
+ * The "Vi hittade följande" rows the user can correct inline. Tariff
+ * details (gridFixedFeeKr, transferFeeOre, etc.) are intentionally left
+ * out — they belong in the post-login energy-profile, not in the AHA-
+ * focused Teaser flow.
+ */
+type EditableField =
+  | "invoicePeriodKwh"
+  | "annualKwh"
+  | "costPerMonth"
+  | "seZone"
+  | "elhandlare"
+  | "natAgare"
+  | "elContractType"
+  | "invoiceSpotPriceOre"
+  | "invoiceMarkupOre";
+
+const SE_ZONE_OPTIONS: SEZone[] = ["SE1", "SE2", "SE3", "SE4"];
+const CONTRACT_OPTIONS: { value: ElContractType; label: string }[] = [
+  { value: "dynamic", label: "Timspot" },
+  { value: "monthly", label: "Månadsmedel" },
+  { value: "fixed", label: "Fastpris" },
+];
+const OPERATOR_OPTIONS = GRID_OPERATORS.map((op) => op.name).sort((a, b) =>
+  a.localeCompare(b, "sv")
+);
+const OPERATOR_OTHER = "__other__";
+
+/**
+ * One row in the "Vi hittade följande" panel. In display mode it shows a
+ * label + value + tiny pen icon; clicking the row switches to an inline
+ * editor (text input, number input, or a small button group depending on
+ * `inputType`). Auto-focuses the input when entering edit mode and
+ * commits on Enter / blur, cancels on Escape.
+ */
+interface EditableRowProps {
+  label: string;
+  /** Current value (string for text/select, number for numeric inputs). */
+  value: string | number | undefined;
+  /** Pre-formatted display string (e.g. "13 500 kWh"). */
+  display: string;
+  isEditing: boolean;
+  onStartEdit: () => void;
+  onCancel: () => void;
+  /** Called with the new committed value (string|number). */
+  onSave: (next: string | number | undefined) => void;
+  inputType: "text" | "number" | "zone" | "contract" | "operator";
+  /** Suffix shown after a number input (e.g. "kWh", "kr", "öre/kWh"). */
+  suffix?: string;
+  /** Decimals for number inputs (default 0). */
+  decimals?: number;
+  /** Placeholder text when value is empty. */
+  placeholder?: string;
+  /**
+   * If true, render the row even when value is undefined — used for
+   * `natAgare` so the user can fill it in when AI missed it.
+   */
+  alwaysVisible?: boolean;
+  /**
+   * When false, the row is read-only — no pen icon, not clickable. The
+   * user must explicitly enter edit-mode for the whole card before any
+   * row becomes editable. Keeps Sofia from feeling she "must" verify
+   * each row.
+   */
+  editModeActive: boolean;
+  /**
+   * Called when the user clicks a "missing data" row (placeholder
+   * showing) in default read-only mode. The parent should activate
+   * edit-mode for the entire card so the same click also opens this
+   * row's input — turning the visible "Klicka för att välja"-CTA into
+   * a real one-click action.
+   */
+  onActivateMode?: () => void;
+}
+
+function EditableRow({
+  label,
+  value,
+  display,
+  isEditing,
+  onStartEdit,
+  onCancel,
+  onSave,
+  inputType,
+  suffix,
+  decimals = 0,
+  placeholder,
+  alwaysVisible,
+  editModeActive,
+  onActivateMode,
+}: EditableRowProps) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const selectRef = useRef<HTMLSelectElement | null>(null);
+
+  // For "operator" inputType: track whether user picked the "Annat" path
+  // (free-text fallback for grid operators not in our list). Initial mode
+  // derived from the current value via lazy useState init — no useEffect
+  // needed, so we don't trip the react-hooks/set-state-in-effect rule.
+  const [operatorMode, setOperatorMode] = useState<"select" | "other">(() => {
+    if (
+      inputType === "operator" &&
+      typeof value === "string" &&
+      value &&
+      !OPERATOR_OPTIONS.includes(value)
+    ) {
+      return "other";
+    }
+    return "select";
+  });
+
+  // Auto-focus the editor when entering edit mode. This is a DOM side
+  // effect — no React state changes — so it's allowed inside useEffect.
+  useEffect(() => {
+    if (!isEditing) return;
+    queueMicrotask(() => {
+      if (inputType === "operator") selectRef.current?.focus();
+      else inputRef.current?.focus();
+    });
+  }, [isEditing, inputType]);
+
+  // Hide the row entirely if there's no value and we're not in edit mode
+  // and the row isn't flagged as always visible.
+  if (value === undefined && !isEditing && !alwaysVisible) return null;
+
+  // --- Display mode ---
+  if (!isEditing) {
+    const showPlaceholder = (value === undefined || value === "") && !!placeholder;
+
+    // When edit-mode isn't active for the whole card, render the row as
+    // a plain non-interactive line so Sofia doesn't feel pressured to
+    // verify each row. Exception: if the row is missing data and shows
+    // a "Klicka för att..."-placeholder, make it directly clickable so
+    // the visible CTA actually works — clicking activates edit-mode for
+    // the whole card AND opens this row's input in one shot.
+    if (!editModeActive) {
+      if (showPlaceholder && onActivateMode) {
+        return (
+          <button
+            type="button"
+            onClick={() => {
+              onActivateMode();
+              onStartEdit();
+            }}
+            className="group flex w-full items-center justify-between gap-2 rounded-md py-1 text-left transition-colors hover:bg-brand-100/40"
+            aria-label={`Fyll i ${label.toLowerCase()}`}
+          >
+            <span className="text-text-secondary">{label}</span>
+            <span className="font-semibold text-text-muted italic">
+              {placeholder}
+            </span>
+          </button>
+        );
+      }
+      return (
+        <div className="flex w-full items-center justify-between gap-2 py-1">
+          <span className="text-text-secondary">{label}</span>
+          <span
+            className={`font-semibold ${
+              showPlaceholder ? "text-text-muted italic" : "text-text-primary"
+            }`}
+          >
+            {showPlaceholder ? placeholder : display}
+          </span>
+        </div>
+      );
+    }
+
+    // Edit-mode is active — show the pen icon and make the row clickable.
+    return (
+      <button
+        type="button"
+        onClick={onStartEdit}
+        className="group flex w-full items-center justify-between gap-2 rounded-md py-1 text-left transition-colors hover:bg-brand-100/40"
+        aria-label={`Rätta ${label.toLowerCase()}`}
+      >
+        <span className="text-text-secondary">{label}</span>
+        <span className="flex items-center gap-1.5">
+          <span
+            className={`font-semibold ${
+              showPlaceholder ? "text-text-muted italic" : "text-text-primary"
+            }`}
+          >
+            {showPlaceholder ? placeholder : display}
+          </span>
+          <svg
+            className="h-3.5 w-3.5 text-text-muted opacity-60 transition-opacity group-hover:opacity-100"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828zM2 17a1 1 0 011-1h14a1 1 0 110 2H3a1 1 0 01-1-1z" />
+          </svg>
+        </span>
+      </button>
+    );
+  }
+
+  // --- Edit mode ---
+  const commit = (next: string | number | undefined) => {
+    onSave(next);
+  };
+
+  // Read the current value from the DOM input (uncontrolled pattern) and
+  // commit it. Avoids the react-hooks/set-state-in-effect issue we'd hit
+  // with a controlled draft state synchronized via useEffect.
+  const handleCommitFromInput = () => {
+    const raw = inputRef.current?.value ?? "";
+    if (inputType === "number") {
+      const parsed = parseFloat(raw.replace(",", "."));
+      commit(Number.isFinite(parsed) ? parsed : undefined);
+    } else {
+      const trimmed = raw.trim();
+      commit(trimmed.length > 0 ? trimmed : undefined);
+    }
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleCommitFromInput();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      onCancel();
+    }
+  };
+
+  // Zon-väljare (4 buttons, instant commit)
+  if (inputType === "zone") {
+    return (
+      <div className="flex items-center justify-between gap-2 py-1">
+        <span className="text-text-secondary">{label}</span>
+        <div className="flex gap-1">
+          {SE_ZONE_OPTIONS.map((zone) => (
+            <button
+              key={zone}
+              type="button"
+              onClick={() => commit(zone)}
+              className={`rounded-md border-2 px-2 py-1 text-xs font-bold transition-all ${
+                value === zone
+                  ? "border-brand-500 bg-brand-500 text-white"
+                  : "border-border text-text-secondary hover:border-brand-500"
+              }`}
+            >
+              {zone}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Kontrakt-väljare (3 buttons, instant commit)
+  if (inputType === "contract") {
+    return (
+      <div className="flex flex-col gap-1.5 py-1">
+        <span className="text-text-secondary">{label}</span>
+        <div className="flex gap-1">
+          {CONTRACT_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => commit(opt.value)}
+              className={`flex-1 rounded-md border-2 px-2 py-1 text-xs font-medium transition-all ${
+                value === opt.value
+                  ? "border-brand-500 bg-brand-500 text-white"
+                  : "border-border text-text-secondary hover:border-brand-500"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Operatör-väljare — native <select> + valfri fritext för "Annat"
+  if (inputType === "operator") {
+    // Default for the <select> reflects the current bill data: a known
+    // operator, the "other" sentinel if user chose Annat, or empty.
+    const initialSelectValue =
+      operatorMode === "other"
+        ? OPERATOR_OTHER
+        : typeof value === "string"
+        ? value
+        : "";
+    // Default for the free-text input when in "other" mode — reuse the
+    // AI-extracted name if it didn't match our operator list.
+    const initialFreeText =
+      typeof value === "string" && value && !OPERATOR_OPTIONS.includes(value)
+        ? value
+        : "";
+    return (
+      <div className="flex flex-col gap-1.5 py-1">
+        <span className="text-text-secondary">{label}</span>
+        <select
+          ref={selectRef}
+          defaultValue={initialSelectValue}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v === OPERATOR_OTHER) {
+              setOperatorMode("other");
+            } else {
+              setOperatorMode("select");
+              commit(v.length > 0 ? v : undefined);
+            }
+          }}
+          onKeyDown={onKeyDown}
+          className="w-full rounded-md border border-border bg-white px-2 py-1.5 text-sm text-text-primary focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+        >
+          <option value="">Välj nätbolag…</option>
+          {OPERATOR_OPTIONS.map((name) => (
+            <option key={name} value={name}>{name}</option>
+          ))}
+          <option value={OPERATOR_OTHER}>Annat — skriv in själv</option>
+        </select>
+        {operatorMode === "other" && (
+          <>
+            <input
+              ref={inputRef}
+              type="text"
+              defaultValue={initialFreeText}
+              onBlur={handleCommitFromInput}
+              onKeyDown={onKeyDown}
+              placeholder="Skriv ditt nätbolag"
+              className="w-full rounded-md border border-border bg-white px-2 py-1.5 text-sm text-text-primary focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+            />
+            <p className="text-[11px] leading-snug text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
+              💡 Vi har inte detta bolag i vår tariff-databas — schablonvärden används.
+              Ladda upp din elnätsfaktura för exakta värden.
+            </p>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // Text / number — vanligt input-fält. Uncontrolled (defaultValue + ref)
+  // to avoid synchronizing draft state via useEffect — the input lives
+  // only while isEditing is true, so it remounts on each edit session
+  // and reads the latest saved value as its defaultValue.
+  const initialText = value === undefined ? "" : String(value);
+  return (
+    <div className="flex items-center justify-between gap-2 py-1">
+      <span className="text-text-secondary">{label}</span>
+      <div className="flex items-center gap-1">
+        <input
+          ref={inputRef}
+          type={inputType === "number" ? "number" : "text"}
+          inputMode={inputType === "number" ? "decimal" : undefined}
+          step={inputType === "number" ? (decimals > 0 ? `0.${"0".repeat(decimals - 1)}1` : "1") : undefined}
+          defaultValue={initialText}
+          onBlur={handleCommitFromInput}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          className="w-32 rounded-md border border-border bg-white px-2 py-1 text-right text-sm font-semibold text-text-primary focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+        />
+        {suffix && <span className="text-xs text-text-muted">{suffix}</span>}
+      </div>
+    </div>
+  );
 }
 
 export default function VerificationScreen({ billData, initialRefinement, initialSeZone, onComplete }: ProfileFormProps) {
+  // --- Inline-edit state for the "Vi hittade följande" rows ---
+  // Local copy of bill data the user can correct without triggering a
+  // re-parse. Submitted back to the parent via onComplete.
+  const [editedBillData, setEditedBillData] = useState<BillData>(billData);
+  // Which row is currently in edit mode, or null. Only one row at a time.
+  const [editingField, setEditingField] = useState<EditableField | null>(null);
+  // Whether the entire card is in edit-mode. When false the rows render
+  // as plain read-only text without pen icons — Sofia doesn't feel
+  // pressured to verify each row, and pulls down the link only if she
+  // sees something off. Latches until she clicks "Klar med ändringar".
+  const [editModeActive, setEditModeActive] = useState(false);
+
+  // Helper: patch a single field on editedBillData.
+  const updateField = <K extends keyof BillData>(key: K, value: BillData[K]) => {
+    setEditedBillData((prev) => ({ ...prev, [key]: value }));
+  };
+
+  // Close edit-mode and any open input. Used by the "Klar med ändringar"
+  // toggle. An open input loses its uncommitted draft — that's an
+  // accepted trade-off; users actively closing the mode have already had
+  // the chance to commit (Enter / blur).
+  const exitEditMode = () => {
+    setEditingField(null);
+    setEditModeActive(false);
+  };
+
   // Pure input — no inference. Sensible defaults instead.
   const [seZone, setSeZone] = useState<SEZone>(initialSeZone ?? billData.seZone ?? "SE3");
   const [housingType, setHousingType] = useState<HousingType>(initialRefinement?.housingType ?? "villa");
@@ -69,7 +470,9 @@ export default function VerificationScreen({ billData, initialRefinement, initia
   const [hasBattery, setHasBattery] = useState(initialRefinement?.hasBattery ?? false);
   const [batterySizeKwh, setBatterySizeKwh] = useState(initialRefinement?.batterySizeKwh ?? 15);
 
-  const annualKwh = billData.annualKwh ?? billData.kwhPerMonth * 12;
+  // Read displayed values from the edited copy so inline edits show up
+  // immediately in the "Vi hittade följande" rows.
+  const annualKwh = editedBillData.annualKwh ?? editedBillData.kwhPerMonth * 12;
 
   const toggleHeating = (ht: HeatingType) => {
     setHeatingTypes((prev) =>
@@ -103,7 +506,9 @@ export default function VerificationScreen({ billData, initialRefinement, initia
       hasBattery: hasSolar ? hasBattery : false,
       batterySizeKwh: hasSolar && hasBattery ? batterySizeKwh : undefined,
     };
-    onComplete(seZone, refinement, 6);
+    // Sync the user's seZone choice into the edited bill data so any
+    // downstream consumer that reads billData.seZone gets the correction.
+    onComplete(seZone, refinement, 6, { ...editedBillData, seZone });
   };
 
   return (
@@ -118,74 +523,204 @@ export default function VerificationScreen({ billData, initialRefinement, initia
         </p>
       </div>
 
-      {/* Vi hittade följande — parsed bill data */}
+      {/* Vi hittade följande — parsed bill data, inline-redigerbar */}
       <div className="mb-5 rounded-2xl border border-brand-200 bg-brand-50/40 p-4">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-text-primary">Vi hittade följande på din faktura</h3>
           <span className="text-[10px] font-medium uppercase tracking-wider text-brand-600">automatiskt tolkat</span>
         </div>
-        <div className="flex flex-col gap-2 text-sm">
-          {billData.invoicePeriodKwh && billData.invoiceMonth !== undefined && (
-            <div className="flex justify-between">
-              <span className="text-text-secondary">
-                Förbrukning ({["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"][billData.invoiceMonth]})
-              </span>
-              <span className="font-semibold text-text-primary">{Math.round(billData.invoicePeriodKwh).toLocaleString("sv-SE")} kWh</span>
-            </div>
+        <div className="flex flex-col gap-1 text-sm">
+          {/* Förbrukning (period) — visas bara om månad finns på fakturan */}
+          {editedBillData.invoiceMonth !== undefined && (
+            <EditableRow
+              label={`Förbrukning (${["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"][editedBillData.invoiceMonth]})`}
+              value={editedBillData.invoicePeriodKwh}
+              display={editedBillData.invoicePeriodKwh ? `${Math.round(editedBillData.invoicePeriodKwh).toLocaleString("sv-SE")} kWh` : "—"}
+              isEditing={editingField === "invoicePeriodKwh"}
+              onStartEdit={() => setEditingField("invoicePeriodKwh")}
+              onCancel={() => setEditingField(null)}
+              onSave={(next) => {
+                if (typeof next === "number") updateField("invoicePeriodKwh", next);
+                setEditingField(null);
+              }}
+              inputType="number"
+              suffix="kWh"
+              editModeActive={editModeActive}
+            />
           )}
-          <div className="flex justify-between">
-            <span className="text-text-secondary">Beräknad årsförbrukning</span>
-            <span className="font-semibold text-text-primary">{Math.round(annualKwh).toLocaleString("sv-SE")} kWh</span>
-          </div>
-          {billData.costPerMonth > 0 && (
-            <div className="flex justify-between">
-              <span className="text-text-secondary">Periodens kostnad</span>
-              <span className="font-semibold text-text-primary">{Math.round(billData.costPerMonth).toLocaleString("sv-SE")} kr</span>
-            </div>
+
+          <EditableRow
+            label="Beräknad årsförbrukning"
+            value={editedBillData.annualKwh ?? Math.round(annualKwh)}
+            display={`${Math.round(annualKwh).toLocaleString("sv-SE")} kWh`}
+            isEditing={editingField === "annualKwh"}
+            onStartEdit={() => setEditingField("annualKwh")}
+            onCancel={() => setEditingField(null)}
+            onSave={(next) => {
+              if (typeof next === "number") updateField("annualKwh", next);
+              setEditingField(null);
+            }}
+            inputType="number"
+            suffix="kWh"
+            editModeActive={editModeActive}
+          />
+
+          {editedBillData.costPerMonth > 0 && (
+            <EditableRow
+              label="Periodens kostnad"
+              value={editedBillData.costPerMonth}
+              display={`${Math.round(editedBillData.costPerMonth).toLocaleString("sv-SE")} kr`}
+              isEditing={editingField === "costPerMonth"}
+              onStartEdit={() => setEditingField("costPerMonth")}
+              onCancel={() => setEditingField(null)}
+              onSave={(next) => {
+                if (typeof next === "number") updateField("costPerMonth", next);
+                setEditingField(null);
+              }}
+              inputType="number"
+              suffix="kr"
+              editModeActive={editModeActive}
+            />
           )}
-          {billData.seZone && (
-            <div className="flex justify-between">
-              <span className="text-text-secondary">Elområde</span>
-              <span className="font-semibold text-text-primary">{billData.seZone}</span>
-            </div>
+
+          <EditableRow
+            label="Elområde"
+            value={seZone}
+            display={seZone}
+            isEditing={editingField === "seZone"}
+            onStartEdit={() => setEditingField("seZone")}
+            onCancel={() => setEditingField(null)}
+            onSave={(next) => {
+              if (typeof next === "string" && SE_ZONE_OPTIONS.includes(next as SEZone)) {
+                setSeZone(next as SEZone);
+              }
+              setEditingField(null);
+            }}
+            inputType="zone"
+            editModeActive={editModeActive}
+          />
+
+          {(editedBillData.elhandlare !== undefined || editingField === "elhandlare") && (
+            <EditableRow
+              label="Elhandlare"
+              value={editedBillData.elhandlare}
+              display={editedBillData.elhandlare ?? "—"}
+              isEditing={editingField === "elhandlare"}
+              onStartEdit={() => setEditingField("elhandlare")}
+              onCancel={() => setEditingField(null)}
+              onSave={(next) => {
+                updateField("elhandlare", typeof next === "string" ? next : undefined);
+                setEditingField(null);
+              }}
+              inputType="text"
+              placeholder="Klicka för att fylla i"
+              editModeActive={editModeActive}
+            />
           )}
-          {billData.elhandlare && (
-            <div className="flex justify-between">
-              <span className="text-text-secondary">Elhandlare</span>
-              <span className="font-semibold text-text-primary">{billData.elhandlare}</span>
-            </div>
+
+          {/* Nätbolag — visas alltid (även om saknad), kritiskt för jämförelse.
+              When natAgare is missing, the row is directly clickable in
+              read-only mode (via onActivateMode) so the visible
+              "Klicka för att välja"-CTA actually works in one click. */}
+          <EditableRow
+            label="Nätbolag"
+            value={editedBillData.natAgare}
+            display={editedBillData.natAgare ?? "—"}
+            isEditing={editingField === "natAgare"}
+            onStartEdit={() => setEditingField("natAgare")}
+            onCancel={() => setEditingField(null)}
+            onSave={(next) => {
+              updateField("natAgare", typeof next === "string" && next.length > 0 ? next : undefined);
+              setEditingField(null);
+            }}
+            inputType="operator"
+            placeholder="Klicka för att välja"
+            alwaysVisible
+            editModeActive={editModeActive}
+            onActivateMode={() => setEditModeActive(true)}
+          />
+
+          <EditableRow
+            label="Avtalstyp"
+            value={elContractType}
+            display={
+              elContractType === "dynamic" ? "Timspot" :
+              elContractType === "monthly" ? "Månadsmedel" :
+              "Fastpris"
+            }
+            isEditing={editingField === "elContractType"}
+            onStartEdit={() => setEditingField("elContractType")}
+            onCancel={() => setEditingField(null)}
+            onSave={(next) => {
+              if (next === "dynamic" || next === "monthly" || next === "fixed") {
+                setElContractType(next);
+                updateField("elContractType", next);
+              }
+              setEditingField(null);
+            }}
+            inputType="contract"
+            editModeActive={editModeActive}
+          />
+
+          {editedBillData.invoiceSpotPriceOre !== undefined && (
+            <EditableRow
+              label="Spotpris (snitt)"
+              value={editedBillData.invoiceSpotPriceOre}
+              display={`${editedBillData.invoiceSpotPriceOre.toFixed(1)} öre/kWh`}
+              isEditing={editingField === "invoiceSpotPriceOre"}
+              onStartEdit={() => setEditingField("invoiceSpotPriceOre")}
+              onCancel={() => setEditingField(null)}
+              onSave={(next) => {
+                if (typeof next === "number") updateField("invoiceSpotPriceOre", next);
+                setEditingField(null);
+              }}
+              inputType="number"
+              suffix="öre/kWh"
+              decimals={1}
+              editModeActive={editModeActive}
+            />
           )}
-          {billData.natAgare && (
-            <div className="flex justify-between">
-              <span className="text-text-secondary">Nätbolag</span>
-              <span className="font-semibold text-text-primary">{billData.natAgare}</span>
-            </div>
-          )}
-          {billData.elContractType && (
-            <div className="flex justify-between">
-              <span className="text-text-secondary">Avtalstyp</span>
-              <span className="font-semibold text-text-primary">
-                {billData.elContractType === "dynamic" ? "Timspot" :
-                 billData.elContractType === "monthly" ? "Månadsmedel" :
-                 "Fastpris"}
-              </span>
-            </div>
-          )}
-          {billData.invoiceSpotPriceOre !== undefined && (
-            <div className="flex justify-between">
-              <span className="text-text-secondary">Spotpris (snitt)</span>
-              <span className="font-semibold text-text-primary">{billData.invoiceSpotPriceOre.toFixed(1)} öre/kWh</span>
-            </div>
-          )}
-          {billData.invoiceMarkupOre !== undefined && (
-            <div className="flex justify-between">
-              <span className="text-text-secondary">Påslag</span>
-              <span className="font-semibold text-text-primary">{billData.invoiceMarkupOre.toFixed(1)} öre/kWh</span>
-            </div>
+
+          {editedBillData.invoiceMarkupOre !== undefined && (
+            <EditableRow
+              label="Påslag"
+              value={editedBillData.invoiceMarkupOre}
+              display={`${editedBillData.invoiceMarkupOre.toFixed(1)} öre/kWh`}
+              isEditing={editingField === "invoiceMarkupOre"}
+              onStartEdit={() => setEditingField("invoiceMarkupOre")}
+              onCancel={() => setEditingField(null)}
+              onSave={(next) => {
+                if (typeof next === "number") updateField("invoiceMarkupOre", next);
+                setEditingField(null);
+              }}
+              inputType="number"
+              suffix="öre/kWh"
+              decimals={1}
+              editModeActive={editModeActive}
+            />
           )}
         </div>
         <p className="mt-3 text-xs text-text-muted">
-          Stämmer det inte? <button type="button" className="underline hover:text-text-secondary" onClick={() => window.history.back()}>Tillbaka för att ladda upp fler fakturor</button>
+          {editModeActive ? (
+            <button
+              type="button"
+              className="font-medium text-brand-600 underline hover:text-brand-700"
+              onClick={exitEditMode}
+            >
+              Klar med ändringar
+            </button>
+          ) : (
+            <>
+              Stämmer något inte?{" "}
+              <button
+                type="button"
+                className="font-medium text-brand-600 underline hover:text-brand-700"
+                onClick={() => setEditModeActive(true)}
+              >
+                Justera manuellt
+              </button>
+            </>
+          )}
         </p>
       </div>
 

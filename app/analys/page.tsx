@@ -105,8 +105,16 @@ export default function AnalysPage() {
   );
 
   const handleVerificationComplete = useCallback(
-    (seZone: SEZone, refinement: RefinementAnswers, answeredQuestions: number) => {
-      const billData = state.billData!;
+    (
+      seZone: SEZone,
+      refinement: RefinementAnswers,
+      answeredQuestions: number,
+      editedBillData: BillData
+    ) => {
+      // Use the edited bill data — VerificationScreen lets the user
+      // correct AI-extracted fields inline, and downstream consumers
+      // (recommendations, comparison, simulation) must see the corrections.
+      const billData = editedBillData;
 
       const updatedAssumptions: Assumptions = {
         ...state.assumptions,
@@ -139,12 +147,14 @@ export default function AnalysPage() {
         seZone,
         refinement,
         answeredQuestions,
+        // Persist the corrected bill data so re-runs use the edits.
+        billData,
         recommendations: recs,
         activeUpgrades: newUpgrades,
         assumptions: updatedAssumptions,
       });
     },
-    [state.billData, state.assumptions, updateState]
+    [state.assumptions, updateState]
   );
 
   const handleViewRecommendations = useCallback(() => {
