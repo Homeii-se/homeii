@@ -487,21 +487,29 @@ function Section2VartPengarnaGar({
           onMore={() => setOpenModal("anvanda")}
         />
 
-        {hasEffekt && (
-          <CostCard
-            variant="effekt"
-            title="Effekttoppen"
-            amountKr={effektKr}
-            desc={
-              operator?.powerChargeModel?.numberOfPeaks === 1
+        {/* Effekt-kortet visas alltid — när nätbolaget saknar effekttariff
+            visas 0 kr med pedagogisk text, så Sofia förstår att den
+            kategorin existerar i elnätsmodellen även om hon inte berörs
+            av den just nu. */}
+        <CostCard
+          variant="effekt"
+          title="Effekttoppen"
+          amountKr={effektKr}
+          desc={
+            hasEffekt
+              ? (operator?.powerChargeModel?.numberOfPeaks === 1
                 ? "Den enda högsta timmen varje månad räknas — undvik samtidiga laster i höglasttid."
-                : `Snittet av dina ${operator?.powerChargeModel?.numberOfPeaks ?? 3} högsta timmar varje månad räknas.`
-            }
-            insightStrong="Sprider du ut förbrukningen, sjunker den."
-            actionPills={["Smart laddning", "Hembatteri", "Tidsstyrning"]}
-            onMore={() => setOpenModal("effekt")}
-          />
-        )}
+                : `Snittet av dina ${operator?.powerChargeModel?.numberOfPeaks ?? 3} högsta timmar varje månad räknas.`)
+              : `${operator?.name ?? "Ditt nätbolag"} har just nu ingen effektavgift — du betalar inget extra för dina topptimmar.`
+          }
+          insightStrong={
+            hasEffekt
+              ? "Sprider du ut förbrukningen, sjunker den."
+              : "Men det är en växande modell — fler nätbolag inför detta."
+          }
+          actionPills={hasEffekt ? ["Smart laddning", "Hembatteri", "Tidsstyrning"] : []}
+          onMore={() => setOpenModal("effekt")}
+        />
 
         <CostCard
           variant="fast"
@@ -559,6 +567,22 @@ function Section2VartPengarnaGar({
             amountKr={effektKr}
             recipient="elnatet"
           />
+        </Modal>
+      )}
+
+      {openModal === "effekt" && !hasEffekt && (
+        <Modal onClose={() => setOpenModal(null)} eyebrow="Effekttoppen" title="Vad är en effektavgift?">
+          <div className="space-y-3 text-sm leading-relaxed text-text-secondary">
+            <p>
+              Effektavgift är en del av nätavgiften som vissa nätbolag tar ut baserat på dina <strong className="font-semibold text-text-primary">högsta strömtimmar</strong> varje månad — inte bara på hur många kWh du använder totalt.
+            </p>
+            <p>
+              <strong className="font-semibold text-text-primary">{operator?.name ?? "Ditt nätbolag"}</strong> tar inte ut någon effektavgift idag. Du betalar alltså inget extra för dina topptimmar.
+            </p>
+            <p>
+              Det är en växande modell — fler nätbolag inför effekttariffer för att jämna ut belastningen i elnätet. Om ditt nätbolag inför det visar vi hur du kan optimera dina laster.
+            </p>
+          </div>
         </Modal>
       )}
 
