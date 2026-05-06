@@ -812,7 +812,8 @@ begin
   
   v_doc_count := jsonb_array_length(p_documents);
   if v_doc_count != array_length(p_document_ids, 1) then
-    raise exception 'p_documents-arrayen måste ha samma längd som p_document_ids';
+    raise exception 'Internt fel: server action skickade % dokument-ID:n men % dokument-objekt', 
+      array_length(p_document_ids, 1), v_doc_count;
   end if;
   
   insert into public.addresses (
@@ -1043,7 +1044,8 @@ begin
   
   v_doc_count := jsonb_array_length(p_documents);
   if v_doc_count != array_length(p_document_ids, 1) then
-    raise exception 'p_documents-arrayen måste ha samma längd som p_document_ids';
+    raise exception 'Internt fel: server action skickade % dokument-ID:n men % dokument-objekt', 
+      array_length(p_document_ids, 1), v_doc_count;
   end if;
   
   -- Validera rättigheter till alla hem före vi börjar skriva
