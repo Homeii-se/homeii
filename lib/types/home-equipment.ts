@@ -1,12 +1,17 @@
 /**
  * Källa till sanning för home_equipment.equipment_data-strukturer.
  *
- * Tabellen public.home_equipment i Supabase lagrar utrustning per mätarpunkt
+ * Tabellen public.home_equipment i Supabase lagrar utrustning per fastighet
  * som key-value-par: equipment_key (text) + equipment_data (jsonb).
  *
  * Detta är typdefinitionen för equipment_data, indexerad på equipment_key.
  * När en ny equipment_key läggs till, lägg också till motsvarande interface
  * och utöka EquipmentKey-unionen och EquipmentDataMap nedan.
+ *
+ * V2-uppdatering (2026-05): row-typen använder home_property_id istället för 
+ * anlaggnings_id. Skälet: V2-modellen har home_properties som primär entitet 
+ * för "fastighet inom ett hem". Samma fysiska anlaggnings_id kan finnas i 
+ * flera home_properties (en per hem som inkluderar fastigheten).
  *
  * Mattias' analyskod och frontend-formulär ska importera typer härifrån.
  */
@@ -90,11 +95,15 @@ export interface EquipmentDataMap {
 
 
 // ---------------------------------------------------------------------------
-// Hjälptyp för en hel equipment-rad
+// Hjälptyp för en hel equipment-rad (V2)
 // ---------------------------------------------------------------------------
 
+/**
+ * V2: home_property_id är primär identifierare istället för anlaggnings_id.
+ * Detta matchar databasstrukturen i public.home_equipment.
+ */
 export type EquipmentRow<K extends EquipmentKey = EquipmentKey> = {
-  anlaggnings_id: string;
+  home_property_id: string;
   equipment_key: K;
   equipment_data: EquipmentDataMap[K];
   updated_by?: string | null;
