@@ -1,5 +1,14 @@
 /**
  * Monthly simulation — aggregate daily simulations into monthly data.
+ *
+ * As of PR C3 (2026-05-06) the entry point `simulateMonthsWithUpgrades`
+ * accepts an optional `tmyData` parameter. When provided it routes to the
+ * 8760-hour pipeline (`simulate8760WithUpgrades` + `aggregateMonthsFrom8760`)
+ * for full physics-based monthly aggregation. When absent, it falls back
+ * to the legacy 12-day representative-day approach kept here unchanged.
+ *
+ * The fallback exists so callers that haven't yet fetched TMY data
+ * (server-side jobs, fast dev iterations, error paths) keep working.
  */
 
 import type {
@@ -19,6 +28,9 @@ import { calculateMonthlyCost } from "./cost-model";
 import { getGridPricing, DEFAULT_GRID_PRICING } from "../data/grid-operators";
 import { getEnergyTaxRate } from "../data/energy-tax";
 import { ELHANDEL_DEFAULTS } from "../data/elhandel-defaults";
+import type { TmyHourlyData } from "../data/pvgis-tmy";
+import { simulate8760WithUpgrades } from "./simulate8760";
+import { aggregateMonthsFrom8760 } from "./monthly-from-8760";
 
 export function getMonthlyData(
   bill: BillData,
@@ -39,14 +51,57 @@ export function getMonthlyData(
   });
 }
 
-/** Simulate all 12 months with upgrades, using a representative day per month */
+/**
+ * Simulate all 12 months with upgrades.
+ *
+ * When `tmyData` is provided (8760 hourly weather records from PVGIS),
+ * routes to the full-year physics pipeline:
+ *   simulate8760WithUpgrades → aggregateMonthsFrom8760
+ *
+ * When absent, falls back to the legacy representative-day pipeline:
+ *   one simulateDay() call per month, scaled to monthly totals.
+ *
+ * Both paths return the same `MonthlyDataPointExtended[]` shape so callers
+ * are agnostic to which pipeline ran.
+ */
 export function simulateMonthsWithUpgrades(
   bill: BillData,
   refinement: RefinementAnswers,
   activeUpgrades: ActiveUpgrades,
   seZone: SEZone,
-  assumptions?: Assumptions
+  assumptions?: Assumptions,
+  tmyData?: TmyHourlyData[],
 ): MonthlyDataPointExtended[] {
+  // --- 8760-pipeline (preferred when TMY data is available) ---
+  if (tmyData && tmyData.length >= 8760) {
+    const baseSim = simulate8760WithUpgrades(
+      bill,
+      refinement,
+      NO_UPGRADES,
+      tmyData,
+      seZone,
+      assumptions,
+    );
+    const afterSim = simulate8760WithUpgrades(
+      bill,
+      refinement,
+      activeUpgrades,
+      tmyData,
+      seZone,
+      assumptions,
+    );
+    return aggregateMonthsFrom8760({
+      baseSim,
+      afterSim,
+      bill,
+      refinement,
+      activeUpgrades,
+      seZone,
+      assumptions,
+    });
+  }
+
+  // --- Legacy 12-day pipeline (fallback) ---
   const year = new Date().getFullYear();
   const seasonFactors = getAdjustedSeasonFactors(refinement, seZone);
 

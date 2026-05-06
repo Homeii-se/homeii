@@ -132,7 +132,11 @@ export default function AnalysPage() {
       if (billData.invoiceMarkupOre !== undefined) updatedAssumptions.elhandelMarkupOre = billData.invoiceMarkupOre;
       if (billData.invoiceMonthlyFeeKr !== undefined) updatedAssumptions.elhandelMonthlyFeeKr = billData.invoiceMonthlyFeeKr;
 
-      const recs = generateRecommendations(billData, refinement, seZone, updatedAssumptions);
+      // Pass tmyData when available so the engine can route to the 8760-hour
+      // physics pipeline. If TMY hasn't loaded yet (PVGIS fetch still in
+      // flight) we pass undefined and the engine falls back to the legacy
+      // 12-day pipeline — recommendations remain available immediately.
+      const recs = generateRecommendations(billData, refinement, seZone, updatedAssumptions, tmyData ?? undefined);
 
       const newUpgrades = { ...DEFAULT_ACTIVE_UPGRADES };
       if (refinement.hasSolar) newUpgrades.solceller = true;
@@ -154,7 +158,7 @@ export default function AnalysPage() {
         assumptions: updatedAssumptions,
       });
     },
-    [state.assumptions, updateState]
+    [state.assumptions, updateState, tmyData]
   );
 
   const handleViewRecommendations = useCallback(() => {

@@ -40,6 +40,7 @@ import { DEFAULT_ACTIVE_UPGRADES, RECOMMENDATION_CONFIG } from "../data/upgrade-
 import { calculateAnnualSummary } from "../simulation/annual";
 import { calculateEnergyScore } from "../simulation/scoring";
 import { simulateMonthsWithUpgrades } from "../simulation/monthly";
+import type { TmyHourlyData } from "../data/pvgis-tmy";
 
 // ============================================================
 // Types for the variant-aware engine output
@@ -181,19 +182,20 @@ export function generateRecommendationsV2(
   billData: BillData,
   refinement: RefinementAnswers,
   seZone: SEZone,
-  assumptions: Assumptions
+  assumptions: Assumptions,
+  tmyData?: TmyHourlyData[],
 ): RecommendationResultV2 {
   // ========== 1. Calculate baseline (nuläge) ==========
   // Nuläge = actual bill, no upgrades — the reality anchor
   const baselineSummary = calculateAnnualSummary(
-    billData, refinement, DEFAULT_ACTIVE_UPGRADES, seZone, assumptions, true
+    billData, refinement, DEFAULT_ACTIVE_UPGRADES, seZone, assumptions, true, tmyData
   );
   const baselineAnnualCostKr = baselineSummary.yearlyTotalCostBase;
   const baselineAnnualKwh = baselineSummary.yearlyKwhBase;
 
   // Baseline peak kW (avg monthly)
   const baselineMonthly = simulateMonthsWithUpgrades(
-    billData, refinement, DEFAULT_ACTIVE_UPGRADES, seZone, assumptions
+    billData, refinement, DEFAULT_ACTIVE_UPGRADES, seZone, assumptions, tmyData
   );
   const baselinePeaks = baselineMonthly.map(m => m.peakKwBase);
   const baselineAvgPeak = baselinePeaks.reduce((s, v) => s + v, 0) / 12;
@@ -237,14 +239,15 @@ export function generateRecommendationsV2(
           const evaluation = evaluateVariant(
             variant, type, billData, refinement, seZone, assumptions,
             baselineAnnualCostKr, baselineAnnualKwh, baselineAvgPeak,
-            defaultBattery
+            defaultBattery, tmyData
           );
           if (evaluation) evaluations.push(evaluation);
         }
       } else {
         const evaluation = evaluateVariant(
           variant, type, billData, refinement, seZone, assumptions,
-          baselineAnnualCostKr, baselineAnnualKwh, baselineAvgPeak
+          baselineAnnualCostKr, baselineAnnualKwh, baselineAvgPeak,
+          undefined, tmyData
         );
         if (evaluation) evaluations.push(evaluation);
       }
@@ -305,10 +308,10 @@ export function generateRecommendationsV2(
   }
 
   const afterAllSummary = calculateAnnualSummary(
-    billData, refinement, allRecsUpgrades, seZone, combinedAssumptions, true
+    billData, refinement, allRecsUpgrades, seZone, combinedAssumptions, true, tmyData
   );
   const afterAllMonthly = simulateMonthsWithUpgrades(
-    billData, refinement, allRecsUpgrades, seZone, combinedAssumptions
+    billData, refinement, allRecsUpgrades, seZone, combinedAssumptions, tmyData
   );
   const afterAllAvgPeak = afterAllMonthly.map(m => m.peakKw).reduce((s, v) => s + v, 0) / 12;
   const savingsPercentAfterAll = baselineAnnualCostKr > 0
@@ -354,7 +357,8 @@ function evaluateVariant(
   baselineCostKr: number,
   baselineKwh: number,
   baselineAvgPeak: number,
-  bundledBatteryVariant?: UpgradeVariant
+  bundledBatteryVariant?: UpgradeVariant,
+  tmyData?: TmyHourlyData[],
 ): VariantEvaluation | null {
   // Build simulation parameters for this variant
   const variantAssumptions = buildVariantAssumptions(baseAssumptions, variant, bundledBatteryVariant);
@@ -362,7 +366,7 @@ function evaluateVariant(
 
   // Run full annual simulation
   const summary = calculateAnnualSummary(
-    billData, refinement, activeUpgrades, seZone, variantAssumptions, true
+    billData, refinement, activeUpgrades, seZone, variantAssumptions, true, tmyData
   );
 
   const yearlySavingsKr = Math.round(baselineCostKr - summary.yearlyTotalCostAfter);
@@ -382,7 +386,7 @@ function evaluateVariant(
 
   // Peak reduction
   const monthlyData = simulateMonthsWithUpgrades(
-    billData, refinement, activeUpgrades, seZone, variantAssumptions
+    billData, refinement, activeUpgrades, seZone, variantAssumptions, tmyData
   );
   const avgPeak = monthlyData.map(m => m.peakKw).reduce((s, v) => s + v, 0) / 12;
   const peakReductionPercent = baselineAvgPeak > 0

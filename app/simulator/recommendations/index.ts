@@ -20,6 +20,7 @@ import type {
   Assumptions,
   RecommendationResult,
 } from "../types";
+import type { TmyHourlyData } from "../data/pvgis-tmy";
 import { generateRecommendationsV2 } from "./engine-v2";
 import { generateRecommendations as generateRecommendationsLegacy } from "./engine";
 
@@ -33,12 +34,17 @@ const useLegacyEngine =
  * Returns the legacy-compatible `RecommendationResult` shape regardless of
  * which underlying engine produced it. v2's richer per-variant data is
  * available via `generateRecommendationsV2` directly when needed.
+ *
+ * When `tmyData` is provided (8760 hourly TMY weather records), the engine
+ * runs the full-year physics pipeline. Without it the legacy 12-day
+ * representative-day pipeline is used as fallback.
  */
 export function generateRecommendations(
   billData: BillData,
   refinement: RefinementAnswers,
   seZone: SEZone,
   assumptions: Assumptions,
+  tmyData?: TmyHourlyData[],
 ): RecommendationResult {
   if (useLegacyEngine) {
     return generateRecommendationsLegacy(
@@ -46,10 +52,16 @@ export function generateRecommendations(
       refinement,
       seZone,
       assumptions,
+      tmyData,
     );
   }
-  return generateRecommendationsV2(billData, refinement, seZone, assumptions)
-    .legacy;
+  return generateRecommendationsV2(
+    billData,
+    refinement,
+    seZone,
+    assumptions,
+    tmyData,
+  ).legacy;
 }
 
 export { generateRecommendationsV2 } from "./engine-v2";
