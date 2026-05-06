@@ -64,7 +64,9 @@ drop table if exists public.addresses cascade;
 
 -- ----------------------------------------------------------------------------
 -- 2.1: addresses
--- Fysisk plats. Flera home_properties kan dela adress (lägenhetshus).
+-- Fysisk plats. Inga deduplicering — varje home_property får sin egen rad
+-- även om street/postal_code/city sammanfaller med en annan användares.
+-- (Beslut 6.3 reviderad: adresser är per-hem, inte delade.)
 -- ----------------------------------------------------------------------------
 create table public.addresses (
   id uuid primary key default gen_random_uuid(),
@@ -809,70 +811,326 @@ grant execute on function public.user_email_matches(text) to authenticated;
 grant execute on function public.transfer_ownership(uuid, uuid) to authenticated;
 
 -- ============================================================================
--- DEL 9: RPC-FUNKTIONER (STUBS — implementeras separat)
+-- DEL 9: RPC-FUNKTIONER FÖR HEM-SKAPANDE
+-- ============================================================================
+-- 
+-- Två funktioner för att skapa nya hem:
+-- 
+-- 1. create_initial_home_from_invoice — atomisk skapelse av hem + fastighet
+--    + dokument + analyser + home_profile från en uppladdad första faktura.
+--    Anropas av server action på /app/spara-analys.
+-- 
+-- 2. create_empty_home — skapa tomt hem för manuell hantering. Anropas av 
+--    "Skapa nytt hem"-knapp i UI.
+-- 
+-- Båda är SECURITY DEFINER så de kan kringgå RLS för att skapa första 
+-- home_members-raden med role='owner' (vanlig INSERT på home_members med 
+-- role='owner' är blockerad för authenticated).
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
--- create_initial_home_from_invoice
+-- 9.1: create_initial_home_from_invoice
 -- ----------------------------------------------------------------------------
--- Atomic save vid första-fakturan-flödet. Tar all data som behövs för att 
--- skapa en användares första hem från en uppladdad faktura.
 -- 
--- TODO: Implementera när exakt parametersignatur är spikad. Behöver bl.a.:
---   - Hem-namn (default "Hem på [adress]")
---   - Adress (street, postal_code, city, country, etc.)
---   - Anlaggnings_id + zone + network_operator
---   - Document parsed_data + denormaliserade fält
---   - PDF storage path
---   - Analysis result (Anthropic-svar)
---   - Home profile-data (boyta, byggår, etc.)
+-- Anropas efter att server action:
+--   1. Verifierat att användaren är inloggad
+--   2. Validerat input
+--   3. Genererat UUID:er för home, home_property och alla documents
+--   4. Laddat upp PDF:er till Storage på pathen 
+--      documents/{home_property_id}/{document_id}.pdf
 -- 
--- Implementeras som SECURITY DEFINER så den kan kringgå RLS för att skapa 
--- första home_members-raden med role='owner' (vanlig INSERT på 
--- home_members är blockerad för 'owner').
+-- Funktionen skapar address, home, home_members (owner), home_property, 
+-- home_profile, documents, home_property_documents-kopplingar och analyses.
 -- 
--- Returnerar home_id på det skapade hemmet.
+-- Vid fel: raise exception, transaktionen rullas tillbaka. Server action 
+-- ansvarar för att radera Storage-uppladdade PDF:er.
+-- 
+-- Returnerar: jsonb { home_id, home_property_id, document_ids[] }
 -- ----------------------------------------------------------------------------
 
+create or replace function public.create_initial_home_from_invoice(
+  p_home_id uuid,
+  p_home_property_id uuid,
+  p_document_ids uuid[],
+  p_home jsonb,
+  p_address jsonb,
+  p_property jsonb,
+  p_documents jsonb,
+  p_analyses jsonb,
+  p_home_profile jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+as $$
+declare
+  v_user_id uuid;
+  v_address_id uuid;
+  v_doc jsonb;
+  v_analysis jsonb;
+  v_first_analysis boolean := true;
+  v_doc_count int;
+begin
+  -- ==========================================================================
+  -- Validera att användaren är inloggad
+  -- ==========================================================================
+  v_user_id := auth.uid();
+  if v_user_id is null then
+    raise exception 'Användare är inte inloggad';
+  end if;
+  
+  -- ==========================================================================
+  -- Validera input
+  -- ==========================================================================
+  if p_home is null or coalesce(p_home->>'name', '') = '' then
+    raise exception 'Hem-namn krävs';
+  end if;
+  
+  if p_address is null 
+    or coalesce(p_address->>'street', '') = ''
+    or coalesce(p_address->>'postal_code', '') = ''
+    or coalesce(p_address->>'city', '') = '' then
+    raise exception 'Adress måste innehålla street, postal_code och city';
+  end if;
+  
+  if p_property is null or coalesce(p_property->>'anlaggnings_id', '') = '' then
+    raise exception 'Fastighet måste ha anlaggnings_id';
+  end if;
+  
+  if p_property->>'anlaggnings_id' !~ '^\d{18}$' then
+    raise exception 'anlaggnings_id måste vara exakt 18 siffror';
+  end if;
+  
+  if array_length(p_document_ids, 1) is null or array_length(p_document_ids, 1) = 0 then
+    raise exception 'Minst ett dokument krävs';
+  end if;
+  
+  v_doc_count := jsonb_array_length(p_documents);
+  if v_doc_count != array_length(p_document_ids, 1) then
+    raise exception 'p_documents-arrayen måste ha samma längd som p_document_ids';
+  end if;
+  
+  -- ==========================================================================
+  -- Skapa addressrad (alltid ny — ingen deduplicering)
+  -- ==========================================================================
+  insert into public.addresses (
+    street,
+    postal_code,
+    city,
+    kommun,
+    country,
+    latitude,
+    longitude
+  )
+  values (
+    p_address->>'street',
+    p_address->>'postal_code',
+    p_address->>'city',
+    p_address->>'kommun',
+    coalesce(p_address->>'country', 'SE'),
+    nullif(p_address->>'latitude', '')::numeric,
+    nullif(p_address->>'longitude', '')::numeric
+  )
+  returning id into v_address_id;
+  
+  -- ==========================================================================
+  -- Skapa hem-rad
+  -- ==========================================================================
+  insert into public.homes (id, name, description, created_by)
+  values (
+    p_home_id,
+    p_home->>'name',
+    p_home->>'description',
+    v_user_id
+  );
+  
+  -- ==========================================================================
+  -- Skapa owner-medlemskap
+  -- ==========================================================================
+  insert into public.home_members (home_id, user_id, role)
+  values (p_home_id, v_user_id, 'owner');
+  
+  -- ==========================================================================
+  -- Skapa fastighet (property_type='real')
+  -- ==========================================================================
+  insert into public.home_properties (
+    id,
+    home_id,
+    property_type,
+    anlaggnings_id,
+    address_id,
+    zone,
+    network_operator,
+    country
+  )
+  values (
+    p_home_property_id,
+    p_home_id,
+    'real',
+    p_property->>'anlaggnings_id',
+    v_address_id,
+    p_property->>'zone',
+    p_property->>'network_operator',
+    coalesce(p_property->>'country', 'SE')
+  );
+  
+  -- ==========================================================================
+  -- Skapa home_profile (med null-värden för fält som saknas)
+  -- ==========================================================================
+  insert into public.home_profile (
+    home_property_id,
+    living_area_m2,
+    building_year,
+    building_type,
+    heating_type,
+    num_residents
+  )
+  values (
+    p_home_property_id,
+    nullif(p_home_profile->>'living_area_m2', '')::numeric,
+    nullif(p_home_profile->>'building_year', '')::int,
+    p_home_profile->>'building_type',
+    p_home_profile->>'heating_type',
+    nullif(p_home_profile->>'num_residents', '')::int
+  );
+  
+  -- ==========================================================================
+  -- Loopa igenom dokument
+  -- ==========================================================================
+  for v_doc in select * from jsonb_array_elements(p_documents)
+  loop
+    -- Skapa documents-rad
+    insert into public.documents (
+      id,
+      document_type,
+      uploaded_by,
+      pdf_storage_path,
+      parsed_data,
+      total_kr,
+      consumption_kwh,
+      spot_price_ore_kwh,
+      electricity_supplier,
+      invoice_period_start,
+      invoice_period_end,
+      parser_confidence
+    )
+    values (
+      (v_doc->>'id')::uuid,
+      coalesce(v_doc->>'document_type', 'invoice'),
+      v_user_id,
+      v_doc->>'pdf_storage_path',
+      v_doc->'parsed_data',
+      nullif(v_doc->>'total_kr', '')::numeric,
+      nullif(v_doc->>'consumption_kwh', '')::numeric,
+      nullif(v_doc->>'spot_price_ore_kwh', '')::numeric,
+      v_doc->>'electricity_supplier',
+      nullif(v_doc->>'invoice_period_start', '')::date,
+      nullif(v_doc->>'invoice_period_end', '')::date,
+      nullif(v_doc->>'parser_confidence', '')::numeric
+    );
+    
+    -- Koppla document till home_property via M:N-tabell
+    insert into public.home_property_documents (home_property_id, document_id)
+    values (p_home_property_id, (v_doc->>'id')::uuid);
+  end loop;
+  
+  -- ==========================================================================
+  -- Loopa igenom analyser
+  -- ==========================================================================
+  for v_analysis in select * from jsonb_array_elements(p_analyses)
+  loop
+    insert into public.analyses (
+      document_id,
+      analysis_type,
+      model_version,
+      result,
+      raw_response,
+      is_reference
+    )
+    values (
+      (v_analysis->>'document_id')::uuid,
+      coalesce(v_analysis->>'analysis_type', 'invoice_analysis'),
+      v_analysis->>'model_version',
+      v_analysis->'result',
+      v_analysis->'raw_response',
+      v_first_analysis  -- första analysen blir baseline
+    );
+    
+    -- Bara första analysen markeras som is_reference
+    v_first_analysis := false;
+  end loop;
+  
+  -- ==========================================================================
+  -- Returnera struktur för redirect och flash-meddelande
+  -- ==========================================================================
+  return jsonb_build_object(
+    'home_id', p_home_id,
+    'home_property_id', p_home_property_id,
+    'document_ids', to_jsonb(p_document_ids)
+  );
+end;
+$$;
+
+grant execute on function public.create_initial_home_from_invoice(
+  uuid, uuid, uuid[], jsonb, jsonb, jsonb, jsonb, jsonb, jsonb
+) to authenticated;
+
 -- ----------------------------------------------------------------------------
--- create_empty_home
+-- 9.2: create_empty_home
 -- ----------------------------------------------------------------------------
--- Skapa ett tomt hem manuellt (via "Skapa nytt hem"-knapp i UI).
--- Tar bara namnet, skapar hem-rad + home_members-rad med role='owner'.
 -- 
--- TODO: Implementera. Pseudokod:
+-- Anropas av "Skapa nytt hem"-knapp i UI eller från checkboxlistan i 
+-- /app/spara-analys när användaren väljer "Skapa nytt hem...".
 -- 
---   create or replace function public.create_empty_home(p_name text)
---   returns uuid
---   language plpgsql
---   security definer
---   as $$
---   declare
---     v_home_id uuid;
---   begin
---     -- Validera input
---     if p_name is null or trim(p_name) = '' then
---       raise exception 'Hem-namn krävs';
---     end if;
---     
---     -- Skapa hem
---     insert into public.homes (name, created_by)
---       values (trim(p_name), auth.uid())
---       returning id into v_home_id;
---     
---     -- Skapa owner-rad
---     insert into public.home_members (home_id, user_id, role)
---       values (v_home_id, auth.uid(), 'owner');
---     
---     return v_home_id;
---   end;
---   $$;
---   
---   grant execute on function public.create_empty_home(text) to authenticated;
+-- Skapar bara hem-raden + home_members-raden med role='owner'. Inga 
+-- fastigheter eller dokument — användaren lägger till dem senare via 
+-- /app/mitt-hem eller genom att spara fakturor i hemmet.
 -- 
--- Implementeras separat när första-faktura-flödet och Mitt hem-sidan 
--- designats färdigt.
+-- Returnerar: home_id (uuid)
 -- ----------------------------------------------------------------------------
+
+create or replace function public.create_empty_home(
+  p_name text
+)
+returns uuid
+language plpgsql
+security definer
+as $$
+declare
+  v_user_id uuid;
+  v_home_id uuid;
+  v_trimmed_name text;
+begin
+  -- Validera inloggning
+  v_user_id := auth.uid();
+  if v_user_id is null then
+    raise exception 'Användare är inte inloggad';
+  end if;
+  
+  -- Validera namn
+  v_trimmed_name := trim(coalesce(p_name, ''));
+  if v_trimmed_name = '' then
+    raise exception 'Hem-namn krävs';
+  end if;
+  
+  if length(v_trimmed_name) > 200 then
+    raise exception 'Hem-namn får vara max 200 tecken';
+  end if;
+  
+  -- Skapa hem
+  insert into public.homes (name, created_by)
+  values (v_trimmed_name, v_user_id)
+  returning id into v_home_id;
+  
+  -- Skapa owner-medlemskap
+  insert into public.home_members (home_id, user_id, role)
+  values (v_home_id, v_user_id, 'owner');
+  
+  return v_home_id;
+end;
+$$;
+
+grant execute on function public.create_empty_home(text) to authenticated;
 
 -- ============================================================================
 -- DEL 10: STORAGE BUCKET RLS-POLICYS (för documents-bucketen)
@@ -935,18 +1193,21 @@ create policy "writers delete documents from storage"
 -- 
 --   2. SELECT proname FROM pg_proc WHERE pronamespace = 'public'::regnamespace
 --      ORDER BY proname;
---      -- Förväntat: handle_new_user, set_updated_at, transfer_ownership,
+--      -- Förväntat: create_empty_home, create_initial_home_from_invoice,
+--      --           handle_new_user, set_updated_at, transfer_ownership,
 --      --           user_can_write_home, user_email_matches, 
 --      --           user_is_home_member, user_is_home_owner
 -- 
---   3. Testa RLS genom att skapa ett hem manuellt:
---      INSERT INTO homes (name, created_by) VALUES ('Test', 'din-user-id');
---      INSERT INTO home_members (home_id, user_id, role) 
---        VALUES ('hem-id', 'din-user-id', 'owner');
---      -- Vanlig INSERT funkar bara via service_role; via authenticated 
---      -- kommer det att blockeras (det är meningen — använd 
---      -- create_empty_home eller create_initial_home_from_invoice).
+--   3. Test-anropa create_empty_home (kräver inloggad session):
+--      SELECT public.create_empty_home('Test-hem');
+--      -- Returnerar UUID. Verifiera sedan:
+--      SELECT * FROM homes ORDER BY created_at DESC LIMIT 1;
+--      SELECT * FROM home_members WHERE home_id = '<uuid-fran-ovan>';
+--      -- Owner-raden ska finnas.
 -- 
--- Nästa steg: implementera create_initial_home_from_invoice + 
--- create_empty_home. Bygga om /app/spara-analys server action.
+--   4. create_initial_home_from_invoice testas via server action på 
+--      /app/spara-analys.
+-- 
+-- Nästa steg: skriv om server action på /app/spara-analys så den anropar 
+-- create_initial_home_from_invoice.
 -- ============================================================================
