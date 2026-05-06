@@ -78,9 +78,13 @@ Premiumprenumerationer. Förberedelser i schemat finns redan. Se Tekniska skulde
 Beslut som tagits utanför arkitekturdokumentet och inte hör till en specifik PR.
 
 ### PDF-sökväg i Storage
-PDF:er lagras under `documents/{home_property_id}/{document_id}.pdf` — inte under `{user_id}/...`. Skälet: knyter dokumentet till fastigheten (via dess UUID), inte till uppladdaren. Överlever ägarbyten och radering av enskilda användare.
+PDF:er lagras under `documents/{document_id}.pdf` — inte under `{user_id}/...` eller `{home_property_id}/...`. Skälet: pathen identifierar dokumentet självt, inte vilket hem eller fastighet det tillhör. M:N-modellen (Beslut 6.15) innebär att samma dokument kan tillhöra flera hem — fel att hardcoda ett av dem i pathen.
 
-**Notering vid V2-omskrivning (2026-05):** Tidigare path-konvention använde `{anlaggnings_id}` (mätarpunktens 18-siffriga ID). Med V2-modellen där `home_property_id` är en UUID, byttes path-konventionen till `{home_property_id}`. Skäl: hanterar fiktiva fastigheter (utan anlaggnings_id) korrekt, är konsekvent med V2:s primärnycklar.
+**Notering vid V2-omskrivning (2026-05):** Path-konventionen har ändrats två gånger:
+- V1 använde `{anlaggnings_id}/{document_id}.pdf`
+- V2 första utkast använde `{home_property_id}/{document_id}.pdf`  
+- V2 slutgiltigt använder `{document_id}.pdf` (efter att M:N-relationen mellan dokument och hem etablerades, Beslut 6.15)
+
 ### Användarradering
 Vid radering (självvald, admin eller dödsfall):
 - Hindra radering av owner med andra medlemmar — måste först överföra ägarskap via `transfer_ownership`-funktionen
