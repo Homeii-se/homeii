@@ -16,6 +16,7 @@ import type {
   SEZone,
 } from "../types";
 import type { TmyHourlyData } from "../data/pvgis-tmy";
+import type { ActiveUpgrades, Assumptions } from "../types";
 import {
   HOURLY_PROFILE,
   HEATING_HOURLY_PROFILE,
@@ -27,6 +28,7 @@ import {
   getBlendedHeatingShare,
   getAdjustedSeasonFactors,
   getHeatPumpCOP,
+  applyUpgradesToHour,
 } from "./upgrades";
 import { BATTERY_PARAMS } from "../data/upgrade-catalog";
 
@@ -882,5 +884,242 @@ export function simulate8760WithSolar(
     monthlySelfConsumptionKwh,
     monthlyGridImportKwh,
     monthlySolarProductionKwh,
+  };
+}
+
+// ============================================================
+// Fas 6: Upgrade-aware 8760 simulation (PR C1)
+// ============================================================
+
+/**
+ * Extended 8760 result that exposes both the zero-equipment baseline
+ * consumption (no upgrades applied) and the after-upgrades consumption.
+ *
+ * `consumption` mirrors `consumptionAfter` so this type is a structural
+ * superset of `Simulate8760Result` — callers expecting the legacy result
+ * shape continue to work without changes.
+ */
+export interface Simulate8760ResultWithUpgrades extends Simulate8760Result {
+  /** 8760 hourly consumption WITHOUT upgrades applied (zero-equipment baseline) */
+  consumptionBase: number[];
+  /** 8760 hourly consumption WITH upgrades applied (same as `consumption`) */
+  consumptionAfter: number[];
+  /** Annual base consumption total kWh (sum of consumptionBase) */
+  annualConsumptionBaseKwh: number;
+  /** Annual after-upgrades consumption total kWh (sum of consumptionAfter) */
+  annualConsumptionAfterKwh: number;
+}
+
+/**
+ * Cached Date objects for each of the 8760 hours of a non-leap year.
+ * Used by `applyUpgradesToHour` which expects a Date for season interpolation
+ * and temperature lookup. Building these once and reusing them avoids 8760
+ * `new Date(...)` allocations per simulation call — important when engine v2
+ * runs ~15+ simulations per recommendation request.
+ *
+ * The cache uses the current year. Year does not affect upgrade application
+ * (upgrades depend on month/day/hour, not year), so a single cache suffices.
+ */
+let _hourlyDateCache: Date[] | null = null;
+function getHourlyDateCache(): Date[] {
+  if (_hourlyDateCache) return _hourlyDateCache;
+  const cache: Date[] = new Array(8760);
+  const year = new Date().getFullYear();
+  let idx = 0;
+  for (let m = 0; m < 12; m++) {
+    const days = DAYS_PER_MONTH[m];
+    for (let d = 1; d <= days; d++) {
+      for (let h = 0; h < 24; h++) {
+        cache[idx++] = new Date(year, m, d, h);
+      }
+    }
+  }
+  _hourlyDateCache = cache;
+  return cache;
+}
+
+/**
+ * Apply active upgrades to each of the 8760 hourly consumption values.
+ *
+ * Wraps `applyUpgradesToHour` (from upgrades.ts) — the same function that
+ * monthly.ts uses today, but applied to a full year of timestamps instead
+ * of 12 representative-day timestamps. This means upgrade effects (heat
+ * pump COP curves, insulation reductions, smart-control savings) are
+ * computed against the actual hourly temperature for every hour of the
+ * year, not against a smoothed daily mean.
+ *
+ * Caveat: `applyUpgradesToHour` derives the heating-vs-baseload split per
+ * hour from the season factor for that date (heatingFraction = heatingShare
+ * × max(0, seasonFactor − 0.3)). This is the same approximation the legacy
+ * 24h pipeline uses, applied here at hourly resolution. A fully physics-based
+ * split — using the actual hourly heating contribution from
+ * `simulate8760Consumption`'s degree-hour calculation — would be more
+ * consistent but is out of scope for this PR. The current approach gives
+ * us a strict improvement over the 12-day approximation while keeping the
+ * upgrade math identical to what engine v2 expects.
+ */
+function applyUpgradesToHourly(
+  baseHourly: readonly number[],
+  refinement: RefinementAnswers,
+  activeUpgrades: ActiveUpgrades,
+  seZone: SEZone,
+  assumptions?: Assumptions,
+): number[] {
+  const dateCache = getHourlyDateCache();
+  const timeIndex = getTimeIndex();
+  const result = new Array<number>(baseHourly.length);
+
+  for (let i = 0; i < baseHourly.length; i++) {
+    const baseKwh = baseHourly[i];
+    if (baseKwh <= 0) {
+      result[i] = 0;
+      continue;
+    }
+    const date = dateCache[i];
+    const hourOfDay = timeIndex.hourOfDay[i];
+    result[i] = applyUpgradesToHour(
+      baseKwh,
+      hourOfDay,
+      date,
+      activeUpgrades,
+      refinement,
+      seZone,
+      assumptions,
+    );
+  }
+
+  return result;
+}
+
+/**
+ * Full 8760-hour simulation with explicit upgrade application.
+ *
+ * Combines the existing 8760 consumption + solar + battery pipeline with
+ * per-hour upgrade application. Returns both the zero-equipment baseline
+ * and the after-upgrades hourly series, so callers can compute scenario
+ * comparisons (current cost vs. after-investment cost) from a single call.
+ *
+ * Solar/battery handling is reused from `simulate8760WithSolar` — the same
+ * iterative gross-up logic for households with existing solar still runs
+ * when `refinement.hasSolar` is true. When `activeUpgrades.solceller` is
+ * true *and* `refinement.hasSolar` is false (i.e. evaluating the addition
+ * of solar as an upgrade), the simulation adds production on top of the
+ * after-upgrades consumption without the gross-up iteration. This matches
+ * how engine v2 already reasons about solar additions today.
+ *
+ * @param bill Invoice-derived data (monthly kWh, cost, zone, etc.)
+ * @param refinement Profile answers + existing equipment
+ * @param activeUpgrades Set of upgrades to evaluate
+ * @param tmyData 8760 typical-meteorological-year hourly weather records
+ * @param seZone Pricing zone for fallbacks (TMY drives the actual physics)
+ * @param assumptions Variant overrides (custom COP curves, sizing, etc.)
+ */
+export function simulate8760WithUpgrades(
+  bill: BillData,
+  refinement: RefinementAnswers,
+  activeUpgrades: ActiveUpgrades,
+  tmyData: TmyHourlyData[],
+  seZone: SEZone,
+  assumptions?: Assumptions,
+): Simulate8760ResultWithUpgrades {
+  // ----- Step 1: Build base consumption (without any upgrades applied) -----
+  // simulate8760Consumption uses refinement.heatingTypes to decide season
+  // shape and applies COP correction for the user's *existing* heat pump
+  // (if any). It does not apply hypothetical upgrades.
+  const consumptionBase = simulate8760Consumption(bill, refinement, tmyData, seZone);
+
+  // ----- Step 2: Apply upgrades per hour -----
+  const consumptionAfter = applyUpgradesToHourly(
+    consumptionBase,
+    refinement,
+    activeUpgrades,
+    seZone,
+    assumptions,
+  );
+
+  // ----- Step 3: Solar production (existing equipment OR hypothetical upgrade) -----
+  const hasSolar =
+    activeUpgrades.solceller || (refinement.hasSolar ?? false);
+  const hasBattery =
+    activeUpgrades.batteri || (refinement.hasBattery ?? false);
+
+  let solarProduction: number[];
+  let calibratedSystemSizeKw: number;
+
+  if (hasSolar) {
+    // Pick system size: assumptions override > refinement > default 10 kW
+    const systemSizeKw =
+      assumptions?.solarSizeKw ?? refinement.solarSizeKw ?? 10;
+    solarProduction = simulate8760Solar(systemSizeKw, tmyData);
+    calibratedSystemSizeKw = systemSizeKw;
+  } else {
+    solarProduction = new Array(8760).fill(0);
+    calibratedSystemSizeKw = 0;
+  }
+
+  // ----- Step 4: Self-consumption / battery / grid flows -----
+  const batterySizeKwh =
+    assumptions?.batterySizeKwh ?? refinement.batterySizeKwh;
+
+  let selfConsumption: number[];
+  let gridImport: number[];
+  let gridExport: number[];
+
+  if (hasSolar && hasBattery) {
+    const batteryResult = simulateBattery8760(
+      consumptionAfter,
+      solarProduction,
+      batterySizeKwh,
+    );
+    selfConsumption = batteryResult.selfConsumption;
+    gridImport = batteryResult.gridImport;
+    gridExport = batteryResult.gridExport;
+  } else if (hasSolar) {
+    const scResult = calculateSelfConsumption(consumptionAfter, solarProduction);
+    selfConsumption = scResult.selfConsumption;
+    gridImport = scResult.gridImport;
+    gridExport = scResult.gridExport;
+  } else {
+    selfConsumption = new Array(8760).fill(0);
+    gridImport = consumptionAfter.slice();
+    gridExport = new Array(8760).fill(0);
+  }
+
+  // ----- Step 5: Aggregates -----
+  const annualConsumptionBaseKwh = consumptionBase.reduce((s, v) => s + v, 0);
+  const annualConsumptionAfterKwh = consumptionAfter.reduce((s, v) => s + v, 0);
+  const annualExportKwh = gridExport.reduce((s, v) => s + v, 0);
+  const annualSelfConsumptionKwh = selfConsumption.reduce((s, v) => s + v, 0);
+  const annualGridImportKwh = gridImport.reduce((s, v) => s + v, 0);
+  const annualSolarProductionKwh = solarProduction.reduce((s, v) => s + v, 0);
+
+  const monthlyExportKwh = monthlyTotals(gridExport);
+  const monthlySelfConsumptionKwh = monthlyTotals(selfConsumption);
+  const monthlyGridImportKwh = monthlyTotals(gridImport);
+  const monthlySolarProductionKwh = monthlyTotals(solarProduction);
+
+  return {
+    // Legacy Simulate8760Result fields. `consumption` mirrors `consumptionAfter`
+    // so existing callers that expect the legacy shape work unchanged.
+    consumption: consumptionAfter,
+    solarProduction,
+    selfConsumption,
+    gridImport,
+    gridExport,
+    annualExportKwh,
+    annualSelfConsumptionKwh,
+    annualGridImportKwh,
+    annualSolarProductionKwh,
+    calibratedSystemSizeKw,
+    monthlyExportKwh,
+    monthlySelfConsumptionKwh,
+    monthlyGridImportKwh,
+    monthlySolarProductionKwh,
+
+    // New fields exposed by Simulate8760ResultWithUpgrades
+    consumptionBase,
+    consumptionAfter,
+    annualConsumptionBaseKwh,
+    annualConsumptionAfterKwh,
   };
 }
