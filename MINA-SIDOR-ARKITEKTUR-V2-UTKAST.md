@@ -112,9 +112,7 @@ erDiagram
 
 **M:N-relation:** `home_properties ↔ documents` är en M:N-relation som realiseras via kopplingstabellen `home_property_documents`. En faktura kan tillhöra flera hem (via olika home_properties), och en home_property kan referera till flera dokument.
 
-### 4.2 Tabellöversikt (definierade i `supabase/schema.sql`)
-
-<!-- TODO: bekräfta totala antalet tabeller efter migration. V1 hade 11. V2 har: user_profiles, addresses, homes, home_members, home_invitations, home_properties, home_property_production, home_property_documents, documents, analyses, consumption_data, home_profile, home_equipment = 13 tabeller. -->
+### 4.2 Tabellöversikt (13 tabeller, definierade i `supabase/schema.sql`)
 
 | Tabell | Roll |
 |---|---|
@@ -131,6 +129,10 @@ erDiagram
 | `consumption_data` | Granular kWh-data (timme/dag/månad). FK till `home_properties.id`. Logiskt hänger granular data på en specifik fastighet, inte på hemmet. |
 | `home_profile` | Hemdata per fastighet: boyta, byggår, byggnadstyp, uppvärmningssätt. PK / FK till `home_properties.id`. Auto-fylls och bekräftas av användaren. |
 | `home_equipment` | Utrustning per fastighet — ett rad per `(home_property_id, equipment_key)` med typat JSONB-fält `equipment_data`. TypeScript-typer definieras i `lib/types/home-equipment.ts` (källa till sanning för equipment-schemat). |
+
+`spot_prices` och `monthly_avg_prices` finns kvar från V1 men hör inte till Mina sidor-modellen — de räknas inte in i de 13 tabellerna ovan.
+
+**Migration från V1:** Vid migration flyttas kolumnerna `country`, `zone`, `kommun` och `network_operator` från V1:s `consumption_metering_points` till V2:s `home_properties`.
 
 ### 4.3 Tre roller i home_members
 
@@ -394,7 +396,7 @@ Trade-off: Schemat blir bredare (fler tabeller, fler joins). Vinsten är att UI 
 
 ## 8. Implementationssekvens
 
-<!-- LÄMNAD ORÖRD från V1. Mattias och Claude-i-chatt designar denna separat baserat på V2-besluten. -->
+> **Status:** Sektion 8 reflekterar V1-implementationssekvensen. Den ska skrivas om för V2 av Mattias och Claude-i-chatt baserat på V2-besluten. Ignorera tills omskrivningen är klar.
 
 I strikt prioritetsordning. Bygg inte parallellt — varje steg bygger på föregående.
 
@@ -501,8 +503,6 @@ Schemat är primärt designat för svenska elhushåll. Inför internationell exp
 - Befintliga `spot_prices` och `monthly_avg_prices`-tabeller har `market_id`-fält som antyder förberedelse för fler marknader, men sammankopplingen med Mina sidor-tabellerna är inte etablerad.
 
 **Vid första utländska lansering:** Detta blir en separat migration som adresserar punkterna ovan. Inte arkitekturkris, men inte heller en trivial ändring.
-
-<!-- TODO: bekräfta vilka kolumner som flyttas från consumption_metering_points till home_properties (country, zone, m.fl.) i samband med schema-omskrivningen. -->
 
 ---
 
