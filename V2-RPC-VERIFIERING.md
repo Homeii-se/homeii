@@ -379,3 +379,107 @@ Båda RPC-funktionerna är **redo för användning**. Schema-matchningen är exa
 Inga av dessa är blockerande för PR #9C eller spara-flödet. RPC:erna kan köras i Supabase SQL Editor som de är.
 
 **Bonus-fynd:** `documents.uploaded_by` är redan korrigerad (Pass 2-buggfynd åtgärdat) — `not null` borttaget på schema rad 210. Bra jobbat.
+
+---
+
+## 10. Pass 2 — verifiering av `add_invoice_to_existing_homes` (Del 9.3)
+
+**Datum:** 2026-05-06
+**Funktion:** `public.add_invoice_to_existing_homes` (schema rad 991–1172)
+**Parametrar:** `uuid[], text, jsonb, jsonb, uuid[], jsonb, jsonb, jsonb` (8 st)
+
+### 10.1 Checkpoints — sammanfattning
+
+| # | Checkpoint | Status | Anmärkning |
+|---|---|---|---|
+| 1 | Tabellnamn matchar V2-schemat (Del 2) | ✅ Uppfylld | Alla 6 tabeller finns: `addresses`, `home_properties`, `home_profile`, `documents`, `analyses`, `home_property_documents` |
+| 2 | Kolumnnamn som funktionen refererar finns i schemat | ✅ Uppfylld | Se 10.2 för kolumn-för-kolumn-granskning |
+| 3 | FK-relationer respekteras (FK-värden existerar innan referens) | ✅ Uppfylld | Se 10.3 för skriv-ordning |
+| 4 | `raise exception`-meddelanden är användarvänliga och konsekventa | ✅ med en anmärkning | 7 av 8 meddelanden är tydliga. Ett exponerar parameternamn (se 10.4) |
+| 5 | SECURITY DEFINER används korrekt | ✅ Uppfylld | Explicit permissionsvalidering körs före alla skrivningar |
+| 6 | GRANT execute är korrekt | ✅ Uppfylld | Signatur matchar funktionens parameterlista exakt |
+| 7 | Defense-in-depth `user_can_write_home`-loop är semantiskt korrekt | ✅ Uppfylld | Validerar alla hem i ett pass innan första INSERT |
+| 8 | Documents/analyses skapas EN GÅNG utanför hem-loopen | ✅ Uppfylld | Korrekt M:N-semantik: documents och analyses skapas före hem-loopen |
+| 9 | `on conflict`-hantering på `home_property_documents` är korrekt | ✅ Uppfylld | Conflict-target matchar PK, `do nothing` ger idempotent beteende |
+| 10 | Storage-policys i Del 10 fungerar med ny path-konvention | ✅ Uppfylld | Policy matchar via `d.pdf_storage_path = storage.objects.name` — path-format-agnostisk |
+
+**Resultat: alla 10 checkpoints uppfyllda.**
+
+### 10.2 Kolumn-för-kolumn-granskning
+
+| Tabell | Kolumner i funktionen | Status |
+|---|---|---|
+| `addresses` | street, postal_code, city, kommun, country, latitude, longitude | ✅ Alla i Del 2.1 |
+| `home_properties` | home_id, property_type, anlaggnings_id, address_id, zone, network_operator, country, deleted_at | ✅ Alla i Del 2.5 |
+| `home_profile` | home_property_id, living_area_m2, building_year, building_type, heating_type, num_residents | ✅ Alla i Del 2.11 |
+| `documents` | id, document_type, uploaded_by, pdf_storage_path, parsed_data, total_kr, consumption_kwh, spot_price_ore_kwh, electricity_supplier, invoice_period_start, invoice_period_end, parser_confidence | ✅ Alla i Del 2.7 |
+| `analyses` | document_id, analysis_type, model_version, result, raw_response, is_reference | ✅ Alla i Del 2.9 |
+| `home_property_documents` | home_property_id, document_id | ✅ Alla i Del 2.8 |
+
+### 10.3 FK-skriv-ordning
+
+Funktionen skriver i denna ordning. Varje steg respekterar FK-beroenden:
+
+1. Validering — `user_can_write_home` för alla hem (inga skrivningar än)
+2. **documents** INSERT — `uploaded_by` → `auth.users(id)` (v_user_id satt av `auth.uid()` överst) ✅
+3. **analyses** INSERT — `document_id` → `documents.id` (documents skapade i steg 2) ✅
+4. *Per hem:* **addresses** INSERT → `id` sparas i `v_address_id`
+5. *Per hem:* **home_properties** INSERT — `home_id` → `homes.id` (p_target_homes-hem måste finnas; `user_can_write_home`-valideringen i steg 1 garanterar detta) ✅, `address_id` → `addresses.id` (v_address_id från steg 4) ✅
+6. *Per hem:* **home_profile** INSERT — `home_property_id` → `home_properties.id` (v_home_property_id från steg 5) ✅
+7. *Per hem:* **home_property_documents** INSERT — båda FK:erna uppfyllda (documents från steg 2, home_properties från steg 5) ✅
+
+### 10.4 Felmeddelanden
+
+| Meddelande | Omdöme |
+|---|---|
+| `'Användare är inte inloggad'` | ✅ Tydligt |
+| `'Minst ett hem måste väljas'` | ✅ Tydligt |
+| `'anlaggnings_id krävs'` | ✅ Tydligt |
+| `'anlaggnings_id måste vara exakt 18 siffror'` | ✅ Tydligt |
+| `'Adress måste innehålla street, postal_code och city'` | ✅ Tydligt |
+| `'Minst ett dokument krävs'` | ✅ Tydligt |
+| `'p_documents-arrayen måste ha samma längd som p_document_ids'` | ⚠️ Exponerar interna parameternamn — samma klass av problem som flaggades i sektion 5 för `create_initial_home_from_invoice`. Förslag: `'Antal dokument stämmer inte med antal dokument-ID:n'` |
+| `'Du har inte skrivrättigheter till alla valda hem (home_id: %)'` | ✅ Acceptabelt för v1 (UUID i felet hjälper debuggning) |
+
+### 10.5 SECURITY DEFINER och `user_can_write_home`
+
+`user_can_write_home` (schema rad ~430) är `security definer stable` och frågar `home_members` direkt med `auth.uid()`. Den är inte påverkad av funktionens SECURITY DEFINER-kontext — den returnerar alltid rätt svar för den inloggade användaren.
+
+Valideringsloopen kör **före alla INSERTs**, vilket innebär:
+- Antingen har användaren rätt till alla hem → alla skrivningar sker
+- Eller misslyckas ett hem → `raise exception` → hela transaktionen rullas tillbaka, inga partiella skrivningar ✅
+
+`stable`-märkningen är korrekt eftersom `home_members` inte modifieras av denna funktion (förutsätter att home_members-raden redan finns, vilket kräver att hemmet är skapat sedan tidigare). ✅
+
+### 10.6 Storage-policys med ny path-konvention
+
+Ny convention: `documents/{document_id}.pdf` (inom bucketen `documents`) → `storage.objects.name = '{document_id}.pdf'`
+
+Policyn matchar via:
+```sql
+where d.pdf_storage_path = storage.objects.name
+```
+
+`pdf_storage_path` i `documents`-tabellen lagrar exakt det server action sätter. Policyn är path-format-agnostisk — den gör ingen hårdkodad strängmanipulation. Så länge server action är konsekvent (`pdf_storage_path` = `storage.objects.name`) fungerar policyn oavsett konvention. ✅
+
+### 10.7 Nya observationer (utöver checkpoints)
+
+**1. `is_reference`-flaggan beter sig annorlunda än i `create_initial_home_from_invoice`**
+
+I `add_invoice_to_existing_homes` spåras `v_first_analysis` globalt över hela `p_analyses`-arrayen — bara allra första analysen (oavsett vilket dokument den tillhör) får `is_reference=true`. I `create_initial_home_from_invoice` är samma logik.
+
+Konsekvens: om server action skickar flera dokument+analyser i ett anrop, får bara ett dokument sin analys markerad som referens. Inte fel för v1 (server action skickar troligen ett dokument i taget), men värt att dokumentera. Se sektion 8.3 för djupare analys.
+
+**2. `idx_one_anlaggnings_id_per_home` hindrar inte funktionen**
+
+Partial unique index (`home_id, anlaggnings_id where anlaggnings_id is not null and deleted_at is null`) är korrekt designad. Funktionen kollar `deleted_at is null` i sin `select`-fråga — hittar befintlig home_property → INSERT:ar inte → ingen index-krock. ✅
+
+**3. Inga längdvalideringar (konsekvent med `create_initial_home_from_invoice`)**
+
+Samma brist som flaggades i sektion 8.7. Inte blockerande.
+
+### 10.8 Slutsats
+
+`add_invoice_to_existing_homes` är **redo för körning**. Schema-matchning korrekt, FK-ordning korrekt, M:N-semantiken implementerad rätt, permissions-validering sker atomiskt innan skrivningar, `on conflict`-hantering idempotent.
+
+**Enda rekommenderade åtgärd:** Skriv om felmeddelandet `'p_documents-arrayen...'` (se 10.4) — samma klass som sektion 5-rekommendation för `create_initial_home_from_invoice`.
