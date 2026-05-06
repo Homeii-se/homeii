@@ -207,7 +207,7 @@ create index idx_home_property_production_anlaggnings_id
 create table public.documents (
   id uuid primary key default gen_random_uuid(),
   document_type text not null check (document_type in ('invoice', 'offer')),
-  uploaded_by uuid not null references auth.users(id) on delete set null,
+  uploaded_by uuid references auth.users(id) on delete set null,
   
   -- Storage path-konvention: documents/{home_property_id}/{document_id}.pdf
   pdf_storage_path text,
