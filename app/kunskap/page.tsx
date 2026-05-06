@@ -4,19 +4,15 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Kunskap — HOMEii",
   description:
-    "Guider, räkneexempel, nyheter och en ordlista — allt om svensk elmarknad och energiåtgärder.",
+    "Energiguiden, nyheter & trender och en ordlista — allt om svensk elmarknad och energiåtgärder.",
 };
 
 const SECTIONS = [
   {
-    href: "/kunskap/guider",
-    title: "Guider",
-    description: "Steg-för-steg-guider för solceller, värmepumpar, batterier och andra energiåtgärder.",
-  },
-  {
-    href: "/kunskap/exempel",
-    title: "Räkneexempel",
-    description: "Verkliga exempel: vad sparar en typisk villa? Vad blev återbetalningen för en luft-vatten-värmepump?",
+    href: "/kunskap/energiguiden",
+    title: "Energiguiden",
+    description:
+      "Steg-för-steg-guider och interaktiva visualiseringar för solceller, värmepumpar, batterier och elbilar — plus räkneexempel som visar vad du faktiskt sparar.",
   },
   {
     href: "/kunskap/nyheter",
@@ -25,8 +21,9 @@ const SECTIONS = [
   },
   {
     href: "/kunskap/ordlista",
-    title: "Ordlista",
-    description: "Vad är effekttariff? Vad betyder COP? En jordnära ordlista med svenska elmarknads-termer.",
+    title: "Ordlista & FAQ",
+    description:
+      "Vad är effekttariff? Vad betyder COP? En jordnära ordlista plus svar på vanliga frågor om svensk elmarknad.",
   },
 ];
 
