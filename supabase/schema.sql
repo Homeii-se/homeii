@@ -10,7 +10,7 @@
 --      bara har testkonton)
 --   2. Backup av spot_prices om paranoid (vi rör den inte men ändå)
 --   3. Kör hela denna fil i Supabase SQL Editor
---   4. Verifiera att alla 13 tabeller skapats + RLS aktiverad
+--   4. Verifiera att alla 12 tabeller skapats + RLS aktiverad
 -- 
 -- Tabeller som behålls oförändrade: spot_prices, monthly_avg_prices, 
 --                                   user_profiles
@@ -26,7 +26,10 @@
 --     (Definieras dock med CREATE OR REPLACE i Del 4 nedan av samma skäl.)
 -- 
 -- Fil: supabase/schema.sql (V2)
--- Storage path-konvention: documents/{home_property_id}/{document_id}.pdf
+-- Storage path-konvention: documents/{document_id}.pdf
+--   (Förändrades från {home_property_id}/{document_id}.pdf eftersom 
+--    documents kan kopplas till flera home_properties via M:N — pathen 
+--    identifierar dokumentet, inte ägar-fastigheten.)
 -- 
 -- ============================================================================
 
@@ -149,22 +152,18 @@ create table public.home_properties (
   home_id uuid not null references public.homes(id) on delete cascade,
   property_type text not null check (property_type in ('real', 'hypothetical')),
   
-  -- För verkliga fastigheter
   anlaggnings_id text,
   address_id uuid references public.addresses(id),
   zone text check (zone in ('SE1', 'SE2', 'SE3', 'SE4')),
   network_operator text,
   country text not null default 'SE',
   
-  -- För fiktiva fastigheter
   hypothetical_name text,
   
-  -- Metadata
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   deleted_at timestamptz,
   
-  -- Constraint: real har anlaggnings_id, hypothetical har hypothetical_name
   check (
     (property_type = 'real' and anlaggnings_id is not null)
     or
@@ -177,14 +176,12 @@ create index idx_home_properties_anlaggnings_id on public.home_properties(anlagg
   where anlaggnings_id is not null;
 create index idx_home_properties_address_id on public.home_properties(address_id);
 
--- Samma anlaggnings_id kan inte finnas två gånger inom samma hem.
 create unique index idx_one_anlaggnings_id_per_home
   on public.home_properties(home_id, anlaggnings_id)
   where anlaggnings_id is not null and deleted_at is null;
 
 -- ----------------------------------------------------------------------------
 -- 2.6: home_property_production
--- Solcellskoppling. M:1 mot home_properties (i praktiken 1:0..1).
 -- ----------------------------------------------------------------------------
 create table public.home_property_production (
   id uuid primary key default gen_random_uuid(),
@@ -203,21 +200,17 @@ create index idx_home_property_production_anlaggnings_id
 
 -- ----------------------------------------------------------------------------
 -- 2.7: documents
--- Sparade dokument (fakturor och offerter). PDF i Storage + parsed JSON.
--- M:N mot home_properties via home_property_documents.
+-- Storage path: documents/{document_id}.pdf
 -- ----------------------------------------------------------------------------
 create table public.documents (
   id uuid primary key default gen_random_uuid(),
   document_type text not null check (document_type in ('invoice', 'offer')),
   uploaded_by uuid references auth.users(id) on delete set null,
   
-  -- Storage path-konvention: documents/{home_property_id}/{document_id}.pdf
   pdf_storage_path text,
   
-  -- Parsed data (Anthropic-svar)
   parsed_data jsonb,
   
-  -- Denormaliserade snabb-läs-fält (Beslut 7.3)
   total_kr numeric,
   consumption_kwh numeric,
   spot_price_ore_kwh numeric,
@@ -225,7 +218,6 @@ create table public.documents (
   invoice_period_start date,
   invoice_period_end date,
   
-  -- Metadata
   parser_confidence numeric,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -239,8 +231,6 @@ create index idx_documents_invoice_period on public.documents(invoice_period_sta
 
 -- ----------------------------------------------------------------------------
 -- 2.8: home_property_documents
--- M:N-kopplingstabell. Ett dokument kan tillhöra flera home_properties.
--- Ingen updated_at — kopplingar uppdateras inte, bara skapas/raderas.
 -- ----------------------------------------------------------------------------
 create table public.home_property_documents (
   home_property_id uuid not null references public.home_properties(id) on delete cascade,
@@ -253,7 +243,6 @@ create index idx_home_property_documents_document_id on public.home_property_doc
 
 -- ----------------------------------------------------------------------------
 -- 2.9: analyses
--- Anthropic-analysresultat per dokument.
 -- ----------------------------------------------------------------------------
 create table public.analyses (
   id uuid primary key default gen_random_uuid(),
@@ -269,14 +258,12 @@ create table public.analyses (
 
 create index idx_analyses_document_id on public.analyses(document_id);
 
--- Max en aktiv referens-analys per dokument
 create unique index idx_one_reference_analysis_per_document
   on public.analyses(document_id)
   where is_reference = true;
 
 -- ----------------------------------------------------------------------------
 -- 2.10: consumption_data
--- Granular kWh-data (timme/dag/månad). FK till home_properties.
 -- ----------------------------------------------------------------------------
 create table public.consumption_data (
   id uuid primary key default gen_random_uuid(),
@@ -294,8 +281,6 @@ create index idx_consumption_data_period on public.consumption_data(period_start
 
 -- ----------------------------------------------------------------------------
 -- 2.11: home_profile
--- Hemdata per fastighet (boyta, byggår, byggnadstyp, uppvärmning).
--- 1:1 med home_properties.
 -- ----------------------------------------------------------------------------
 create table public.home_profile (
   home_property_id uuid primary key references public.home_properties(id) on delete cascade,
@@ -310,7 +295,6 @@ create table public.home_profile (
 
 -- ----------------------------------------------------------------------------
 -- 2.12: home_equipment
--- Utrustning per fastighet — typad JSONB per equipment_key.
 -- ----------------------------------------------------------------------------
 create table public.home_equipment (
   home_property_id uuid not null references public.home_properties(id) on delete cascade,
@@ -326,9 +310,6 @@ create index idx_home_equipment_equipment_key on public.home_equipment(equipment
 -- ============================================================================
 -- DEL 3: TRIGGERS — updated_at
 -- ============================================================================
--- 
--- set_updated_at-funktionen kan redan finnas från V1; CREATE OR REPLACE 
--- säkerställer att den existerar oavsett.
 
 create or replace function public.set_updated_at()
 returns trigger as $$
@@ -369,8 +350,6 @@ create trigger trg_home_equipment_updated
 -- ============================================================================
 -- DEL 4: RLS-HJÄLPFUNKTIONER
 -- ============================================================================
--- 
--- Skopet är hem-nivå (skillnad mot V1 som hade mätarpunkt-nivå).
 
 create or replace function public.user_is_home_member(p_home_id uuid)
 returns boolean as $$
@@ -404,11 +383,6 @@ returns boolean as $$
   );
 $$ language sql security definer stable;
 
--- user_email_matches — behålls från V1, oförändrad.
--- Används av home_invitations-policys för att verifiera att inbjuden 
--- e-post matchar inloggad användare.
--- Future optimering: kan ersättas med auth.email() (Supabase-helper) 
--- för att undvika DB-lookup.
 create or replace function public.user_email_matches(p_email text)
 returns boolean as $$
   select exists (
@@ -428,7 +402,6 @@ create or replace function public.transfer_ownership(
 )
 returns void as $$
 begin
-  -- Verifiera att anroparen är aktiv ägare
   if not exists (
     select 1 from public.home_members
     where home_id = p_home_id
@@ -439,7 +412,6 @@ begin
     raise exception 'Endast aktiv ägare kan överlåta ägarskap';
   end if;
   
-  -- Verifiera att mottagaren är aktiv medlem
   if not exists (
     select 1 from public.home_members
     where home_id = p_home_id
@@ -449,14 +421,12 @@ begin
     raise exception 'Mottagaren måste vara aktiv medlem av hemmet';
   end if;
   
-  -- Degradera nuvarande ägare till member
   update public.home_members
     set role = 'member'
     where home_id = p_home_id
       and user_id = auth.uid()
       and role = 'owner';
   
-  -- Uppgradera mottagare till owner
   update public.home_members
     set role = 'owner'
     where home_id = p_home_id
@@ -485,9 +455,7 @@ alter table public.home_equipment enable row level security;
 -- DEL 7: RLS-POLICYS
 -- ============================================================================
 
--- ----------------------------------------------------------------------------
--- homes
--- ----------------------------------------------------------------------------
+-- ----- homes -----
 create policy "members see homes"
   on public.homes for select
   using (public.user_is_home_member(id));
@@ -500,13 +468,7 @@ create policy "owners delete homes"
   on public.homes for delete
   using (public.user_is_home_owner(id));
 
--- INSERT av nya hem hanteras via RPC (create_initial_home_from_invoice 
--- eller create_empty_home). Direkt INSERT från authenticated kräver 
--- service_role.
-
--- ----------------------------------------------------------------------------
--- home_members
--- ----------------------------------------------------------------------------
+-- ----- home_members -----
 create policy "members see fellow members"
   on public.home_members for select
   using (public.user_is_home_member(home_id));
@@ -530,9 +492,7 @@ create policy "users leave homes"
   on public.home_members for update
   using (user_id = auth.uid());
 
--- ----------------------------------------------------------------------------
--- home_invitations
--- ----------------------------------------------------------------------------
+-- ----- home_invitations -----
 create policy "members see invitations sent"
   on public.home_invitations for select
   using (public.user_is_home_member(home_id));
@@ -549,9 +509,7 @@ create policy "users respond to their invitations"
   on public.home_invitations for update
   using (public.user_email_matches(invited_email));
 
--- ----------------------------------------------------------------------------
--- home_properties
--- ----------------------------------------------------------------------------
+-- ----- home_properties -----
 create policy "members see home properties"
   on public.home_properties for select
   using (public.user_is_home_member(home_id));
@@ -561,9 +519,7 @@ create policy "writers manage home properties"
   using (public.user_can_write_home(home_id))
   with check (public.user_can_write_home(home_id));
 
--- ----------------------------------------------------------------------------
--- home_property_production
--- ----------------------------------------------------------------------------
+-- ----- home_property_production -----
 create policy "members see production"
   on public.home_property_production for select
   using (
@@ -591,11 +547,7 @@ create policy "writers manage production"
     )
   );
 
--- ----------------------------------------------------------------------------
--- addresses
--- En adress är synlig om användaren är medlem i ett hem som har en 
--- home_property som pekar på adressen.
--- ----------------------------------------------------------------------------
+-- ----- addresses -----
 create policy "members see addresses via home_properties"
   on public.addresses for select
   using (
@@ -606,15 +558,7 @@ create policy "members see addresses via home_properties"
     )
   );
 
--- INSERT/UPDATE av addresses sker via RPC eller server action med 
--- service_role.
-
--- ----------------------------------------------------------------------------
--- documents
--- Ett dokument är synligt om det är kopplat (via home_property_documents) 
--- till minst en home_property i ett hem som användaren är medlem i.
--- M:N-kopplingen kräver EXISTS-subquery.
--- ----------------------------------------------------------------------------
+-- ----- documents -----
 create policy "members see documents"
   on public.documents for select
   using (
@@ -637,12 +581,7 @@ create policy "writers update documents"
     )
   );
 
--- INSERT av documents sker via server action (bypassar RLS via 
--- service_role eller tas via RPC-funktion).
-
--- ----------------------------------------------------------------------------
--- home_property_documents
--- ----------------------------------------------------------------------------
+-- ----- home_property_documents -----
 create policy "members see home_property_documents"
   on public.home_property_documents for select
   using (
@@ -670,10 +609,7 @@ create policy "writers manage home_property_documents"
     )
   );
 
--- ----------------------------------------------------------------------------
--- analyses
--- Synlig om dokumentet är synligt.
--- ----------------------------------------------------------------------------
+-- ----- analyses -----
 create policy "members see analyses"
   on public.analyses for select
   using (
@@ -698,9 +634,7 @@ create policy "writers create analyses"
     )
   );
 
--- ----------------------------------------------------------------------------
--- consumption_data
--- ----------------------------------------------------------------------------
+-- ----- consumption_data -----
 create policy "members see consumption_data"
   on public.consumption_data for select
   using (
@@ -711,12 +645,7 @@ create policy "members see consumption_data"
     )
   );
 
--- INSERT/UPDATE/DELETE av consumption_data sker via service_role 
--- (cron-jobb).
-
--- ----------------------------------------------------------------------------
--- home_profile
--- ----------------------------------------------------------------------------
+-- ----- home_profile -----
 create policy "members see home_profile"
   on public.home_profile for select
   using (
@@ -744,9 +673,7 @@ create policy "writers manage home_profile"
     )
   );
 
--- ----------------------------------------------------------------------------
--- home_equipment
--- ----------------------------------------------------------------------------
+-- ----- home_equipment -----
 create policy "members see home_equipment"
   on public.home_equipment for select
   using (
@@ -787,7 +714,7 @@ grant select, insert, update, delete on public.home_property_production to authe
 grant select, insert, update, delete on public.documents to authenticated;
 grant select, insert, update, delete on public.home_property_documents to authenticated;
 grant select, insert, update, delete on public.analyses to authenticated;
-grant select on public.consumption_data to authenticated;  -- bara läsa
+grant select on public.consumption_data to authenticated;
 grant select, insert, update, delete on public.home_profile to authenticated;
 grant select, insert, update, delete on public.home_equipment to authenticated;
 
@@ -811,41 +738,25 @@ grant execute on function public.user_email_matches(text) to authenticated;
 grant execute on function public.transfer_ownership(uuid, uuid) to authenticated;
 
 -- ============================================================================
--- DEL 9: RPC-FUNKTIONER FÖR HEM-SKAPANDE
+-- DEL 9: RPC-FUNKTIONER FÖR HEM-SKAPANDE OCH FAKTURASPARANDE
 -- ============================================================================
 -- 
--- Två funktioner för att skapa nya hem:
+-- Tre funktioner:
 -- 
--- 1. create_initial_home_from_invoice — atomisk skapelse av hem + fastighet
---    + dokument + analyser + home_profile från en uppladdad första faktura.
---    Anropas av server action på /app/spara-analys.
+-- 1. create_initial_home_from_invoice — atomisk skapelse av användarens 
+--    första hem från en uppladdad faktura. Anropas i första-gångs-flödet.
 -- 
--- 2. create_empty_home — skapa tomt hem för manuell hantering. Anropas av 
---    "Skapa nytt hem"-knapp i UI.
+-- 2. create_empty_home — skapa tomt hem manuellt via "Skapa nytt hem"-knapp.
 -- 
--- Båda är SECURITY DEFINER så de kan kringgå RLS för att skapa första 
--- home_members-raden med role='owner' (vanlig INSERT på home_members med 
--- role='owner' är blockerad för authenticated).
+-- 3. add_invoice_to_existing_homes — lägg till faktura i ett eller flera 
+--    befintliga hem (inkl. hem som precis skapats med create_empty_home).
+-- 
+-- Alla tre är SECURITY DEFINER så de kan kringgå RLS för INSERT på homes 
+-- och home_members med role='owner'.
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
 -- 9.1: create_initial_home_from_invoice
--- ----------------------------------------------------------------------------
--- 
--- Anropas efter att server action:
---   1. Verifierat att användaren är inloggad
---   2. Validerat input
---   3. Genererat UUID:er för home, home_property och alla documents
---   4. Laddat upp PDF:er till Storage på pathen 
---      documents/{home_property_id}/{document_id}.pdf
--- 
--- Funktionen skapar address, home, home_members (owner), home_property, 
--- home_profile, documents, home_property_documents-kopplingar och analyses.
--- 
--- Vid fel: raise exception, transaktionen rullas tillbaka. Server action 
--- ansvarar för att radera Storage-uppladdade PDF:er.
--- 
--- Returnerar: jsonb { home_id, home_property_id, document_ids[] }
 -- ----------------------------------------------------------------------------
 
 create or replace function public.create_initial_home_from_invoice(
@@ -871,17 +782,11 @@ declare
   v_first_analysis boolean := true;
   v_doc_count int;
 begin
-  -- ==========================================================================
-  -- Validera att användaren är inloggad
-  -- ==========================================================================
   v_user_id := auth.uid();
   if v_user_id is null then
     raise exception 'Användare är inte inloggad';
   end if;
   
-  -- ==========================================================================
-  -- Validera input
-  -- ==========================================================================
   if p_home is null or coalesce(p_home->>'name', '') = '' then
     raise exception 'Hem-namn krävs';
   end if;
@@ -910,17 +815,8 @@ begin
     raise exception 'p_documents-arrayen måste ha samma längd som p_document_ids';
   end if;
   
-  -- ==========================================================================
-  -- Skapa addressrad (alltid ny — ingen deduplicering)
-  -- ==========================================================================
   insert into public.addresses (
-    street,
-    postal_code,
-    city,
-    kommun,
-    country,
-    latitude,
-    longitude
+    street, postal_code, city, kommun, country, latitude, longitude
   )
   values (
     p_address->>'street',
@@ -933,9 +829,6 @@ begin
   )
   returning id into v_address_id;
   
-  -- ==========================================================================
-  -- Skapa hem-rad
-  -- ==========================================================================
   insert into public.homes (id, name, description, created_by)
   values (
     p_home_id,
@@ -944,24 +837,12 @@ begin
     v_user_id
   );
   
-  -- ==========================================================================
-  -- Skapa owner-medlemskap
-  -- ==========================================================================
   insert into public.home_members (home_id, user_id, role)
   values (p_home_id, v_user_id, 'owner');
   
-  -- ==========================================================================
-  -- Skapa fastighet (property_type='real')
-  -- ==========================================================================
   insert into public.home_properties (
-    id,
-    home_id,
-    property_type,
-    anlaggnings_id,
-    address_id,
-    zone,
-    network_operator,
-    country
+    id, home_id, property_type, anlaggnings_id, address_id, 
+    zone, network_operator, country
   )
   values (
     p_home_property_id,
@@ -974,16 +855,9 @@ begin
     coalesce(p_property->>'country', 'SE')
   );
   
-  -- ==========================================================================
-  -- Skapa home_profile (med null-värden för fält som saknas)
-  -- ==========================================================================
   insert into public.home_profile (
-    home_property_id,
-    living_area_m2,
-    building_year,
-    building_type,
-    heating_type,
-    num_residents
+    home_property_id, living_area_m2, building_year, 
+    building_type, heating_type, num_residents
   )
   values (
     p_home_property_id,
@@ -994,25 +868,12 @@ begin
     nullif(p_home_profile->>'num_residents', '')::int
   );
   
-  -- ==========================================================================
-  -- Loopa igenom dokument
-  -- ==========================================================================
   for v_doc in select * from jsonb_array_elements(p_documents)
   loop
-    -- Skapa documents-rad
     insert into public.documents (
-      id,
-      document_type,
-      uploaded_by,
-      pdf_storage_path,
-      parsed_data,
-      total_kr,
-      consumption_kwh,
-      spot_price_ore_kwh,
-      electricity_supplier,
-      invoice_period_start,
-      invoice_period_end,
-      parser_confidence
+      id, document_type, uploaded_by, pdf_storage_path, parsed_data,
+      total_kr, consumption_kwh, spot_price_ore_kwh, electricity_supplier,
+      invoice_period_start, invoice_period_end, parser_confidence
     )
     values (
       (v_doc->>'id')::uuid,
@@ -1029,23 +890,14 @@ begin
       nullif(v_doc->>'parser_confidence', '')::numeric
     );
     
-    -- Koppla document till home_property via M:N-tabell
     insert into public.home_property_documents (home_property_id, document_id)
     values (p_home_property_id, (v_doc->>'id')::uuid);
   end loop;
   
-  -- ==========================================================================
-  -- Loopa igenom analyser
-  -- ==========================================================================
   for v_analysis in select * from jsonb_array_elements(p_analyses)
   loop
     insert into public.analyses (
-      document_id,
-      analysis_type,
-      model_version,
-      result,
-      raw_response,
-      is_reference
+      document_id, analysis_type, model_version, result, raw_response, is_reference
     )
     values (
       (v_analysis->>'document_id')::uuid,
@@ -1053,16 +905,11 @@ begin
       v_analysis->>'model_version',
       v_analysis->'result',
       v_analysis->'raw_response',
-      v_first_analysis  -- första analysen blir baseline
+      v_first_analysis
     );
-    
-    -- Bara första analysen markeras som is_reference
     v_first_analysis := false;
   end loop;
   
-  -- ==========================================================================
-  -- Returnera struktur för redirect och flash-meddelande
-  -- ==========================================================================
   return jsonb_build_object(
     'home_id', p_home_id,
     'home_property_id', p_home_property_id,
@@ -1078,16 +925,6 @@ grant execute on function public.create_initial_home_from_invoice(
 -- ----------------------------------------------------------------------------
 -- 9.2: create_empty_home
 -- ----------------------------------------------------------------------------
--- 
--- Anropas av "Skapa nytt hem"-knapp i UI eller från checkboxlistan i 
--- /app/spara-analys när användaren väljer "Skapa nytt hem...".
--- 
--- Skapar bara hem-raden + home_members-raden med role='owner'. Inga 
--- fastigheter eller dokument — användaren lägger till dem senare via 
--- /app/mitt-hem eller genom att spara fakturor i hemmet.
--- 
--- Returnerar: home_id (uuid)
--- ----------------------------------------------------------------------------
 
 create or replace function public.create_empty_home(
   p_name text
@@ -1101,13 +938,11 @@ declare
   v_home_id uuid;
   v_trimmed_name text;
 begin
-  -- Validera inloggning
   v_user_id := auth.uid();
   if v_user_id is null then
     raise exception 'Användare är inte inloggad';
   end if;
   
-  -- Validera namn
   v_trimmed_name := trim(coalesce(p_name, ''));
   if v_trimmed_name = '' then
     raise exception 'Hem-namn krävs';
@@ -1117,12 +952,10 @@ begin
     raise exception 'Hem-namn får vara max 200 tecken';
   end if;
   
-  -- Skapa hem
   insert into public.homes (name, created_by)
   values (v_trimmed_name, v_user_id)
   returning id into v_home_id;
   
-  -- Skapa owner-medlemskap
   insert into public.home_members (home_id, user_id, role)
   values (v_home_id, v_user_id, 'owner');
   
@@ -1131,6 +964,216 @@ end;
 $$;
 
 grant execute on function public.create_empty_home(text) to authenticated;
+
+-- ----------------------------------------------------------------------------
+-- 9.3: add_invoice_to_existing_homes
+-- ----------------------------------------------------------------------------
+-- 
+-- Anropas av server action när användaren sparar en faktura och väljer 
+-- ett eller flera befintliga hem (inkl. nyligen skapade via 
+-- create_empty_home). Skiljer sig från create_initial_home_from_invoice 
+-- som är för första-gångs-flödet.
+-- 
+-- För varje hem i p_target_homes:
+--   1. Validerar att användaren har skrivrätt
+--   2. Hittar eller skapar en home_property med matchande anlaggnings_id
+--   3. Kopplar dokumenten via home_property_documents
+-- 
+-- Documents och analyses skapas EN GÅNG (utanför hem-loopen) — M:N-modellen 
+-- innebär att samma dokument kan tillhöra flera hem utan duplicering.
+-- 
+-- Returnerar: jsonb { 
+--   home_property_ids: { home_id: home_property_id, ... },
+--   document_ids: [...]
+-- }
+-- ----------------------------------------------------------------------------
+
+create or replace function public.add_invoice_to_existing_homes(
+  p_target_homes uuid[],
+  p_anlaggnings_id text,
+  p_address jsonb,
+  p_property jsonb,
+  p_document_ids uuid[],
+  p_documents jsonb,
+  p_analyses jsonb,
+  p_home_profile jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+as $$
+declare
+  v_user_id uuid;
+  v_home_id uuid;
+  v_home_property_id uuid;
+  v_address_id uuid;
+  v_doc jsonb;
+  v_analysis jsonb;
+  v_first_analysis boolean := true;
+  v_doc_count int;
+  v_home_property_map jsonb := '{}'::jsonb;
+begin
+  v_user_id := auth.uid();
+  if v_user_id is null then
+    raise exception 'Användare är inte inloggad';
+  end if;
+  
+  if array_length(p_target_homes, 1) is null or array_length(p_target_homes, 1) = 0 then
+    raise exception 'Minst ett hem måste väljas';
+  end if;
+  
+  if coalesce(p_anlaggnings_id, '') = '' then
+    raise exception 'anlaggnings_id krävs';
+  end if;
+  
+  if p_anlaggnings_id !~ '^\d{18}$' then
+    raise exception 'anlaggnings_id måste vara exakt 18 siffror';
+  end if;
+  
+  if p_address is null 
+    or coalesce(p_address->>'street', '') = ''
+    or coalesce(p_address->>'postal_code', '') = ''
+    or coalesce(p_address->>'city', '') = '' then
+    raise exception 'Adress måste innehålla street, postal_code och city';
+  end if;
+  
+  if array_length(p_document_ids, 1) is null or array_length(p_document_ids, 1) = 0 then
+    raise exception 'Minst ett dokument krävs';
+  end if;
+  
+  v_doc_count := jsonb_array_length(p_documents);
+  if v_doc_count != array_length(p_document_ids, 1) then
+    raise exception 'p_documents-arrayen måste ha samma längd som p_document_ids';
+  end if;
+  
+  -- Validera rättigheter till alla hem före vi börjar skriva
+  foreach v_home_id in array p_target_homes
+  loop
+    if not public.user_can_write_home(v_home_id) then
+      raise exception 'Du har inte skrivrättigheter till alla valda hem (home_id: %)', v_home_id;
+    end if;
+  end loop;
+  
+  -- Skapa documents en gång (M:N-modellen — samma dokument kan tillhöra flera hem)
+  for v_doc in select * from jsonb_array_elements(p_documents)
+  loop
+    insert into public.documents (
+      id, document_type, uploaded_by, pdf_storage_path, parsed_data,
+      total_kr, consumption_kwh, spot_price_ore_kwh, electricity_supplier,
+      invoice_period_start, invoice_period_end, parser_confidence
+    )
+    values (
+      (v_doc->>'id')::uuid,
+      coalesce(v_doc->>'document_type', 'invoice'),
+      v_user_id,
+      v_doc->>'pdf_storage_path',
+      v_doc->'parsed_data',
+      nullif(v_doc->>'total_kr', '')::numeric,
+      nullif(v_doc->>'consumption_kwh', '')::numeric,
+      nullif(v_doc->>'spot_price_ore_kwh', '')::numeric,
+      v_doc->>'electricity_supplier',
+      nullif(v_doc->>'invoice_period_start', '')::date,
+      nullif(v_doc->>'invoice_period_end', '')::date,
+      nullif(v_doc->>'parser_confidence', '')::numeric
+    );
+  end loop;
+  
+  -- Skapa analyses en gång
+  for v_analysis in select * from jsonb_array_elements(p_analyses)
+  loop
+    insert into public.analyses (
+      document_id, analysis_type, model_version, result, raw_response, is_reference
+    )
+    values (
+      (v_analysis->>'document_id')::uuid,
+      coalesce(v_analysis->>'analysis_type', 'invoice_analysis'),
+      v_analysis->>'model_version',
+      v_analysis->'result',
+      v_analysis->'raw_response',
+      v_first_analysis
+    );
+    v_first_analysis := false;
+  end loop;
+  
+  -- För varje hem: hitta eller skapa home_property, koppla documents
+  foreach v_home_id in array p_target_homes
+  loop
+    -- Hitta befintlig home_property med matchande anlaggnings_id
+    select id into v_home_property_id
+    from public.home_properties
+    where home_id = v_home_id
+      and anlaggnings_id = p_anlaggnings_id
+      and deleted_at is null
+    limit 1;
+    
+    -- Om ingen befintlig: skapa ny
+    if v_home_property_id is null then
+      insert into public.addresses (
+        street, postal_code, city, kommun, country, latitude, longitude
+      )
+      values (
+        p_address->>'street',
+        p_address->>'postal_code',
+        p_address->>'city',
+        p_address->>'kommun',
+        coalesce(p_address->>'country', 'SE'),
+        nullif(p_address->>'latitude', '')::numeric,
+        nullif(p_address->>'longitude', '')::numeric
+      )
+      returning id into v_address_id;
+      
+      v_home_property_id := gen_random_uuid();
+      insert into public.home_properties (
+        id, home_id, property_type, anlaggnings_id, address_id,
+        zone, network_operator, country
+      )
+      values (
+        v_home_property_id,
+        v_home_id,
+        'real',
+        p_anlaggnings_id,
+        v_address_id,
+        p_property->>'zone',
+        p_property->>'network_operator',
+        coalesce(p_property->>'country', 'SE')
+      );
+      
+      insert into public.home_profile (
+        home_property_id, living_area_m2, building_year,
+        building_type, heating_type, num_residents
+      )
+      values (
+        v_home_property_id,
+        nullif(p_home_profile->>'living_area_m2', '')::numeric,
+        nullif(p_home_profile->>'building_year', '')::int,
+        p_home_profile->>'building_type',
+        p_home_profile->>'heating_type',
+        nullif(p_home_profile->>'num_residents', '')::int
+      );
+    end if;
+    
+    -- Koppla alla documents till denna home_property
+    for v_doc in select * from jsonb_array_elements(p_documents)
+    loop
+      insert into public.home_property_documents (home_property_id, document_id)
+      values (v_home_property_id, (v_doc->>'id')::uuid)
+      on conflict (home_property_id, document_id) do nothing;
+    end loop;
+    
+    v_home_property_map := v_home_property_map || 
+      jsonb_build_object(v_home_id::text, v_home_property_id);
+  end loop;
+  
+  return jsonb_build_object(
+    'home_property_ids', v_home_property_map,
+    'document_ids', to_jsonb(p_document_ids)
+  );
+end;
+$$;
+
+grant execute on function public.add_invoice_to_existing_homes(
+  uuid[], text, jsonb, jsonb, uuid[], jsonb, jsonb, jsonb
+) to authenticated;
 
 -- ============================================================================
 -- DEL 10: STORAGE BUCKET RLS-POLICYS (för documents-bucketen)
@@ -1141,9 +1184,7 @@ grant execute on function public.create_empty_home(text) to authenticated;
 --                          file size limit: 10 MB, allowed MIME: 
 --                          application/pdf
 -- 
--- Sedan körs nedanstående policys för att RLS:en ska fungera.
--- 
--- Filer lagras under sökväg: documents/{home_property_id}/{document_id}.pdf
+-- Filer lagras under sökväg: documents/{document_id}.pdf
 
 create policy "members see documents in storage"
   on storage.objects for select
@@ -1162,8 +1203,6 @@ create policy "writers upload documents to storage"
   on storage.objects for insert
   with check (
     bucket_id = 'documents'
-    -- Vid upload finns ingen documents-rad ännu — server action ansvarar 
-    -- för att verifiera att användaren har skrivrätt till relevant hem.
     and auth.uid() is not null
   );
 
@@ -1186,28 +1225,22 @@ create policy "writers delete documents from storage"
 -- 
 -- Verifiera efter körning:
 -- 
---   1. SELECT count(*) FROM information_schema.tables 
---      WHERE table_schema = 'public';
---      -- Förväntat: 13 (V2 Mina sidor) + 1 (user_profiles) + 2 
---      -- (spot_prices, monthly_avg_prices) = 16 tabeller
+--   1. Tabeller (förväntat 12 V2 + user_profiles + spot_prices + monthly_avg_prices = 15)
+--      SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';
 -- 
---   2. SELECT proname FROM pg_proc WHERE pronamespace = 'public'::regnamespace
+--   2. Funktioner (förväntat 10):
+--      SELECT proname FROM pg_proc WHERE pronamespace = 'public'::regnamespace
 --      ORDER BY proname;
---      -- Förväntat: create_empty_home, create_initial_home_from_invoice,
---      --           handle_new_user, set_updated_at, transfer_ownership,
---      --           user_can_write_home, user_email_matches, 
---      --           user_is_home_member, user_is_home_owner
+--      -- add_invoice_to_existing_homes, create_empty_home, 
+--      -- create_initial_home_from_invoice, handle_new_user, set_updated_at,
+--      -- transfer_ownership, user_can_write_home, user_email_matches,
+--      -- user_is_home_member, user_is_home_owner
 -- 
---   3. Test-anropa create_empty_home (kräver inloggad session):
+--   3. Test create_empty_home (kräver inloggad session):
 --      SELECT public.create_empty_home('Test-hem');
---      -- Returnerar UUID. Verifiera sedan:
---      SELECT * FROM homes ORDER BY created_at DESC LIMIT 1;
---      SELECT * FROM home_members WHERE home_id = '<uuid-fran-ovan>';
---      -- Owner-raden ska finnas.
 -- 
---   4. create_initial_home_from_invoice testas via server action på 
---      /app/spara-analys.
+--   4. create_initial_home_from_invoice + add_invoice_to_existing_homes 
+--      testas via server action på /app/spara-analys.
 -- 
--- Nästa steg: skriv om server action på /app/spara-analys så den anropar 
--- create_initial_home_from_invoice.
+-- Nästa steg: skriv om server action på /app/spara-analys.
 -- ============================================================================
