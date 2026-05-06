@@ -7,13 +7,16 @@ import { useActionState, useMemo, useState } from "react";
 import { saveAnalysis, type SaveAnalysisResult } from "./actions";
 import { loadState } from "@/app/simulator/storage";
 import type { SimulatorState } from "@/app/simulator/types";
-import type { DbHome } from "@/lib/types/database";
+import type { HomeWithAnlaggnings } from "./page";
 
 interface AddressFormProps {
-  myHomes: DbHome[];
+  myHomes: HomeWithAnlaggnings[];
 }
 
 export function AddressForm({ myHomes }: AddressFormProps) {
+  // ---------------------------------------------------------------------------
+  // Lazy load homeii-state from localStorage on mount
+  // ---------------------------------------------------------------------------
   const [state] = useState<SimulatorState | null>(() => loadState());
 
   // ---------------------------------------------------------------------------
@@ -24,20 +27,28 @@ export function AddressForm({ myHomes }: AddressFormProps) {
   const [city, setCity] = useState(() => state?.billData?.city ?? "");
   const [anlaggningsId, setAnlaggningsId] = useState(() => state?.billData?.anlaggningsId ?? "");
 
-  // Home picker state (only used when myHomes.length > 0)
-  const [selectedHomeIds, setSelectedHomeIds] = useState<Set<string>>(new Set());
-  const [createNewHome, setCreateNewHome] = useState(false);
-  const [newHomeName, setNewHomeName] = useState("");
+  // ---------------------------------------------------------------------------
+  // Smart match — find homes that already contain this anlaggnings_id
+  // ---------------------------------------------------------------------------
+  const matchingHomes = useMemo(() => {
+    if (!anlaggningsId || anlaggningsId.length !== 18) return [];
+    return myHomes.filter((h) => h.anlaggnings_ids.includes(anlaggningsId));
+  }, [myHomes, anlaggningsId]);
 
   // ---------------------------------------------------------------------------
-  // Smart match: pre-check homes that already contain this anlaggnings_id.
-  // 
-  // NOTE: This is a placeholder for v1. To do this properly we'd need to fetch 
-  // the home_properties for each home and check anlaggnings_id matches. For now 
-  // we pre-check NOTHING and let the user pick — smart match will be added in 
-  // a follow-up.
+  // Home picker state — initialized with smart match
   // ---------------------------------------------------------------------------
-  // TODO: Implement smart match by fetching home_properties via API or RPC.
+  const [selectedHomeIds, setSelectedHomeIds] = useState<Set<string>>(() => {
+    // On mount, pre-check matching homes
+    return new Set(matchingHomes.map((h) => h.id));
+  });
+  const [createNewHome, setCreateNewHome] = useState(() => {
+    // If no homes match, pre-check "Skapa nytt hem" as a sensible default
+    // (only when user has homes — first-time users dont see the picker at all)
+    return myHomes.length > 0 && matchingHomes.length === 0;
+  });
+  const [newHomeName, setNewHomeName] = useState("");
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   // ---------------------------------------------------------------------------
   // Server action wiring
@@ -52,6 +63,12 @@ export function AddressForm({ myHomes }: AddressFormProps) {
   // ---------------------------------------------------------------------------
   const isFirstTime = myHomes.length === 0;
 
+  /**
+   * Intro message — shown above the form. Three variants:
+   *   - First-time user (no homes yet): friendly explanation that we auto-create a home
+   *   - Smart match (1+ homes match anlaggnings_id): pre-check those, explain
+   *   - No match (homes exist but none match): say so, pre-check "Skapa nytt hem"
+   */
   const introMessage = useMemo(() => {
     if (isFirstTime) {
       return (
@@ -59,16 +76,83 @@ export function AddressForm({ myHomes }: AddressFormProps) {
           <p className="text-sm text-blue-900">
             <strong>Det här är din första faktura.</strong> Vi skapar
             automatiskt ett hem för dig och kallar det{" "}
-            <strong>&quot;Hem på {street || "din adress"}&quot;</strong>. Du kan döpa
-            om hemmet senare under Inställningar, eller skapa fler hem om
-            fakturan ska tillhöra flera.
+            <strong>&quot;Hem på {street || "din adress"}&quot;</strong>. Du
+            kan döpa om hemmet senare under Inställningar, eller skapa fler
+            hem om fakturan ska tillhöra flera.
           </p>
         </div>
       );
     }
-    return null;
-  }, [isFirstTime, street]);
 
+    // User has existing homes — adaptive text based on match count
+    if (matchingHomes.length === 1) {
+      return (
+        <div className="rounded-lg border border-green-200 bg-green-50 p-4 mb-6">
+          <p className="text-sm text-green-900">
+            Den här anläggningen finns redan i{" "}
+            <strong>&quot;{matchingHomes[0].name}&quot;</strong>. För att
+            bara lägga till den där tryck Spara, annars välj vilket/vilka
+            hem du vill lägga till fakturan i.
+          </p>
+        </div>
+      );
+    }
+
+    if (matchingHomes.length > 1) {
+      const names = matchingHomes.map((h) => `"${h.name}"`);
+      // Format names with "och" before the last
+      const formatted =
+        names.length === 2
+          ? `${names[0]} och ${names[1]}`
+          : `${names.slice(0, -1).join(", ")} och ${names[names.length - 1]}`;
+      return (
+        <div className="rounded-lg border border-green-200 bg-green-50 p-4 mb-6">
+          <p className="text-sm text-green-900">
+            Den här anläggningen finns redan i <strong>{formatted}</strong>.
+            För att lägga till den där tryck Spara, annars välj vilka hem du
+            vill lägga till fakturan i.
+          </p>
+        </div>
+      );
+    }
+
+    // No match
+    return (
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 mb-6">
+        <p className="text-sm text-gray-900">
+          Vi kunde inte hitta liknande fakturor i något befintligt hem. Välj
+          vilket/vilka hem du vill lägga till fakturan i.
+        </p>
+      </div>
+    );
+  }, [isFirstTime, matchingHomes, street]);
+
+  // ---------------------------------------------------------------------------
+  // Submit validation (client-side, before server action runs)
+  // ---------------------------------------------------------------------------
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    if (!isFirstTime) {
+      // For non-first-time users: ensure at least one home is selected OR 
+      // create_new_home is checked
+      if (selectedHomeIds.size === 0 && !createNewHome) {
+        e.preventDefault();
+        setValidationError(
+          "Du måste välja minst ett hem eller skapa ett nytt hem.",
+        );
+        return;
+      }
+      if (createNewHome && !newHomeName.trim()) {
+        e.preventDefault();
+        setValidationError("Skriv ett namn för det nya hemmet.");
+        return;
+      }
+    }
+    setValidationError(null);
+  };
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
   if (!state?.billData) {
     return (
       <div className="rounded-lg border border-red-200 bg-red-50 p-4">
@@ -83,11 +167,8 @@ export function AddressForm({ myHomes }: AddressFormProps) {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
   return (
-    <form action={formAction} className="space-y-6">
+    <form action={formAction} onSubmit={handleSubmit} className="space-y-6">
       {introMessage}
 
       {/* Hidden input: serialized state */}
@@ -164,33 +245,41 @@ export function AddressForm({ myHomes }: AddressFormProps) {
         </div>
       </fieldset>
 
-      {/* Home picker (only shown when user has existing homes) */}
+      {/* Home picker — only shown when user has existing homes */}
       {!isFirstTime && (
         <fieldset className="space-y-3 rounded-lg border p-4">
           <legend className="font-medium px-2">Vilka hem?</legend>
-          <p className="text-sm text-gray-600">
-            Välj vilka hem du vill lägga till fakturan i.
-          </p>
 
-          {myHomes.map((home) => (
-            <label key={home.id} className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                name="selected_home_ids"
-                value={home.id}
-                checked={selectedHomeIds.has(home.id)}
-                onChange={(e) => {
-                  setSelectedHomeIds((prev) => {
-                    const next = new Set(prev);
-                    if (e.target.checked) next.add(home.id);
-                    else next.delete(home.id);
-                    return next;
-                  });
-                }}
-              />
-              <span>{home.name}</span>
-            </label>
-          ))}
+          {myHomes.map((home) => {
+            const isMatching = matchingHomes.some((m) => m.id === home.id);
+            return (
+              <label key={home.id} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  name="selected_home_ids"
+                  value={home.id}
+                  checked={selectedHomeIds.has(home.id)}
+                  onChange={(e) => {
+                    setSelectedHomeIds((prev) => {
+                      const next = new Set(prev);
+                      if (e.target.checked) next.add(home.id);
+                      else next.delete(home.id);
+                      return next;
+                    });
+                    setValidationError(null);
+                  }}
+                />
+                <span>
+                  {home.name}
+                  {isMatching && (
+                    <span className="ml-2 text-xs text-green-700">
+                      (matchande anläggning)
+                    </span>
+                  )}
+                </span>
+              </label>
+            );
+          })}
 
           <label className="flex items-center gap-2 border-t pt-3">
             <input
@@ -198,7 +287,10 @@ export function AddressForm({ myHomes }: AddressFormProps) {
               name="create_new_home"
               value="true"
               checked={createNewHome}
-              onChange={(e) => setCreateNewHome(e.target.checked)}
+              onChange={(e) => {
+                setCreateNewHome(e.target.checked);
+                setValidationError(null);
+              }}
             />
             <span>Skapa nytt hem...</span>
           </label>
@@ -224,7 +316,14 @@ export function AddressForm({ myHomes }: AddressFormProps) {
         </fieldset>
       )}
 
-      {/* Error display */}
+      {/* Client-side validation error */}
+      {validationError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+          <p className="text-sm text-red-900">{validationError}</p>
+        </div>
+      )}
+
+      {/* Server action error */}
       {actionState && !actionState.success && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">
           <p className="text-sm text-red-900">{actionState.error}</p>

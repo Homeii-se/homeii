@@ -4,19 +4,15 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AddressForm } from "./address-form";
-import type { DbHome } from "@/lib/types/database";
 
 /**
  * Server component for /app/spara-analys.
  *
  * Responsibilities:
- *   1. Verify user is authenticated (proxy.ts already does this, but defense-in-depth)
- *   2. Verify user has completed profile (profile guard from PR #7-8B)
- *   3. Fetch the user's existing homes (for the home picker)
+ *   1. Verify user is authenticated
+ *   2. Verify user has completed profile
+ *   3. Fetch the user's existing homes WITH their home_properties (for smart match)
  *   4. Render AddressForm with myHomes prop
- *
- * The form itself reads homeii-state from localStorage on the client side
- * (lazy useState initializer in AddressForm).
  */
 export default async function SparaAnalysPage() {
   const supabase = await createClient();
@@ -30,7 +26,7 @@ export default async function SparaAnalysPage() {
   }
 
   // -----------------------------------------------------------------
-  // 2. Profile check (existing logic from PR #7-8B)
+  // 2. Profile check
   // -----------------------------------------------------------------
   const { data: profile } = await supabase
     .from("user_profiles")
@@ -43,15 +39,17 @@ export default async function SparaAnalysPage() {
   }
 
   // -----------------------------------------------------------------
-  // 3. Fetch user's active homes (for home picker)
+  // 3. Fetch user's active homes + their home_properties for smart match
+  // 
+  // The home_properties join returns each home's properties so the client 
+  // can pre-check homes whose property anlaggnings_id matches the invoice.
   // -----------------------------------------------------------------
-  // We use an inner join via home_members so we only get homes where 
-  // user is an active member (left_at IS NULL).
   const { data: myHomesData, error: homesError } = await supabase
     .from("homes")
     .select(`
       id, name, description, created_by, created_at, updated_at, deleted_at,
-      home_members!inner(role, left_at)
+      home_members!inner(role, left_at),
+      home_properties(anlaggnings_id, deleted_at)
     `)
     .is("deleted_at", null)
     .eq("home_members.user_id", user.id)
@@ -59,11 +57,13 @@ export default async function SparaAnalysPage() {
 
   if (homesError) {
     console.error("[SPARA-ANALYS] Failed to fetch homes:", homesError);
-    // Continue with empty list — better to render with no homes than crash
   }
 
-  // Normalize to plain DbHome[] (drop the home_members join data)
-  const myHomes: DbHome[] = (myHomesData ?? []).map((h) => ({
+  // Normalize to the shape AddressForm expects.
+  // We extract anlaggnings_id values from each home's properties (filtering 
+  // out soft-deleted properties). null values (hypothetical properties) are 
+  // dropped — they cant participate in smart match.
+  const myHomes: HomeWithAnlaggnings[] = (myHomesData ?? []).map((h) => ({
     id: h.id,
     name: h.name,
     description: h.description,
@@ -71,6 +71,9 @@ export default async function SparaAnalysPage() {
     created_at: h.created_at,
     updated_at: h.updated_at,
     deleted_at: h.deleted_at,
+    anlaggnings_ids: (h.home_properties ?? [])
+      .filter((p) => p.deleted_at === null && p.anlaggnings_id !== null)
+      .map((p) => p.anlaggnings_id as string),
   }));
 
   // -----------------------------------------------------------------
@@ -86,4 +89,21 @@ export default async function SparaAnalysPage() {
       <AddressForm myHomes={myHomes} />
     </div>
   );
+}
+
+/**
+ * Shape passed to the client component.
+ * Extends DbHome with the anlaggnings_ids from this home's home_properties 
+ * so smart match can pre-check hems with matching anlaggnings_id.
+ */
+export interface HomeWithAnlaggnings {
+  id: string;
+  name: string;
+  description: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  /** anlaggnings_id values for all real, non-deleted home_properties in this home */
+  anlaggnings_ids: string[];
 }
