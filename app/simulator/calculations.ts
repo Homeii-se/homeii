@@ -45,5 +45,6 @@ export {
 // Re-export types from climate (used by scenarios)
 export type { PriceScenario } from "./climate";
 
-// Re-export from recommendations
-export { generateRecommendations } from "./recommendations/engine";
+// Re-export from recommendations (goes through the index wrapper so we get
+// engine-v2 by default, with feature-flag fallback to v1 — see recommendations/index.ts)
+export { generateRecommendations } from "./recommendations";

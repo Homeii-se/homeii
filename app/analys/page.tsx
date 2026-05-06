@@ -13,7 +13,7 @@ import type {
 import { DEFAULT_STATE } from "../simulator/data/defaults";
 import { UPGRADE_DEFINITIONS, DEFAULT_ACTIVE_UPGRADES } from "../simulator/data/upgrade-catalog";
 import { loadState, saveState, clearState } from "../simulator/storage";
-import { generateRecommendations } from "../simulator/recommendations/engine";
+import { generateRecommendations } from "../simulator/recommendations";
 import StepIndicator from "../simulator/components/StepIndicator";
 import UploadBill from "../simulator/components/UploadBill";
 import VerificationScreen from "../simulator/components/VerificationScreen";
