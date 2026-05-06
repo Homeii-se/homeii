@@ -35,6 +35,13 @@ export default function AnalysPage() {
   const [hydrated, setHydrated] = useState(false);
   const [tmyData, setTmyData] = useState<TmyHourlyData[] | null>(null);
 
+  // Loading-overlay för tunga beräkningar. Engine v2 evaluerar 15+ varianter
+  // och `calculateThreeScenarios` kör flera fulla årssimuleringar — det kan
+  // ta flera sekunder på client-side. Utan visuell feedback uppfattas det
+  // som att knappen inte fungerar, så vi visar en tydlig overlay medan
+  // beräkningen pågår.
+  const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
+
   // Ladda sparad state efter hydration (klient-only). Om completedStep är 0
   // (användaren har inte börjat ännu) bumpar vi direkt till 1 så analys-flödet
   // startar på UploadBill-steget — landing-sidan ligger nu på / istället.
@@ -105,12 +112,18 @@ export default function AnalysPage() {
   );
 
   const handleVerificationComplete = useCallback(
-    (
+    async (
       seZone: SEZone,
       refinement: RefinementAnswers,
       answeredQuestions: number,
       editedBillData: BillData
     ) => {
+      // Visa overlay innan tunga jobbet startar. Yield till browsern via
+      // setTimeout(0) så React hinner rendera spinnern innan engine blockerar
+      // main thread.
+      setLoadingMessage("Räknar igenom alla scenarion för ditt hus...");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
       // Use the edited bill data — VerificationScreen lets the user
       // correct AI-extracted fields inline, and downstream consumers
       // (recommendations, comparison, simulation) must see the corrections.
@@ -157,12 +170,18 @@ export default function AnalysPage() {
         activeUpgrades: newUpgrades,
         assumptions: updatedAssumptions,
       });
+      setLoadingMessage(null);
     },
     [state.assumptions, updateState, tmyData]
   );
 
-  const handleViewRecommendations = useCallback(() => {
+  const handleViewRecommendations = useCallback(async () => {
+    // RecommendationResults triggar threeScenarios-memo + tunga renders.
+    // Visa overlay så användaren ser att klicket registrerades.
+    setLoadingMessage("Hämtar din detaljerade analys...");
+    await new Promise((resolve) => setTimeout(resolve, 0));
     updateState({ completedStep: 5 });
+    setLoadingMessage(null);
   }, [updateState]);
 
   const handleViewDashboard = useCallback(() => {
@@ -315,6 +334,23 @@ export default function AnalysPage() {
           />
         )}
       </div>
+
+      {/* Full-screen loading-overlay för tunga beräkningar.
+          Renderas över hela vyn (z-50) så användaren får tydlig feedback
+          att klicket registrerades — engine v2 + scenario-beräkningar kan
+          ta flera sekunder och utan overlay verkar UI fruset. */}
+      {loadingMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-warm/85 backdrop-blur-sm">
+          <div className="card-strong rounded-2xl p-8 text-center max-w-sm mx-4">
+            <div className="mb-4 flex justify-center">
+              <div className="h-12 w-12 rounded-full border-4 border-brand-100 border-t-brand-500 animate-spin"></div>
+            </div>
+            <p className="text-sm font-medium text-text-primary">
+              {loadingMessage}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
