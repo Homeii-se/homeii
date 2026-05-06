@@ -40,6 +40,7 @@ import { DEFAULT_ACTIVE_UPGRADES, RECOMMENDATION_CONFIG } from "../data/upgrade-
 import { calculateAnnualSummary } from "../simulation/annual";
 import { calculateEnergyScore } from "../simulation/scoring";
 import { simulateMonthsWithUpgrades } from "../simulation/monthly";
+import { dlog } from "../../../lib/log";
 import type { TmyHourlyData } from "../data/pvgis-tmy";
 
 // ============================================================
@@ -204,7 +205,7 @@ export function generateRecommendationsV2(
     baselineAnnualKwh, baselineAnnualCostKr, baselineAvgPeak, false, 0
   );
 
-  console.log(`[ENGINE-V2] Baseline: ${Math.round(baselineAnnualKwh)} kWh, ${Math.round(baselineAnnualCostKr)} kr/år, peak ${baselineAvgPeak.toFixed(1)} kW`);
+  dlog("ENGINE-V2", `Baseline: ${Math.round(baselineAnnualKwh)} kWh, ${Math.round(baselineAnnualCostKr)} kr/år, peak ${baselineAvgPeak.toFixed(1)} kW`);
 
   // ========== 2. Determine relevant upgrade types ==========
   const existingEquipment = getExistingEquipment(refinement);
@@ -214,7 +215,7 @@ export function generateRecommendationsV2(
   // Battery is bundled with solar — remove standalone
   const typeIds = relevantTypeIds.filter(id => id !== "batteri");
 
-  console.log(`[ENGINE-V2] Relevant types: ${typeIds.join(", ")} (excluded: ${existingEquipment.join(", ")})`);
+  dlog("ENGINE-V2", `Relevant types: ${typeIds.join(", ")} (excluded: ${existingEquipment.join(", ")})`);
 
   // ========== 3. Evaluate all variants per type ==========
   const typeComparisons: TypeComparison[] = [];
@@ -268,9 +269,9 @@ export function generateRecommendationsV2(
     .map(tc => tc.bestVariant)
     .sort((a, b) => a.paybackYears - b.paybackYears);
 
-  console.log(`[ENGINE-V2] Ranked best variants:`);
+  dlog("ENGINE-V2", "Ranked best variants:");
   rankedBest.forEach((ev, i) => {
-    console.log(`  ${i + 1}. ${ev.variant.label}: ${ev.yearlySavingsKr} kr/år, payback ${ev.paybackYears} år`);
+    dlog("ENGINE-V2", `  ${i + 1}. ${ev.variant.label}: ${ev.yearlySavingsKr} kr/år, payback ${ev.paybackYears} år`);
   });
 
   // ========== 5. Build legacy-compatible output ==========

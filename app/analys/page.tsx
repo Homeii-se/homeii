@@ -98,10 +98,15 @@ export default function AnalysPage() {
   }, [state.billData, state.seZone, tmyData]);
 
   const threeScenarios = useMemo(() => {
+    // threeScenarios används bara av ResultOverview (currentStep === 4).
+    // Step 5 (RecommendationResults) och step 6 (Dashboard) tar inte
+    // threeScenarios som prop — ingen anledning att betala 5-30s
+    // beräkningstid på de stegen.
+    if (currentStep !== 4) return null;
     if (!state.billData || !state.recommendations) return null;
     const recommendedIds = state.recommendations.recommendations.map((r) => r.upgradeId);
     return calculateThreeScenarios(state.billData, state.refinement, state.seZone, state.assumptions, recommendedIds, tmyData ?? undefined);
-  }, [state.billData, state.refinement, state.seZone, state.assumptions, state.recommendations, tmyData]);
+  }, [currentStep, state.billData, state.refinement, state.seZone, state.assumptions, state.recommendations, tmyData]);
 
   // Step handlers
   const handleBillComplete = useCallback(

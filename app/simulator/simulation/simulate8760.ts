@@ -31,6 +31,7 @@ import {
   applyUpgradesToHour,
 } from "./upgrades";
 import { BATTERY_PARAMS } from "../data/upgrade-catalog";
+import { dlog } from "../../../lib/log";
 
 /** Heat pump types (subset of HeatingType) that have COP curves */
 type HeatPumpType = "luftluft" | "luftvatten" | "bergvarme";
@@ -378,17 +379,15 @@ export function simulate8760Consumption(
     total += result[i];
   }
   const bigConsumerAnnual = bigConsumerMonthlyKwh.reduce((s, v) => s + v, 0);
-  console.log("[8760-CONSUMPTION] Monthly totals:", monthTotals.map(v => Math.round(v)));
-  console.log("[8760-CONSUMPTION] Annual total:", Math.round(total), "kWh (target:", Math.round(effectiveKwhPerMonth * 12), ")");
+  dlog("8760-CONSUMPTION", "Monthly totals:", monthTotals.map(v => Math.round(v)));
+  dlog("8760-CONSUMPTION", "Annual total:", Math.round(total), "kWh (target:", Math.round(effectiveKwhPerMonth * 12), ")");
   if (bigConsumerAnnual > 0) {
-    console.log("[8760-CONSUMPTION] Big consumers redistributed:", Math.round(bigConsumerAnnual), "kWh/yr",
+    dlog("8760-CONSUMPTION", "Big consumers redistributed:", Math.round(bigConsumerAnnual), "kWh/yr",
       "(EV:", Math.round(evMonthly.reduce((s, v) => s + v, 0)), "kWh,",
       "other:", Math.round(flatConsumerMonthly.reduce((s, v) => s + v, 0)), "kWh)");
   }
   if (primaryHeatPump) {
-    console.log(
-      `[8760-CONSUMPTION] Heat pump COP correction applied (${primaryHeatPump}, reference COP@7°C=${referenceCop.toFixed(2)})`
-    );
+    dlog("8760-CONSUMPTION", `Heat pump COP correction applied (${primaryHeatPump}, reference COP@7°C=${referenceCop.toFixed(2)})`);
   }
 
   return result;
@@ -709,7 +708,7 @@ function calibrateSystemSize(
 
     // Check convergence (within 5% or 0.5 kWh absolute)
     if (Math.abs(diff) <= Math.max(targetExportKwh * 0.05, 0.5)) {
-      console.log(`[8760-CALIBRATE] Converged at ${mid.toFixed(2)} kW (export=${monthExport.toFixed(1)} kWh, target=${targetExportKwh} kWh, iter=${iter})`);
+      dlog("8760-CALIBRATE", `Converged at ${mid.toFixed(2)} kW (export=${monthExport.toFixed(1)} kWh, target=${targetExportKwh} kWh, iter=${iter})`);
       return mid;
     }
 
@@ -720,7 +719,7 @@ function calibrateSystemSize(
     }
   }
 
-  console.log(`[8760-CALIBRATE] Best found: ${bestSize.toFixed(2)} kW (diff=${bestDiff.toFixed(1)} kWh)`);
+  dlog("8760-CALIBRATE", `Best found: ${bestSize.toFixed(2)} kW (diff=${bestDiff.toFixed(1)} kWh)`);
   return bestSize;
 }
 
@@ -788,7 +787,7 @@ export function simulate8760WithSolar(
   if (refinement.solarSizeKw && refinement.solarSizeKw > 0) {
     systemSizeKw = refinement.solarSizeKw;
     sizeSource = "user-reported";
-    console.log(`[8760] Using user-reported system size: ${systemSizeKw} kW`);
+    dlog("8760", `Using user-reported system size: ${systemSizeKw} kW`);
   } else if (
     bill.solarExportKwh !== undefined &&
     bill.solarExportKwh > 0 &&
@@ -803,11 +802,11 @@ export function simulate8760WithSolar(
     // Sanity cap: never exceed 25 kW from calibration alone
     systemSizeKw = Math.min(systemSizeKw, 25);
     sizeSource = "calibrated";
-    console.log(`[8760] Calibrated system size: ${systemSizeKw.toFixed(2)} kW`);
+    dlog("8760", `Calibrated system size: ${systemSizeKw.toFixed(2)} kW`);
   } else {
     systemSizeKw = 10;
     sizeSource = "default";
-    console.log(`[8760] Using default system size: ${systemSizeKw} kW`);
+    dlog("8760", `Using default system size: ${systemSizeKw} kW`);
   }
 
   // --- Pass 1: Net consumption → estimate self-consumption ---
@@ -828,7 +827,7 @@ export function simulate8760WithSolar(
   // Without this correction, summer consumption looks too low → too much export.
   if (pass1SelfConsumptionTotal > 100) {
     const grossAnnualKwh = netAnnualKwh + pass1SelfConsumptionTotal;
-    console.log(`[8760] Gross consumption: net=${Math.round(netAnnualKwh)} + self=${Math.round(pass1SelfConsumptionTotal)} = gross=${Math.round(grossAnnualKwh)} kWh`);
+    dlog("8760", `Gross consumption: net=${Math.round(netAnnualKwh)} + self=${Math.round(pass1SelfConsumptionTotal)} = gross=${Math.round(grossAnnualKwh)} kWh`);
 
     consumption = simulate8760Consumption(bill, refinement, tmyData, seZone, grossAnnualKwh);
     production = simulate8760Solar(systemSizeKw, tmyData);
@@ -862,12 +861,12 @@ export function simulate8760WithSolar(
   const monthlyGridImportKwh = monthlyTotals(gridImport);
   const monthlySolarProductionKwh = monthlyTotals(production);
 
-  console.log(`[8760-RESULT] System: ${systemSizeKw.toFixed(1)} kW (${sizeSource})${hasBattery ? ' + battery' : ''}`);
-  console.log(`[8760-RESULT] Annual production: ${Math.round(annualSolarProductionKwh)} kWh`);
-  console.log(`[8760-RESULT] Self-consumption: ${Math.round(annualSelfConsumptionKwh)} kWh (${annualSolarProductionKwh > 0 ? (annualSelfConsumptionKwh / annualSolarProductionKwh * 100).toFixed(1) : 0}%)`);
-  console.log(`[8760-RESULT] Grid export: ${Math.round(annualExportKwh)} kWh`);
-  console.log(`[8760-RESULT] Grid import: ${Math.round(annualGridImportKwh)} kWh`);
-  console.log(`[8760-RESULT] Monthly export:`, monthlyExportKwh.map(v => Math.round(v)));
+  dlog("8760-RESULT", `System: ${systemSizeKw.toFixed(1)} kW (${sizeSource})${hasBattery ? ' + battery' : ''}`);
+  dlog("8760-RESULT", `Annual production: ${Math.round(annualSolarProductionKwh)} kWh`);
+  dlog("8760-RESULT", `Self-consumption: ${Math.round(annualSelfConsumptionKwh)} kWh (${annualSolarProductionKwh > 0 ? (annualSelfConsumptionKwh / annualSolarProductionKwh * 100).toFixed(1) : 0}%)`);
+  dlog("8760-RESULT", `Grid export: ${Math.round(annualExportKwh)} kWh`);
+  dlog("8760-RESULT", `Grid import: ${Math.round(annualGridImportKwh)} kWh`);
+  dlog("8760-RESULT", "Monthly export:", monthlyExportKwh.map(v => Math.round(v)));
 
   return {
     consumption,
