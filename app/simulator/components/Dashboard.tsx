@@ -117,8 +117,8 @@ export default function Dashboard({
 
   // Memoized calculations — anchored to ACTUAL bill (no inflation)
   const annualSummary = useMemo(
-    () => calculateAnnualSummary(billData, refinement, activeUpgrades, seZone, assumptions, true),
-    [billData, refinement, activeUpgrades, seZone, assumptions]
+    () => calculateAnnualSummary(billData, refinement, activeUpgrades, seZone, assumptions, true, tmyData),
+    [billData, refinement, activeUpgrades, seZone, assumptions, tmyData]
   );
 
   // Baseline UTAN upgrades — används som jämförelsereferens i scenariovyn.
@@ -134,9 +134,10 @@ export default function Dashboard({
       NO_UPGRADES,
       seZone,
       assumptions,
-      true /* skipInflation — matchar fakturan direkt */
+      true /* skipInflation — matchar fakturan direkt */,
+      tmyData,
     );
-  }, [billData, refinement.elContractType, seZone, assumptions]);
+  }, [billData, refinement.elContractType, seZone, assumptions, tmyData]);
 
   // Full 8760-hour simulation (memoized, runs once when tmyData is available)
   const sim8760 = useMemo(() => {
@@ -180,8 +181,8 @@ export default function Dashboard({
   }, [sim8760, selectedDate, billData, refinement, activeUpgrades, seZone, assumptions, effectiveSpotPricesOre]);
 
   const monthlyExtended = useMemo(
-    () => simulateMonthsWithUpgrades(billData, refinement, activeUpgrades, seZone, assumptions),
-    [billData, refinement, activeUpgrades, seZone, assumptions]
+    () => simulateMonthsWithUpgrades(billData, refinement, activeUpgrades, seZone, assumptions, tmyData),
+    [billData, refinement, activeUpgrades, seZone, assumptions, tmyData]
   );
 
   // Legacy data for year view
