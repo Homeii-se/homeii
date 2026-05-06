@@ -423,3 +423,105 @@ V1:s template-policys (kommenterade i slutet av schema.sql) bör översättas ti
 | Rekommendation om `user_email_matches` | Behåll Variant 1 (text-signatur, oförändrad). Variant 3 (`auth.email()`) är optimering för senare. |
 
 **Verifieringsstatus:** Klar mot V1. När V2-utkast-filen är uppladdad i repot körs en andra pass där varje "Att verifiera mot V2-utkastet"-not stryks av mot faktiskt innehåll.
+
+---
+
+## 8. Pass 2 — verifiering mot V2-fil (`supabase/schema.sql`)
+
+**Datum:** 2026-05-06
+**V2-fil:** 953 rader, header `Mina sidor — V2 schema (hem-baserad datamodell)`. Strukturerad i 10 namngivna delar (DEL 1–10).
+
+### 8.1 Checkpoints — sammanfattning
+
+| # | Checkpoint (Pass 1-källa) | Status | Anmärkning |
+|---|---|---|---|
+| 1 | Drop-block för funktioner — 4 explicita drops (transfer_ownership(text,uuid), user_is_member(text), user_is_owner(text), user_can_write(text)) | ✅ Uppfylld | Rad 39–42, exakt matchning. `handle_new_user`, `user_email_matches`, `set_updated_at` korrekt utelämnade. |
+| 2 | `on_auth_user_created` hanterad idempotent | ✅ Uppfylld (annorlunda väg) | V2 valde att **inte** drop:a/recreate:a triggern. Header rad 19–26 dokumenterar tydligt att handle_new_user + on_auth_user_created är "förutsättningar från V1 som INTE rörs". Pragmatiskt korrekt — förutsätter att V1 redan körts. |
+| 3 | Drop-block för tabeller — alla 10 med CASCADE | ✅ Uppfylld | Rad 47–56, exakt 10 tabeller. Drop-ordning är "barn först" (consumption_data, home_equipment, home_profile, ... addresses sist). |
+| 4 | V2-policys använder nya helper-namn | ✅ Uppfylld | Alla policys i DEL 7 (rad 487–773) använder `user_is_home_member`, `user_is_home_owner`, `user_can_write_home`. Inga V1-helper-namn kvar. |
+| 5 | Storage-policys uppdaterade | ✅ Uppfylld + bonus | DEL 10 (rad 877–923) implementerar tre policys (`select`, `insert`, `delete`) på storage.objects med rätta helpers via EXISTS-subqueries genom home_property_documents. |
+| 6 | Partial unique index på `home_members(home_id) where role='owner' and left_at is null` | ✅ Uppfylld | Rad 118–120, exakt syntax. |
+| 7 | GRANT på alla nya tabeller (authenticated + service_role) | ✅ Uppfylld + förfining | Rad 779–809: 12 GRANT till authenticated, 12 GRANT all till service_role, 5 GRANT execute på RLS-helpers + transfer_ownership. **Förfining**: `consumption_data` har bara `grant select to authenticated` (rad 788) — inte hela CRUD. Konsekvent med kommentar att skrivningar sker via service_role (cron-jobb). |
+| 8 | `user_email_matches` finns oförändrad och refereras från `home_invitations`-policys | ✅ Uppfylld | Funktion på rad 410–417 (oförändrad mot V1). Refereras från två policys på home_invitations: `users see invitations to their email` (rad 540) och `users respond to their invitations` (rad 548). Variant 1 valdes per Pass 1-rekommendation. |
+| 9 | Storage path-beslut (`anlaggnings_id` vs `home_property_id`) | ✅ Beslut taget | V2 valde `documents/{home_property_id}/{document_id}.pdf` (header rad 29 + kommentar rad 888). **Konsekvens:** CLAUDE.md sektion "Beslut-arkiv → PDF-sökväg i Storage" säger fortfarande `anlaggnings_id` — behöver uppdateras (se 8.3 nedan). |
+
+**Resultat: alla 9 checkpoints uppfyllda.** Inga blockerande avvikelser.
+
+### 8.2 Nya fynd som inte var med i Pass 1
+
+Positiva detaljer som adderar värde utöver Pass 1-listan:
+
+1. **Composite CHECK-constraint på `home_properties` (rad 165–170)** garanterar att `property_type='real'` har `anlaggnings_id` och `property_type='hypothetical'` har `hypothetical_name`. Bra databasnivå-skydd för Beslut 6.13.
+2. **Ny kolumn `hypothetical_name`** på home_properties (rad 158). Inte nämnd i arkitekturutkastet men logiskt nödvändig för UI ("Köpa villa i Lidingö", "Planerat attefallshus"). Bra tillägg.
+3. **`idx_one_anlaggnings_id_per_home` (rad 179–181)** — partial unique index som hindrar duplicering av samma anlaggnings_id inom samma hem, men tillåter över olika hem. Direkt implementation av Beslut 6.10/6.17. **Ej i Pass 1 — bra fund av V2-skribenten.**
+4. **`idx_one_reference_analysis_per_document` (rad 271–273)** — säkerställer max en `is_reference=true` per dokument. Kopplar till Beslut #7 från tidigare diskussion ("baseline-analys").
+5. **`kommun` placerades på `addresses`, inte `home_properties`** (rad 74). Min Pass 1-prediktion var att alla fyra kolumnerna (country, zone, kommun, network_operator) skulle flyttas till home_properties. V2-skribenten lade `kommun` på `addresses` istället — **bättre** eftersom kommun är geografisk metadata och hör logiskt på adressen. Övriga tre (country, zone, network_operator) på home_properties som väntat.
+6. **Triggers utelämnade på `home_members`, `home_invitations`, `home_property_documents`** — korrekt designval, dessa tabeller har ingen `updated_at`-kolumn (bara `joined_at`/`left_at`/`accepted_at`/`created_at`). Pass 1 listade alla sex möjliga triggers; V2 skapar de fyra som verkligen behövs (homes, home_properties, home_property_production, plus de fyra behållna: addresses, documents, home_profile, home_equipment = totalt 7 triggers).
+7. **RPC-funktioner stub:ade i DEL 9 (rad 811–875)** — `create_initial_home_from_invoice` och `create_empty_home` är dokumenterade som TODO med pseudokod. **Operativ konsekvens:** dessa RPC måste implementeras innan UI:t kan skriva till databasen, eftersom direkt INSERT på `homes` + `home_members` med `role='owner'` är blockerat för authenticated (RLS-design).
+8. **Verifieringskod i slutet (rad 925–952)** — färdiga SELECT-statements för smoke-test efter körning. Förväntar 16 tabeller totalt (13 V2 + user_profiles + spot_prices + monthly_avg_prices). Bra praxis.
+
+### 8.3 Avvikelser och förslag på korrigeringar
+
+**Endast ett potentiellt buggfynd — annars är schemat rent.**
+
+#### Buggrisk: `documents.uploaded_by` har motstridig FK-config (rad 210)
+
+```sql
+uploaded_by uuid not null references auth.users(id) on delete set null,
+```
+
+Konflikten: kolumnen är `NOT NULL` men FK:n är `ON DELETE SET NULL`. Postgres tillåter denna kombination vid create, men när någon faktiskt försöker radera en `auth.users`-rad som har relaterade documents kommer Postgres försöka sätta `uploaded_by = NULL` → constraint-fel → DELETE rullas tillbaka.
+
+**Konsekvens:** GDPR-radering eller kontoradering av en användare som har laddat upp dokument kommer att misslyckas tills någon manuellt rensar `uploaded_by`-fältet eller tar bort dokumenten. Konflikt med Beslut 6.16 (dokument lever via referens-räkning, inte uppladdar-koppling).
+
+**Förslag på korrigering — välj en:**
+
+| Alternativ | Effekt | Lämplig om |
+|---|---|---|
+| (a) Ta bort `not null` | `uploaded_by` blir nullable. När user raderas → `NULL` (anonymiserat dokument). | Önskat: dokument överlever uppladdar-radering. **Rekommendation.** |
+| (b) Byt till `on delete cascade` | Dokument raderas när uppladdaren raderas. | Inte konsekvent med 6.16 — bryter referens-räkningen. |
+| (c) `on delete set default` med "deleted user"-UUID | Behåller `not null`. Kräver en sentinel-rad i auth.users. | Komplicerat, ej rekommenderat för v1. |
+
+**SQL för (a):**
+
+```sql
+alter table public.documents
+  alter column uploaded_by drop not null;
+```
+
+Eller i schema.sql, ändra rad 210 till:
+
+```sql
+uploaded_by uuid references auth.users(id) on delete set null,
+```
+
+#### Dokumentation: CLAUDE.md säger fel om PDF-path
+
+CLAUDE.md "Beslut-arkiv → PDF-sökväg i Storage" säger:
+
+> PDF:er lagras under `documents/{anlaggnings_id}/{document_id}.pdf`
+
+V2 valde istället `documents/{home_property_id}/{document_id}.pdf` (header rad 29 + kommentar rad 888). Behöver synkas i samma PR som schemat aktiveras. Föreslagen ändring:
+
+```markdown
+PDF:er lagras under `documents/{home_property_id}/{document_id}.pdf` — inte under
+`{user_id}/...`. Skälet: knyter dokumentet till fastigheten, inte till uppladdaren.
+Överlever ägarbyten och radering av enskilda användare.
+```
+
+(Behåll motiveringen — bara byt path-mönstret.)
+
+### 8.4 Operativa observationer för nästa steg
+
+Inte buggfynd, men saker som påverkar implementation:
+
+- **Server action i `app/app/spara-analys/actions.ts` kan inte direkt INSERT:a `homes` + `home_members` med `role='owner'`** — RLS blockerar. Måste anropa `create_initial_home_from_invoice` när RPC:n är implementerad. Tills dess: bypass via service_role-klient (inte recommended) eller blockerad PR #9C.
+- **`documents.invoice_period_start` och `invoice_period_end` är nya denormaliserade fält** (rad 223–224) som inte fanns i V1. Server action måste extrahera dessa från Anthropic-parsens output.
+- **`analyses.is_reference boolean` (rad 264)** — server action måste sätta `is_reference=true` på första analysen per dokument (Beslut #7).
+- **Storage-bucket `documents` ska skapas manuellt i Supabase Dashboard** innan storage-policys i DEL 10 kan köras (kommentar rad 881–884). Inte en kodfråga, en deploy-checklista-fråga.
+
+### 8.5 Slutsats
+
+V2-schemat är **redo för granskning och körning**. Inga blockerande fel. En liten korrigering rekommenderad (drop `NOT NULL` på `documents.uploaded_by`). En dokumentationsuppdatering behövs (CLAUDE.md path-mönstret). Två RPC-funktioner väntar på implementation innan UI-arbetet kan koppla in mot databasen.
+
+Schemat följer Pass 1-rekommendationerna exakt på alla 9 punkter och tillför sex bra detaljer (composite check, hypothetical_name, partial unique på anlaggnings_id, partial unique på reference-analys, kommun-placering, RPC-stubs).
