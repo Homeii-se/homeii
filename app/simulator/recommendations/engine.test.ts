@@ -247,7 +247,9 @@ describe("generateRecommendations (v1) — structural baseline", () => {
         fixture.shouldRecommendAtLeastOneOf.length > 0
       ) {
         it(`recommends at least one of ${fixture.shouldRecommendAtLeastOneOf.join(", ")}`, () => {
-          const ids = new Set(result.recommendations.map((r) => r.upgradeId));
+          // Set<string> rather than Set<UpgradeId> so the test harness can
+          // accept the loosely-typed string[] from the fixture without casts.
+          const ids: Set<string> = new Set(result.recommendations.map((r) => r.upgradeId));
           const overlap = fixture.shouldRecommendAtLeastOneOf!.filter((id) =>
             ids.has(id),
           );
