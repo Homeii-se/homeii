@@ -175,27 +175,29 @@ export default function AnalysPage() {
     [state.assumptions, updateState, tmyData]
   );
 
+  // currentStep = completedStep + 1, so the value we set here is one LESS
+  // than the rendering block's `currentStep === N` check:
+  //   completedStep: 3 → currentStep 4 → ResultOverview
+  //   completedStep: 4 → currentStep 5 → RecommendationResults
+  //   completedStep: 5 → currentStep 6 → Dashboard
+
   const handleViewRecommendations = useCallback(async () => {
-    // RecommendationResults triggar threeScenarios-memo + tunga renders.
-    // Visa overlay så användaren ser att klicket registrerades.
-    setLoadingMessage("Hämtar din detaljerade analys...");
+    // ResultOverview "Se rekommendationer" → step 5 (RecommendationResults).
+    // Triggar tunga threeScenarios-memo + render → visa overlay först.
+    setLoadingMessage("Hämtar dina rekommendationer...");
     await new Promise((resolve) => setTimeout(resolve, 0));
-    updateState({ completedStep: 5 });
+    updateState({ completedStep: 4 });
     setLoadingMessage(null);
   }, [updateState]);
 
   const handleViewDashboard = useCallback(() => {
-    // Step 6 = Dashboard (detailed analysis). Was previously 5 which is the
-    // recommendations page itself, so the "Visa detaljerad analys"-button
-    // inside RecommendationResults appeared to do nothing.
-    updateState({ completedStep: 6 });
+    // RecommendationResults "Visa detaljerad analys" → step 6 (Dashboard).
+    updateState({ completedStep: 5 });
   }, [updateState]);
 
   const handleBackToRecommendations = useCallback(() => {
-    // Step 5 = RecommendationResults. Was previously 3 (verifyscreen), which
-    // sent the user back to bill verification instead of the recommendations
-    // they came from.
-    updateState({ completedStep: 5 });
+    // Dashboard "Tillbaka till rekommendationer" → step 5 (RecommendationResults).
+    updateState({ completedStep: 4 });
   }, [updateState]);
 
   const handleSEZoneChange = useCallback(
@@ -300,8 +302,14 @@ export default function AnalysPage() {
           />
         )}
 
-        {/* Step 4: Recommendation results */}
-        {currentStep === 5 && state.recommendations && threeScenarios && (
+        {/* Step 4: Recommendation results.
+            Tidigare blockerades rendering av `&& threeScenarios` — men
+            RecommendationResults behöver inte threeScenarios direkt (komponenten
+            har egen ScenarioTeaserCard-logik). När threeScenarios var null
+            (t.ex. om calculateThreeScenarios kraschade pga API-fel)
+            renderades step 5 inte alls och användaren såg en tom sida när
+            de klickade "Tillbaka till rekommendationer". */}
+        {currentStep === 5 && state.recommendations && (
           <RecommendationResults
             recommendations={state.recommendations}
             billData={state.billData!}

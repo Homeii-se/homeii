@@ -275,7 +275,7 @@ export default function ResultOverview({
           onClick={onContinue}
           className="w-full rounded-2xl bg-cta-orange px-6 py-3 font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5"
         >
-          Visa detaljerad analys
+          Se rekommendationer
         </button>
         <p className="text-xs text-text-muted text-center mt-2">
           Uppskattningen baseras på din faktura och genomsnittliga energipriser för din zon.
