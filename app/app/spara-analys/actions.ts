@@ -1,73 +1,124 @@
-'use server';
+// File: app/app/spara-analys/actions.ts
+// REPLACES the existing actions.ts at this path.
 
-import { createClient } from '@/lib/supabase/server';
+"use server";
 
-type AddressFormState = {
-  error?: string;
-  fieldErrors?: {
-    street?: string;
-    postalCode?: string;
-    city?: string;
-    anlaggningsId?: string;
-  };
-};
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { parseFormData, ParseError } from "@/lib/save-analysis/parse-form-data";
+import { uploadPdfs, rollbackUploads, UploadError } from "@/lib/save-analysis/upload-pdfs";
+import { callRpc, RpcError } from "@/lib/save-analysis/call-rpc";
+import type { UploadResult } from "@/lib/save-analysis/upload-pdfs";
 
-export async function saveAddress(
-  _prevState: AddressFormState,
+/**
+ * Server action result returned to the client form.
+ *
+ * On success: { success: true } — server action has already redirected.
+ * On error: { success: false, error: string, field?: string }
+ *           — client renders the error inline. If field is set, can highlight 
+ *           the corresponding form field.
+ */
+export type SaveAnalysisResult =
+  | { success: true }
+  | { success: false; error: string; field?: string };
+
+/**
+ * Save the analysis to the database.
+ *
+ * Flow:
+ *   1. Verify user is authenticated
+ *   2. Parse and validate form data
+ *   3. Upload PDFs to Storage (in parallel could be added later)
+ *   4. Call appropriate RPC based on home selection
+ *   5. On success: redirect to /app/hem/{home_id}
+ *   6. On RPC failure: roll back Storage uploads
+ *
+ * Note on "redirect inside try/catch": Next.js redirect() throws a special 
+ * exception that should NOT be caught. We let it propagate by checking after 
+ * the catch.
+ */
+export async function saveAnalysis(
+  _prevState: SaveAnalysisResult | null,
   formData: FormData,
-): Promise<AddressFormState> {
+): Promise<SaveAnalysisResult> {
+  // ---------------------------------------------------------------------------
+  // 1. Verify user is authenticated
+  // ---------------------------------------------------------------------------
   const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { error: 'Du är inte inloggad.' };
+  if (authError || !user) {
+    return {
+      success: false,
+      error: "Du måste vara inloggad för att spara analysen.",
+    };
   }
 
-  // Hämta värden
-  const street = formData.get('street')?.toString().trim() ?? '';
-  const postalCode = formData.get('postalCode')?.toString().trim() ?? '';
-  const city = formData.get('city')?.toString().trim() ?? '';
-  const anlaggningsIdRaw = formData.get('anlaggningsId')?.toString().trim() ?? '';
-
-  // Validering
-  const fieldErrors: AddressFormState['fieldErrors'] = {};
-
-  if (!street) fieldErrors.street = 'Gata krävs.';
-  else if (street.length > 200) fieldErrors.street = 'Gata är för lång.';
-
-  // Postnummer: 5 siffror, mellanslag tillåts men trimmas bort
-  const postalCodeDigits = postalCode.replace(/\s/g, '');
-  if (!postalCodeDigits) fieldErrors.postalCode = 'Postnummer krävs.';
-  else if (!/^\d{5}$/.test(postalCodeDigits))
-    fieldErrors.postalCode = 'Postnummer måste vara 5 siffror.';
-
-  if (!city) fieldErrors.city = 'Postort krävs.';
-  else if (city.length > 100) fieldErrors.city = 'Postort är för lång.';
-
-  // Anläggnings-ID: 18 siffror exakt, mellanslag tillåts men trimmas bort
-  const anlaggningsIdDigits = anlaggningsIdRaw.replace(/\s/g, '');
-  if (!anlaggningsIdDigits) fieldErrors.anlaggningsId = 'Anläggnings-ID krävs.';
-  else if (!/^\d{18}$/.test(anlaggningsIdDigits))
-    fieldErrors.anlaggningsId = 'Anläggnings-ID måste vara 18 siffror.';
-
-  if (Object.keys(fieldErrors).length > 0) {
-    return { fieldErrors };
+  // ---------------------------------------------------------------------------
+  // 2. Parse form data
+  // ---------------------------------------------------------------------------
+  let payload;
+  try {
+    payload = parseFormData(formData);
+  } catch (err) {
+    if (err instanceof ParseError) {
+      return {
+        success: false,
+        error: err.message,
+        field: err.field,
+      };
+    }
+    return {
+      success: false,
+      error: "Internt fel vid behandling av formuläret. Försök igen.",
+    };
   }
 
-  // Logga vad vi skulle spara - PR #9C implementerar databas-skrivning
-  console.log('[SAVE-ADDRESS] Skulle spara:', {
-    user_id: user.id,
-    street,
-    postal_code: postalCodeDigits,
-    city,
-    anlaggnings_id: anlaggningsIdDigits,
-  });
+  // ---------------------------------------------------------------------------
+  // 3. Upload PDFs to Storage
+  // ---------------------------------------------------------------------------
+  let uploads: UploadResult[];
+  try {
+    uploads = await uploadPdfs(supabase, payload);
+  } catch (err) {
+    if (err instanceof UploadError) {
+      return { success: false, error: err.message };
+    }
+    return {
+      success: false,
+      error: "Kunde inte ladda upp PDF-filerna. Försök igen.",
+    };
+  }
 
-  return {
-    error:
-      'PR #9B är klar. Databas-skrivning kommer i PR #9C. Kolla console-loggen i Vercel.',
-  };
+  // ---------------------------------------------------------------------------
+  // 4. Call RPC (with rollback on failure)
+  // ---------------------------------------------------------------------------
+  let homeIdToRedirectTo: string;
+  try {
+    const result = await callRpc(supabase, payload, uploads);
+    homeIdToRedirectTo = result.kind === "initial"
+      ? result.data.home_id
+      : result.primary_home_id;
+  } catch (err) {
+    // Roll back Storage uploads since RPC failed
+    await rollbackUploads(supabase, uploads);
+
+    if (err instanceof RpcError) {
+      return { success: false, error: err.message };
+    }
+    return {
+      success: false,
+      error: "Internt fel vid sparande. Vänligen försök igen.",
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // 5. Success — revalidate cache and redirect
+  // ---------------------------------------------------------------------------
+  revalidatePath("/app/hem");
+  redirect(`/app/hem/${homeIdToRedirectTo}`);
+
+  // Unreachable — redirect() throws — but TypeScript doesn't know that
+  return { success: true };
 }

@@ -1,160 +1,243 @@
-'use client';
+// File: app/app/spara-analys/address-form.tsx
+// REPLACES the existing address-form.tsx at this path.
 
-import { useActionState, useState } from 'react';
-import { saveAddress } from './actions';
+"use client";
 
-const STORAGE_KEY = 'homeii-state';
+import { useActionState, useMemo, useState } from "react";
+import { saveAnalysis, type SaveAnalysisResult } from "./actions";
+import { loadState } from "@/app/simulator/storage";
+import type { SimulatorState } from "@/app/simulator/types";
+import type { DbHome } from "@/lib/types/database";
 
-type AddressData = {
-  street: string;
-  postalCode: string;
-  city: string;
-  anlaggningsId: string;
-};
+interface AddressFormProps {
+  myHomes: DbHome[];
+}
 
-type LoadState =
-  | { kind: 'loading' }
-  | { kind: 'no-data' }
-  | { kind: 'ready'; data: AddressData };
+export function AddressForm({ myHomes }: AddressFormProps) {
+  const [state] = useState<SimulatorState | null>(() => loadState());
 
-export function AddressForm() {
-    const [loadState] = useState<LoadState>(() => {
-        if (typeof window === 'undefined') return { kind: 'loading' };
-    
-        try {
-          const raw = window.localStorage.getItem(STORAGE_KEY);
-          if (!raw) return { kind: 'no-data' };
-    
-          const state = JSON.parse(raw);
-          const billData = state?.billData;
-          if (!billData) return { kind: 'no-data' };
-    
-          return {
-            kind: 'ready',
-            data: {
-              street: billData.street ?? '',
-              postalCode: billData.postalCode ?? '',
-              city: billData.city ?? '',
-              anlaggningsId: billData.anlaggningsId ?? '',
-            },
-          };
-        } catch (err) {
-          console.error('Kunde inte läsa localStorage:', err);
-          return { kind: 'no-data' };
-        }
-      });
-  const [formState, formAction, isPending] = useActionState(saveAddress, {});
+  // ---------------------------------------------------------------------------
+  // Form state — pre-filled from localStorage via lazy initializer
+  // ---------------------------------------------------------------------------
+  const [street, setStreet] = useState(() => state?.billData?.street ?? "");
+  const [postalCode, setPostalCode] = useState(() => state?.billData?.postalCode ?? "");
+  const [city, setCity] = useState(() => state?.billData?.city ?? "");
+  const [anlaggningsId, setAnlaggningsId] = useState(() => state?.billData?.anlaggningsId ?? "");
 
-  if (loadState.kind === 'loading') {
-    return <p className="text-sm text-gray-500">Laddar dina uppgifter...</p>;
-  }
+  // Home picker state (only used when myHomes.length > 0)
+  const [selectedHomeIds, setSelectedHomeIds] = useState<Set<string>>(new Set());
+  const [createNewHome, setCreateNewHome] = useState(false);
+  const [newHomeName, setNewHomeName] = useState("");
 
-  if (loadState.kind === 'no-data') {
+  // ---------------------------------------------------------------------------
+  // Smart match: pre-check homes that already contain this anlaggnings_id.
+  // 
+  // NOTE: This is a placeholder for v1. To do this properly we'd need to fetch 
+  // the home_properties for each home and check anlaggnings_id matches. For now 
+  // we pre-check NOTHING and let the user pick — smart match will be added in 
+  // a follow-up.
+  // ---------------------------------------------------------------------------
+  // TODO: Implement smart match by fetching home_properties via API or RPC.
+
+  // ---------------------------------------------------------------------------
+  // Server action wiring
+  // ---------------------------------------------------------------------------
+  const [actionState, formAction, isPending] = useActionState<
+    SaveAnalysisResult | null,
+    FormData
+  >(saveAnalysis, null);
+
+  // ---------------------------------------------------------------------------
+  // Adaptive UI logic
+  // ---------------------------------------------------------------------------
+  const isFirstTime = myHomes.length === 0;
+
+  const introMessage = useMemo(() => {
+    if (isFirstTime) {
+      return (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 mb-6">
+          <p className="text-sm text-blue-900">
+            <strong>Det här är din första faktura.</strong> Vi skapar
+            automatiskt ett hem för dig och kallar det{" "}
+            <strong>&quot;Hem på {street || "din adress"}&quot;</strong>. Du kan döpa
+            om hemmet senare under Inställningar, eller skapa fler hem om
+            fakturan ska tillhöra flera.
+          </p>
+        </div>
+      );
+    }
+    return null;
+  }, [isFirstTime, street]);
+
+  if (!state?.billData) {
     return (
-      <div className="rounded-md border border-yellow-200 bg-yellow-50 p-4 text-sm">
-        <p className="mb-2 font-medium">Vi hittar ingen analys att spara.</p>
-        <p className="mb-4 text-gray-700">
-          Du måste först ladda upp en elräkning för att vi ska kunna spara den.
+      <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+        <p className="text-sm text-red-900">
+          Ingen analys hittades. Vänligen{" "}
+          <a href="/analys" className="underline">
+            ladda upp en faktura först
+          </a>
+          .
         </p>
-        <a
-          href="/analys"
-          className="inline-block rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
-        >
-          Ladda upp en faktura
-        </a>
       </div>
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
   return (
     <form action={formAction} className="space-y-6">
-      <div>
-        <label htmlFor="street" className="block text-sm font-medium mb-1">
-          Gata <span className="text-red-600">*</span>
-        </label>
-        <input
-          id="street"
-          name="street"
-          type="text"
-          required
-          defaultValue={loadState.data.street}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
-        />
-        {formState.fieldErrors?.street && (
-          <p className="mt-1 text-xs text-red-600">{formState.fieldErrors.street}</p>
-        )}
-      </div>
+      {introMessage}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {/* Hidden input: serialized state */}
+      <input
+        type="hidden"
+        name="homeii_state_json"
+        value={JSON.stringify(state)}
+      />
+
+      {/* Address fields */}
+      <fieldset className="space-y-4">
+        <legend className="font-medium mb-2">Adress</legend>
+
         <div>
-          <label htmlFor="postalCode" className="block text-sm font-medium mb-1">
-            Postnummer <span className="text-red-600">*</span>
+          <label htmlFor="street" className="block text-sm font-medium mb-1">
+            Gata
           </label>
           <input
-            id="postalCode"
-            name="postalCode"
+            id="street"
+            name="street"
             type="text"
             required
-            inputMode="numeric"
-            defaultValue={loadState.data.postalCode}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+            value={street}
+            onChange={(e) => setStreet(e.target.value)}
+            className="w-full rounded border px-3 py-2"
           />
-          {formState.fieldErrors?.postalCode && (
-            <p className="mt-1 text-xs text-red-600">{formState.fieldErrors.postalCode}</p>
-          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="postal_code" className="block text-sm font-medium mb-1">
+              Postnummer
+            </label>
+            <input
+              id="postal_code"
+              name="postal_code"
+              type="text"
+              required
+              value={postalCode}
+              onChange={(e) => setPostalCode(e.target.value)}
+              className="w-full rounded border px-3 py-2"
+            />
+          </div>
+          <div>
+            <label htmlFor="city" className="block text-sm font-medium mb-1">
+              Postort
+            </label>
+            <input
+              id="city"
+              name="city"
+              type="text"
+              required
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              className="w-full rounded border px-3 py-2"
+            />
+          </div>
         </div>
 
         <div>
-          <label htmlFor="city" className="block text-sm font-medium mb-1">
-            Postort <span className="text-red-600">*</span>
+          <label htmlFor="anlaggnings_id" className="block text-sm font-medium mb-1">
+            Anläggnings-ID (18 siffror)
           </label>
           <input
-            id="city"
-            name="city"
+            id="anlaggnings_id"
+            name="anlaggnings_id"
             type="text"
+            pattern="\d{18}"
             required
-            defaultValue={loadState.data.city}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+            value={anlaggningsId}
+            onChange={(e) => setAnlaggningsId(e.target.value)}
+            className="w-full rounded border px-3 py-2 font-mono"
           />
-          {formState.fieldErrors?.city && (
-            <p className="mt-1 text-xs text-red-600">{formState.fieldErrors.city}</p>
-          )}
         </div>
-      </div>
+      </fieldset>
 
-      <div>
-        <label htmlFor="anlaggningsId" className="block text-sm font-medium mb-1">
-          Anläggnings-ID <span className="text-red-600">*</span>
-        </label>
-        <p className="mb-2 text-xs text-gray-600">
-          18-siffrig identifierare för din mätarpunkt. Står på fakturan.
-        </p>
-        <input
-          id="anlaggningsId"
-          name="anlaggningsId"
-          type="text"
-          required
-          inputMode="numeric"
-          defaultValue={loadState.data.anlaggningsId}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none font-mono"
-        />
-        {formState.fieldErrors?.anlaggningsId && (
-          <p className="mt-1 text-xs text-red-600">{formState.fieldErrors.anlaggningsId}</p>
-        )}
-      </div>
+      {/* Home picker (only shown when user has existing homes) */}
+      {!isFirstTime && (
+        <fieldset className="space-y-3 rounded-lg border p-4">
+          <legend className="font-medium px-2">Vilka hem?</legend>
+          <p className="text-sm text-gray-600">
+            Välj vilka hem du vill lägga till fakturan i.
+          </p>
 
-      {formState.error && (
-        <p className="rounded-md bg-red-50 p-3 text-sm text-red-800">
-          {formState.error}
-        </p>
+          {myHomes.map((home) => (
+            <label key={home.id} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="selected_home_ids"
+                value={home.id}
+                checked={selectedHomeIds.has(home.id)}
+                onChange={(e) => {
+                  setSelectedHomeIds((prev) => {
+                    const next = new Set(prev);
+                    if (e.target.checked) next.add(home.id);
+                    else next.delete(home.id);
+                    return next;
+                  });
+                }}
+              />
+              <span>{home.name}</span>
+            </label>
+          ))}
+
+          <label className="flex items-center gap-2 border-t pt-3">
+            <input
+              type="checkbox"
+              name="create_new_home"
+              value="true"
+              checked={createNewHome}
+              onChange={(e) => setCreateNewHome(e.target.checked)}
+            />
+            <span>Skapa nytt hem...</span>
+          </label>
+
+          {createNewHome && (
+            <div className="ml-6 mt-2">
+              <label htmlFor="new_home_name" className="block text-sm mb-1">
+                Hem-namn
+              </label>
+              <input
+                id="new_home_name"
+                name="new_home_name"
+                type="text"
+                required
+                maxLength={200}
+                value={newHomeName}
+                onChange={(e) => setNewHomeName(e.target.value)}
+                className="w-full rounded border px-3 py-2"
+                placeholder="t.ex. Sommarstugan"
+              />
+            </div>
+          )}
+        </fieldset>
       )}
 
+      {/* Error display */}
+      {actionState && !actionState.success && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+          <p className="text-sm text-red-900">{actionState.error}</p>
+        </div>
+      )}
+
+      {/* Submit button */}
       <button
         type="submit"
         disabled={isPending}
-        className="w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+        className="rounded-lg bg-blue-600 px-6 py-3 text-white font-medium disabled:opacity-50"
       >
-        {isPending ? 'Sparar...' : 'Spara'}
+        {isPending ? "Sparar..." : isFirstTime ? "Spara fakturan i ditt nya hem" : "Spara"}
       </button>
     </form>
   );
