@@ -31,6 +31,7 @@ import { ELHANDEL_DEFAULTS } from "../data/elhandel-defaults";
 import type { TmyHourlyData } from "../data/pvgis-tmy";
 import { simulate8760WithUpgrades } from "./simulate8760";
 import { aggregateMonthsFrom8760 } from "./monthly-from-8760";
+import { dlog } from "../../../lib/log";
 
 export function getMonthlyData(
   bill: BillData,
@@ -117,7 +118,7 @@ export function simulateMonthsWithUpgrades(
   // known data point perfectly.
   const referenceAnnualKwh = bill.kwhPerMonth * 12;
 
-  console.log('[CALIBRATION] inputs:', {
+  dlog("CALIBRATION", "inputs:", {
     invoicePeriodKwh: bill.invoicePeriodKwh,
     invoiceMonth: bill.invoiceMonth,
     annualKwh: bill.annualKwh,
@@ -166,7 +167,7 @@ export function simulateMonthsWithUpgrades(
         seasonFactors[bill.invoiceMonth!] = Math.max(0.5, pinnedFactor - excess);
       }
 
-      console.log('[CALIBRATION] pin-and-redistribute applied!', {
+      dlog("CALIBRATION", "pin-and-redistribute applied!", {
         invoiceMonth: bill.invoiceMonth,
         actualFactor: actualFactor.toFixed(3),
         modelFactor: modelFactor.toFixed(3),
@@ -298,9 +299,9 @@ export function simulateMonthsWithUpgrades(
     // simulated peaks which only have one month of real data to calibrate from.
     if (bill.invoicePeakKw !== undefined && bill.invoicePeakKw > 0) {
       effectivePeakKwBase = bill.invoicePeakKw;
-      console.log(`[EFFEKTAVGIFT] Using INVOICE peak for base: ${effectivePeakKwBase.toFixed(1)} kW (from elnät invoice)`);
+      dlog("EFFEKTAVGIFT", `Using INVOICE peak for base: ${effectivePeakKwBase.toFixed(1)} kW (from elnät invoice)`);
       if (bill.invoiceTop3PeakKw && bill.invoiceTop3PeakKw.length > 0) {
-        console.log(`[EFFEKTAVGIFT] Invoice top-3 peaks: ${bill.invoiceTop3PeakKw.map(v => v.toFixed(1)).join(', ')} kW`);
+        dlog("EFFEKTAVGIFT", `Invoice top-3 peaks: ${bill.invoiceTop3PeakKw.map(v => v.toFixed(1)).join(', ')} kW`);
       }
 
       // For the after-upgrades scenario, scale the invoice peak by the ratio
@@ -315,7 +316,7 @@ export function simulateMonthsWithUpgrades(
       const peakReductionRatio = simBaseAvg > 0 ? simAfterAvg / simBaseAvg : 1;
       effectivePeakKw = effectivePeakKwBase * peakReductionRatio;
 
-      console.log(`[EFFEKTAVGIFT] After-upgrades peak: ${effectivePeakKwBase.toFixed(1)} × ${peakReductionRatio.toFixed(3)} = ${effectivePeakKw.toFixed(1)} kW`);
+      dlog("EFFEKTAVGIFT", `After-upgrades peak: ${effectivePeakKwBase.toFixed(1)} × ${peakReductionRatio.toFixed(3)} = ${effectivePeakKw.toFixed(1)} kW`);
     } else {
       // No invoice peak data — fall back to simulated top-3 average
       const sortedPeaks = rawMonths.map(m => m.peakKw).sort((a, b) => b - a);
@@ -325,8 +326,8 @@ export function simulateMonthsWithUpgrades(
       effectivePeakKw = top3.reduce((s, v) => s + v, 0) / 3;
       effectivePeakKwBase = top3Base.reduce((s, v) => s + v, 0) / 3;
 
-      console.log('[EFFEKTAVGIFT] top-3 peaks (after):', top3.map(v => v.toFixed(1)), '→ effective:', effectivePeakKw.toFixed(1), 'kW');
-      console.log('[EFFEKTAVGIFT] top-3 peaks (base):', top3Base.map(v => v.toFixed(1)), '→ effective:', effectivePeakKwBase.toFixed(1), 'kW');
+      dlog("EFFEKTAVGIFT", "top-3 peaks (after):", top3.map(v => v.toFixed(1)), "→ effective:", effectivePeakKw.toFixed(1), "kW");
+      dlog("EFFEKTAVGIFT", "top-3 peaks (base):", top3Base.map(v => v.toFixed(1)), "→ effective:", effectivePeakKwBase.toFixed(1), "kW");
     }
   } else {
     effectivePeakKw = 0;

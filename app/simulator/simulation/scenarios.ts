@@ -22,6 +22,7 @@ import { SE_ZONE_SPOT_PRICE } from "../data/energy-prices";
 import { ELHANDEL_DEFAULTS } from "../data/elhandel-defaults";
 import type { TmyHourlyData } from "../data/pvgis-tmy";
 import { simulate8760WithSolar } from "./simulate8760";
+import { dlog } from "../../../lib/log";
 
 // Re-export climate scenario utilities
 export { PRICE_SCENARIOS, projectCostsOverTime, calculateNPV } from "../climate";
@@ -135,9 +136,7 @@ function applyPartialInvoiceAnchor(summary: AnnualSummary, billData: BillData): 
   summary.yearlyTotalCostBase = breakdown.totalKr;
   summary.yearlyTotalCostAfter = breakdown.totalKr;
 
-  console.log(
-    `[SCENARIOS] Applied partial anchor (${onlyElnat ? "elnät" : "elhandel"}): month=${month}, target=${target}, modeled=${modeled}, factor=${factor.toFixed(3)}`
-  );
+  dlog("SCENARIOS", `Applied partial anchor (${onlyElnat ? "elnät" : "elhandel"}): month=${month}, target=${target}, modeled=${modeled}, factor=${factor.toFixed(3)}`);
 }
 
 /** Calculate three scenarios: without investments, current situation, and after recommendations.
@@ -195,7 +194,7 @@ export function calculateThreeScenarios(
     billData, nulägeRefinement, NO_UPGRADES, seZone, assumptions, true /* skipInflation — invoice kWh = grid consumption */
   );
   applyPartialInvoiceAnchor(currentSituationSummary, billData);
-  console.log('[SCENARIOS] nuläge: skipInflation=true, NO_UPGRADES, yearlyTotal:', currentSituationSummary.yearlyTotalCostBase);
+  dlog("SCENARIOS", "nuläge: skipInflation=true, NO_UPGRADES, yearlyTotal:", currentSituationSummary.yearlyTotalCostBase);
 
   // --- Solar export credit for nuläge ---
   // The nuläge uses NO_UPGRADES → simulateDay() produces 0 solar → gridExportKwh=0.
@@ -210,11 +209,11 @@ export function calculateThreeScenarios(
 
     if (tmyData && tmyData.length >= 8760) {
       // --- Path A: 8760-hour simulation ---
-      console.log(`[SCENARIOS] Using 8760-hour TMY simulation for solar export estimation`);
+      dlog("SCENARIOS", "Using 8760-hour TMY simulation for solar export estimation");
       const sim8760 = simulate8760WithSolar(billData, refinement, tmyData, seZone);
       monthlyExportKwh = sim8760.monthlyExportKwh;
       const estimatedAnnualExportKwh = sim8760.annualExportKwh;
-      console.log(`[SCENARIOS] 8760 result: system=${sim8760.calibratedSystemSizeKw.toFixed(1)} kW, annual export=${Math.round(estimatedAnnualExportKwh)} kWh, self-consumption=${Math.round(sim8760.annualSelfConsumptionKwh)} kWh`);
+      dlog("SCENARIOS", `8760 result: system=${sim8760.calibratedSystemSizeKw.toFixed(1)} kW, annual export=${Math.round(estimatedAnnualExportKwh)} kWh, self-consumption=${Math.round(sim8760.annualSelfConsumptionKwh)} kWh`);
     } else {
       // --- Path B: Profile-based scaling (legacy) ---
       const invoiceMonth = billData.invoiceMonth;
@@ -226,7 +225,7 @@ export function calculateThreeScenarios(
         ? billData.solarExportKwh / invoiceMonthFraction
         : billData.solarExportKwh * 12;
 
-      console.log(`[SCENARIOS] Solar export (legacy): ${billData.solarExportKwh} kWh in month ${invoiceMonth} (fraction ${(invoiceMonthFraction * 100).toFixed(1)}%) → estimated annual export: ${Math.round(estimatedAnnualExportKwh)} kWh`);
+      dlog("SCENARIOS", `Solar export (legacy): ${billData.solarExportKwh} kWh in month ${invoiceMonth} (fraction ${(invoiceMonthFraction * 100).toFixed(1)}%) → estimated annual export: ${Math.round(estimatedAnnualExportKwh)} kWh`);
 
       monthlyExportKwh = solarMonthly.map(
         monthly => estimatedAnnualExportKwh * (monthly / totalAnnualSolar)
@@ -269,7 +268,7 @@ export function calculateThreeScenarios(
       const totalExportKwh = monthlyExportKwh.reduce((s, v) => s + v, 0);
       // Store export kWh for display in cost breakdown
       breakdown.totalExportKwh = Math.round(totalExportKwh);
-      console.log(`[SCENARIOS] Solar export credit: ${Math.round(totalExportRevenue)} kr/år (${Math.round(totalExportKwh)} kWh export × ${compensationRate * 100}% av spot)`);
+      dlog("SCENARIOS", `Solar export credit: ${Math.round(totalExportRevenue)} kr/år (${Math.round(totalExportKwh)} kWh export × ${compensationRate * 100}% av spot)`);
     }
   }
 
@@ -287,7 +286,7 @@ export function calculateThreeScenarios(
       heatingType: refinement.heatingType,
       heatingTypes: refinement.heatingTypes,
     };
-    console.log('[SCENARIOS] withoutInvestments: inflate + NO_UPGRADES, equipment:', Object.keys(existingEquipmentUpgrades).filter(k => (existingEquipmentUpgrades as Record<string, boolean>)[k]).join(', '));
+    dlog("SCENARIOS", "withoutInvestments: inflate + NO_UPGRADES, equipment:", Object.keys(existingEquipmentUpgrades).filter(k => (existingEquipmentUpgrades as Record<string, boolean>)[k]).join(", "));
     withoutInvestmentsSummary = calculateAnnualSummary(
       billData, equipmentRefinement, NO_UPGRADES, seZone, assumptions, false /* inflate to estimate gross consumption */
     );
@@ -318,7 +317,7 @@ export function calculateThreeScenarios(
   const afterRecommendationsSummary = calculateAnnualSummary(
     billData, afterRefinement, afterRecommendationsUpgrades, seZone, assumptions, false
   );
-  console.log('[SCENARIOS] afterRecommendations: inflate + recommended upgrades, yearlyTotal:', afterRecommendationsSummary.yearlyTotalCostAfter);
+  dlog("SCENARIOS", "afterRecommendations: inflate + recommended upgrades, yearlyTotal:", afterRecommendationsSummary.yearlyTotalCostAfter);
 
   // --- Build the three scenario details ---
   const withoutInvestmentsDetail = buildScenarioDetail(withoutInvestmentsSummary, false);
