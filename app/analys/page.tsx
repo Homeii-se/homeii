@@ -166,11 +166,17 @@ export default function AnalysPage() {
   }, [updateState]);
 
   const handleViewDashboard = useCallback(() => {
-    updateState({ completedStep: 5 });
+    // Step 6 = Dashboard (detailed analysis). Was previously 5 which is the
+    // recommendations page itself, so the "Visa detaljerad analys"-button
+    // inside RecommendationResults appeared to do nothing.
+    updateState({ completedStep: 6 });
   }, [updateState]);
 
   const handleBackToRecommendations = useCallback(() => {
-    updateState({ completedStep: 3 });
+    // Step 5 = RecommendationResults. Was previously 3 (verifyscreen), which
+    // sent the user back to bill verification instead of the recommendations
+    // they came from.
+    updateState({ completedStep: 5 });
   }, [updateState]);
 
   const handleSEZoneChange = useCallback(
