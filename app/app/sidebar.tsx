@@ -5,10 +5,10 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
 const NAV_ITEMS = [
-  { href: '/app/hem', label: 'Hem' },
+  { href: '/app/start', label: 'Start' },
+  { href: '/app/hem', label: 'Mina hem' },
   { href: '/app/min-plan', label: 'Min plan' },
   { href: '/app/min-uppfoljning', label: 'Min uppföljning' },
-  { href: '/app/mitt-hem', label: 'Mitt hem' },
   { href: '/app/mina-dokument', label: 'Mina dokument' },
   { href: '/app/mina-offerter', label: 'Mina offerter' },
   { href: '/app/mina-erbjudanden', label: 'Mina erbjudanden' },
