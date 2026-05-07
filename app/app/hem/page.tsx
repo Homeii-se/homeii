@@ -35,6 +35,7 @@ import type {
   AnnualCostComponents,
 } from "../../simulator/types";
 import type { BillContext } from "../../../lib/comparison";
+import { STATIC_TIPS, type StaticTip } from "../../../lib/static-tips";
 
 function formatKr(n: number): string {
   return Math.round(n).toLocaleString("sv-SE");
@@ -653,9 +654,16 @@ function Section3Future({
   spotCostKr: number;
 }) {
   // Fem scenarier baserade på spotCost-multipliers. Värdena är approximationer
-  // för v0.1 — kan ersättas med exakta siffror från scenarios-presets.ts +
-  // ENTSO-E-data senare. ID:n speglar `upgrade-evidence.ts:scenarioShielding`
-  // så vi senare kan korsreferera "vilka åtgärder skyddar mest mot scenario X".
+  // — kan ersättas med exakta siffror från scenarios-presets.ts + ENTSO-E-data
+  // senare. ID:n speglar `upgrade-evidence.ts:scenarioShielding` så vi senare
+  // kan korsreferera "vilka åtgärder skyddar mest mot scenario X".
+  // Scenarie-variant styr färg + visuell tyngd:
+  //   bad     = stora risker som direkt drar upp SE3-priset (rött)
+  //   neutral = pågående trender med mer indirekt eller osäker effekt (amber)
+  //   good    = möjligheter där priset kan pressas ned (grönt)
+  // Backlog: Gustaf har flaggat "fornybar-expansion" som otydlig + vi vill
+  // ev. byta spekulativa "om 5 år"-scenarier mot terminspriser längre fram
+  // (se project_scenarios_backlog).
   const scenarios = [
     {
       id: "energikrisen-2022",
@@ -677,8 +685,8 @@ function Section3Future({
     },
     {
       id: "norra-sverige-stalboom",
-      variant: "bad" as const,
-      tagline: "Pågående · Sannolikhet hög",
+      variant: "neutral" as const,
+      tagline: "Pågående · Indirekt påverkan på SE3",
       title: "Stålboom i norr",
       multiplier: 0.3,
       explanation:
@@ -686,8 +694,8 @@ function Section3Future({
     },
     {
       id: "eu-2030-mal",
-      variant: "bad" as const,
-      tagline: "5 år bort · Sannolikhet medel",
+      variant: "neutral" as const,
+      tagline: "5 år bort · Osäker timing",
       title: "EU 2030-mål driver upp efterfrågan",
       multiplier: 0.2,
       explanation:
@@ -714,9 +722,9 @@ function Section3Future({
           Vad händer om priserna ändras?
         </h2>
         <p className="mx-auto max-w-md text-sm leading-relaxed text-text-secondary">
-          Fem scenarier — från det värsta till det bästa. Du kan inte påverka
-          spotpriset eller EU-marknaden, men varje åtgärd du gör skyddar dig
-          oavsett vad som händer.
+          Fem scenarier — några stora risker, några osäkra trender och en
+          möjlighet. Du kan inte påverka spotpriset eller EU-marknaden, men
+          varje åtgärd du gör skyddar dig oavsett vad som händer.
         </p>
       </header>
 
@@ -762,7 +770,7 @@ function ScenarioCard({
   scenarioKr,
   explanation,
 }: {
-  variant: "bad" | "good";
+  variant: "bad" | "neutral" | "good";
   tagline: string;
   title: string;
   deltaText: string;
@@ -770,10 +778,14 @@ function ScenarioCard({
   scenarioKr: number;
   explanation: string;
 }) {
+  // Amber för neutral (mild risk / osäker timing) — distinkt från cta-orange
+  // som är effekttoppens färg på samma sida.
   const colors =
     variant === "bad"
       ? { border: "border-l-[#E05C5C]", barFill: "bg-[#E05C5C]", deltaText: "text-[#C0392B]" }
-      : { border: "border-l-brand-500", barFill: "bg-brand-500", deltaText: "text-brand-500" };
+      : variant === "neutral"
+        ? { border: "border-l-amber-500", barFill: "bg-amber-500", deltaText: "text-amber-700" }
+        : { border: "border-l-brand-500", barFill: "bg-brand-500", deltaText: "text-brand-500" };
 
   const max = Math.max(todayKr, scenarioKr);
 
@@ -827,70 +839,6 @@ function ScenarioCard({
 /* =========================================================================
    SECTION 4 — Vad du kan göra (specifika åtgärder från engine v2)
    ========================================================================= */
-
-/** Statiska tips per kategori för åtgärder som engine v2 inte modellerar
- *  (sänk huvudsäkring, byt elhandlare, avtal utan månadsavgift, batteri som
- *  standalone) eller där batteri ska synas separat även när det bundlas
- *  med solceller. Visas efter engine-rekommendationer i kategori-korten,
- *  märkta som "tips" — utan exakt kr/år eftersom modellering saknas. */
-type StaticTip = {
-  id: string;
-  icon: string;
-  title: string;
-  desc: string;
-  approxKr?: string; // t.ex. "~600 kr / år" — eller undefined för "kan vara värt undersöka"
-};
-
-const STATIC_TIPS: Record<"anvanda" | "effekt" | "fast", StaticTip[]> = {
-  anvanda: [
-    {
-      id: "smarta-vanor",
-      icon: "💡",
-      title: "Smartare vanor",
-      desc: "Sänk inomhustemp 1°C, stäng av standby, tvätta på 30°C. Ingen investering — börja idag.",
-      approxKr: "~3 % av räkningen",
-    },
-  ],
-  effekt: [
-    {
-      id: "flytta-last",
-      icon: "🌙",
-      title: "Flytta tvätt och disk till kvällen",
-      desc: "Schemalägg tunga apparater så de inte krockar med matlagning eller hemkomst-toppen.",
-      approxKr: "Gratis · ändra rutiner",
-    },
-    {
-      id: "hembatteri-tip",
-      icon: "🔋",
-      title: "Hembatteri",
-      desc: "Ladda billig natt-el och använd när priset är högt — eller lagra solel om du har det. Kan även ge intäkter via stödtjänster till Svenska Kraftnät (FCR-D/FFR).",
-      approxKr: "3 000–8 000 kr / år i stödtjänster",
-    },
-  ],
-  fast: [
-    {
-      id: "mindre-sakring",
-      icon: "⚡",
-      title: "Mindre huvudsäkring",
-      desc: "Om dina toppar sällan går över 16 A räcker det med en mindre säkring. Kontakta nätbolaget.",
-      approxKr: "~25 % av nätabonnemanget",
-    },
-    {
-      id: "byt-elhandlare",
-      icon: "📞",
-      title: "Byt elhandlare",
-      desc: "Jämför priser på Elskling.se eller Elpriskollen. Tar 5 minuter att byta online.",
-      approxKr: "~3–5 % av elhandelskostnaden",
-    },
-    {
-      id: "ingen-manadsavgift",
-      icon: "💰",
-      title: "Avtal utan månadsavgift",
-      desc: "Vissa elhandlare erbjuder avtal helt utan fast månadsavgift. Spar du över 600 kr per år.",
-      approxKr: "~600 kr / år",
-    },
-  ],
-};
 
 /** Mappar engine v2-åtgärder till de tre kategorierna från publika
  *  ResultScrollFlow ("Använd mindre", "Kapa effekttoppen", "Se över abonnemang").

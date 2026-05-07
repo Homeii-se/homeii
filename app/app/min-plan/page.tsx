@@ -28,67 +28,11 @@ import type {
   UpgradeId,
 } from "../../simulator/types";
 import type { TypeComparison } from "../../simulator/recommendations/engine-v2";
+import { STATIC_TIPS, type StaticTip } from "../../../lib/static-tips";
 
 function formatKr(n: number): string {
   return Math.round(n).toLocaleString("sv-SE");
 }
-
-/* =========================================================================
-   STATIC TIPS — duplicerad från /app/hem för v0.2. Kan dedupliceras till
-   en delad fil i en framtida PR.
-   ========================================================================= */
-
-type StaticTip = {
-  id: string;
-  icon: string;
-  title: string;
-  desc: string;
-  approxKr?: string;
-};
-
-const STATIC_TIPS: Record<"anvanda" | "effekt" | "fast", StaticTip[]> = {
-  anvanda: [
-    {
-      id: "smarta-vanor",
-      icon: "💡",
-      title: "Smartare vanor",
-      desc: "Sänk inomhustemp 1°C, stäng av standby, tvätta på 30°C. Ingen investering — börja idag.",
-      approxKr: "~3 % av räkningen",
-    },
-  ],
-  effekt: [
-    {
-      id: "flytta-last",
-      icon: "🌙",
-      title: "Flytta tvätt och disk till kvällen",
-      desc: "Schemalägg tunga apparater så de inte krockar med matlagning eller hemkomst-toppen.",
-      approxKr: "Gratis · ändra rutiner",
-    },
-  ],
-  fast: [
-    {
-      id: "mindre-sakring",
-      icon: "⚡",
-      title: "Mindre huvudsäkring",
-      desc: "Om dina toppar sällan går över 16 A räcker det med en mindre säkring. Kontakta nätbolaget.",
-      approxKr: "~25 % av nätabonnemanget",
-    },
-    {
-      id: "byt-elhandlare",
-      icon: "📞",
-      title: "Byt elhandlare",
-      desc: "Jämför priser på Elskling.se eller Elpriskollen. Tar 5 minuter att byta online.",
-      approxKr: "~3–5 % av elhandelskostnaden",
-    },
-    {
-      id: "ingen-manadsavgift",
-      icon: "💰",
-      title: "Avtal utan månadsavgift",
-      desc: "Vissa elhandlare erbjuder avtal helt utan fast månadsavgift. Spar du över 600 kr per år.",
-      approxKr: "~600 kr / år",
-    },
-  ],
-};
 
 /* =========================================================================
    HOW-TO GUIDES per åtgärdstyp.
