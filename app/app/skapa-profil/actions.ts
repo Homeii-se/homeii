@@ -109,7 +109,7 @@ export async function saveProfile(
       }
 
       const next = formData.get('next')?.toString();
-      const safeNext = next?.startsWith('/') && !next.startsWith('//') ? next : '/app/hem';
+      const safeNext = next?.startsWith('/') && !next.startsWith('//') ? next : '/app/start';
     
       revalidatePath('/app');
       redirect(safeNext);

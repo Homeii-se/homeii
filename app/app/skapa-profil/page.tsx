@@ -26,7 +26,7 @@ export default async function SkapaProfilPage({
     .single();
 
   if (profile?.privacy_policy_accepted_at && profile.first_name && profile.last_name) {
-    redirect('/app/hem');
+    redirect('/app/start');
   }
 
   return (
