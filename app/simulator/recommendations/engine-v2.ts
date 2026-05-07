@@ -40,6 +40,8 @@ import { DEFAULT_ACTIVE_UPGRADES, RECOMMENDATION_CONFIG } from "../data/upgrade-
 import { calculateAnnualSummary } from "../simulation/annual";
 import { calculateEnergyScore } from "../simulation/scoring";
 import { simulateMonthsWithUpgrades } from "../simulation/monthly";
+import { dlog } from "../../../lib/log";
+import type { TmyHourlyData } from "../data/pvgis-tmy";
 
 // ============================================================
 // Types for the variant-aware engine output
@@ -181,19 +183,20 @@ export function generateRecommendationsV2(
   billData: BillData,
   refinement: RefinementAnswers,
   seZone: SEZone,
-  assumptions: Assumptions
+  assumptions: Assumptions,
+  tmyData?: TmyHourlyData[],
 ): RecommendationResultV2 {
   // ========== 1. Calculate baseline (nuläge) ==========
   // Nuläge = actual bill, no upgrades — the reality anchor
   const baselineSummary = calculateAnnualSummary(
-    billData, refinement, DEFAULT_ACTIVE_UPGRADES, seZone, assumptions, true
+    billData, refinement, DEFAULT_ACTIVE_UPGRADES, seZone, assumptions, true, tmyData
   );
   const baselineAnnualCostKr = baselineSummary.yearlyTotalCostBase;
   const baselineAnnualKwh = baselineSummary.yearlyKwhBase;
 
   // Baseline peak kW (avg monthly)
   const baselineMonthly = simulateMonthsWithUpgrades(
-    billData, refinement, DEFAULT_ACTIVE_UPGRADES, seZone, assumptions
+    billData, refinement, DEFAULT_ACTIVE_UPGRADES, seZone, assumptions, tmyData
   );
   const baselinePeaks = baselineMonthly.map(m => m.peakKwBase);
   const baselineAvgPeak = baselinePeaks.reduce((s, v) => s + v, 0) / 12;
@@ -202,7 +205,7 @@ export function generateRecommendationsV2(
     baselineAnnualKwh, baselineAnnualCostKr, baselineAvgPeak, false, 0
   );
 
-  console.log(`[ENGINE-V2] Baseline: ${Math.round(baselineAnnualKwh)} kWh, ${Math.round(baselineAnnualCostKr)} kr/år, peak ${baselineAvgPeak.toFixed(1)} kW`);
+  dlog("ENGINE-V2", `Baseline: ${Math.round(baselineAnnualKwh)} kWh, ${Math.round(baselineAnnualCostKr)} kr/år, peak ${baselineAvgPeak.toFixed(1)} kW`);
 
   // ========== 2. Determine relevant upgrade types ==========
   const existingEquipment = getExistingEquipment(refinement);
@@ -212,7 +215,7 @@ export function generateRecommendationsV2(
   // Battery is bundled with solar — remove standalone
   const typeIds = relevantTypeIds.filter(id => id !== "batteri");
 
-  console.log(`[ENGINE-V2] Relevant types: ${typeIds.join(", ")} (excluded: ${existingEquipment.join(", ")})`);
+  dlog("ENGINE-V2", `Relevant types: ${typeIds.join(", ")} (excluded: ${existingEquipment.join(", ")})`);
 
   // ========== 3. Evaluate all variants per type ==========
   const typeComparisons: TypeComparison[] = [];
@@ -237,14 +240,15 @@ export function generateRecommendationsV2(
           const evaluation = evaluateVariant(
             variant, type, billData, refinement, seZone, assumptions,
             baselineAnnualCostKr, baselineAnnualKwh, baselineAvgPeak,
-            defaultBattery
+            defaultBattery, tmyData
           );
           if (evaluation) evaluations.push(evaluation);
         }
       } else {
         const evaluation = evaluateVariant(
           variant, type, billData, refinement, seZone, assumptions,
-          baselineAnnualCostKr, baselineAnnualKwh, baselineAvgPeak
+          baselineAnnualCostKr, baselineAnnualKwh, baselineAvgPeak,
+          undefined, tmyData
         );
         if (evaluation) evaluations.push(evaluation);
       }
@@ -265,9 +269,9 @@ export function generateRecommendationsV2(
     .map(tc => tc.bestVariant)
     .sort((a, b) => a.paybackYears - b.paybackYears);
 
-  console.log(`[ENGINE-V2] Ranked best variants:`);
+  dlog("ENGINE-V2", "Ranked best variants:");
   rankedBest.forEach((ev, i) => {
-    console.log(`  ${i + 1}. ${ev.variant.label}: ${ev.yearlySavingsKr} kr/år, payback ${ev.paybackYears} år`);
+    dlog("ENGINE-V2", `  ${i + 1}. ${ev.variant.label}: ${ev.yearlySavingsKr} kr/år, payback ${ev.paybackYears} år`);
   });
 
   // ========== 5. Build legacy-compatible output ==========
@@ -305,10 +309,10 @@ export function generateRecommendationsV2(
   }
 
   const afterAllSummary = calculateAnnualSummary(
-    billData, refinement, allRecsUpgrades, seZone, combinedAssumptions, true
+    billData, refinement, allRecsUpgrades, seZone, combinedAssumptions, true, tmyData
   );
   const afterAllMonthly = simulateMonthsWithUpgrades(
-    billData, refinement, allRecsUpgrades, seZone, combinedAssumptions
+    billData, refinement, allRecsUpgrades, seZone, combinedAssumptions, tmyData
   );
   const afterAllAvgPeak = afterAllMonthly.map(m => m.peakKw).reduce((s, v) => s + v, 0) / 12;
   const savingsPercentAfterAll = baselineAnnualCostKr > 0
@@ -354,7 +358,8 @@ function evaluateVariant(
   baselineCostKr: number,
   baselineKwh: number,
   baselineAvgPeak: number,
-  bundledBatteryVariant?: UpgradeVariant
+  bundledBatteryVariant?: UpgradeVariant,
+  tmyData?: TmyHourlyData[],
 ): VariantEvaluation | null {
   // Build simulation parameters for this variant
   const variantAssumptions = buildVariantAssumptions(baseAssumptions, variant, bundledBatteryVariant);
@@ -362,7 +367,7 @@ function evaluateVariant(
 
   // Run full annual simulation
   const summary = calculateAnnualSummary(
-    billData, refinement, activeUpgrades, seZone, variantAssumptions, true
+    billData, refinement, activeUpgrades, seZone, variantAssumptions, true, tmyData
   );
 
   const yearlySavingsKr = Math.round(baselineCostKr - summary.yearlyTotalCostAfter);
@@ -382,7 +387,7 @@ function evaluateVariant(
 
   // Peak reduction
   const monthlyData = simulateMonthsWithUpgrades(
-    billData, refinement, activeUpgrades, seZone, variantAssumptions
+    billData, refinement, activeUpgrades, seZone, variantAssumptions, tmyData
   );
   const avgPeak = monthlyData.map(m => m.peakKw).reduce((s, v) => s + v, 0) / 12;
   const peakReductionPercent = baselineAvgPeak > 0

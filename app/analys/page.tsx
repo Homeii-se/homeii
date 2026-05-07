@@ -13,7 +13,7 @@ import type {
 import { DEFAULT_STATE } from "../simulator/data/defaults";
 import { UPGRADE_DEFINITIONS, DEFAULT_ACTIVE_UPGRADES } from "../simulator/data/upgrade-catalog";
 import { loadState, saveState, clearState } from "../simulator/storage";
-import { generateRecommendations } from "../simulator/recommendations/engine";
+import { generateRecommendations } from "../simulator/recommendations";
 import StepIndicator from "../simulator/components/StepIndicator";
 import UploadBill from "../simulator/components/UploadBill";
 import VerificationScreen from "../simulator/components/VerificationScreen";
@@ -34,6 +34,13 @@ export default function AnalysPage() {
   const [state, setState] = useState<SimulatorState>(DEFAULT_STATE);
   const [hydrated, setHydrated] = useState(false);
   const [tmyData, setTmyData] = useState<TmyHourlyData[] | null>(null);
+
+  // Loading-overlay för tunga beräkningar. Engine v2 evaluerar 15+ varianter
+  // och `calculateThreeScenarios` kör flera fulla årssimuleringar — det kan
+  // ta flera sekunder på client-side. Utan visuell feedback uppfattas det
+  // som att knappen inte fungerar, så vi visar en tydlig overlay medan
+  // beräkningen pågår.
+  const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
 
   // Ladda sparad state efter hydration (klient-only). Om completedStep är 0
   // (användaren har inte börjat ännu) bumpar vi direkt till 1 så analys-flödet
@@ -91,10 +98,15 @@ export default function AnalysPage() {
   }, [state.billData, state.seZone, tmyData]);
 
   const threeScenarios = useMemo(() => {
+    // threeScenarios används bara av ResultOverview (currentStep === 4).
+    // Step 5 (RecommendationResults) och step 6 (Dashboard) tar inte
+    // threeScenarios som prop — ingen anledning att betala 5-30s
+    // beräkningstid på de stegen.
+    if (currentStep !== 4) return null;
     if (!state.billData || !state.recommendations) return null;
     const recommendedIds = state.recommendations.recommendations.map((r) => r.upgradeId);
     return calculateThreeScenarios(state.billData, state.refinement, state.seZone, state.assumptions, recommendedIds, tmyData ?? undefined);
-  }, [state.billData, state.refinement, state.seZone, state.assumptions, state.recommendations, tmyData]);
+  }, [currentStep, state.billData, state.refinement, state.seZone, state.assumptions, state.recommendations, tmyData]);
 
   // Step handlers
   const handleBillComplete = useCallback(
@@ -105,12 +117,18 @@ export default function AnalysPage() {
   );
 
   const handleVerificationComplete = useCallback(
-    (
+    async (
       seZone: SEZone,
       refinement: RefinementAnswers,
       answeredQuestions: number,
       editedBillData: BillData
     ) => {
+      // Visa overlay innan tunga jobbet startar. Yield till browsern via
+      // setTimeout(0) så React hinner rendera spinnern innan engine blockerar
+      // main thread.
+      setLoadingMessage("Räknar igenom alla scenarion för ditt hus...");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
       // Use the edited bill data — VerificationScreen lets the user
       // correct AI-extracted fields inline, and downstream consumers
       // (recommendations, comparison, simulation) must see the corrections.
@@ -132,7 +150,11 @@ export default function AnalysPage() {
       if (billData.invoiceMarkupOre !== undefined) updatedAssumptions.elhandelMarkupOre = billData.invoiceMarkupOre;
       if (billData.invoiceMonthlyFeeKr !== undefined) updatedAssumptions.elhandelMonthlyFeeKr = billData.invoiceMonthlyFeeKr;
 
-      const recs = generateRecommendations(billData, refinement, seZone, updatedAssumptions);
+      // Pass tmyData when available so the engine can route to the 8760-hour
+      // physics pipeline. If TMY hasn't loaded yet (PVGIS fetch still in
+      // flight) we pass undefined and the engine falls back to the legacy
+      // 12-day pipeline — recommendations remain available immediately.
+      const recs = generateRecommendations(billData, refinement, seZone, updatedAssumptions, tmyData ?? undefined);
 
       const newUpgrades = { ...DEFAULT_ACTIVE_UPGRADES };
       if (refinement.hasSolar) newUpgrades.solceller = true;
@@ -153,20 +175,34 @@ export default function AnalysPage() {
         activeUpgrades: newUpgrades,
         assumptions: updatedAssumptions,
       });
+      setLoadingMessage(null);
     },
-    [state.assumptions, updateState]
+    [state.assumptions, updateState, tmyData]
   );
 
-  const handleViewRecommendations = useCallback(() => {
-    updateState({ completedStep: 5 });
+  // currentStep = completedStep + 1, so the value we set here is one LESS
+  // than the rendering block's `currentStep === N` check:
+  //   completedStep: 3 → currentStep 4 → ResultOverview
+  //   completedStep: 4 → currentStep 5 → RecommendationResults
+  //   completedStep: 5 → currentStep 6 → Dashboard
+
+  const handleViewRecommendations = useCallback(async () => {
+    // ResultOverview "Se rekommendationer" → step 5 (RecommendationResults).
+    // Triggar tunga threeScenarios-memo + render → visa overlay först.
+    setLoadingMessage("Hämtar dina rekommendationer...");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    updateState({ completedStep: 4 });
+    setLoadingMessage(null);
   }, [updateState]);
 
   const handleViewDashboard = useCallback(() => {
+    // RecommendationResults "Visa detaljerad analys" → step 6 (Dashboard).
     updateState({ completedStep: 5 });
   }, [updateState]);
 
   const handleBackToRecommendations = useCallback(() => {
-    updateState({ completedStep: 3 });
+    // Dashboard "Tillbaka till rekommendationer" → step 5 (RecommendationResults).
+    updateState({ completedStep: 4 });
   }, [updateState]);
 
   const handleSEZoneChange = useCallback(
@@ -271,8 +307,14 @@ export default function AnalysPage() {
           />
         )}
 
-        {/* Step 4: Recommendation results */}
-        {currentStep === 5 && state.recommendations && threeScenarios && (
+        {/* Step 4: Recommendation results.
+            Tidigare blockerades rendering av `&& threeScenarios` — men
+            RecommendationResults behöver inte threeScenarios direkt (komponenten
+            har egen ScenarioTeaserCard-logik). När threeScenarios var null
+            (t.ex. om calculateThreeScenarios kraschade pga API-fel)
+            renderades step 5 inte alls och användaren såg en tom sida när
+            de klickade "Tillbaka till rekommendationer". */}
+        {currentStep === 5 && state.recommendations && (
           <RecommendationResults
             recommendations={state.recommendations}
             billData={state.billData!}
@@ -305,6 +347,23 @@ export default function AnalysPage() {
           />
         )}
       </div>
+
+      {/* Full-screen loading-overlay för tunga beräkningar.
+          Renderas över hela vyn (z-50) så användaren får tydlig feedback
+          att klicket registrerades — engine v2 + scenario-beräkningar kan
+          ta flera sekunder och utan overlay verkar UI fruset. */}
+      {loadingMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-warm/85 backdrop-blur-sm">
+          <div className="card-strong rounded-2xl p-8 text-center max-w-sm mx-4">
+            <div className="mb-4 flex justify-center">
+              <div className="h-12 w-12 rounded-full border-4 border-brand-100 border-t-brand-500 animate-spin"></div>
+            </div>
+            <p className="text-sm font-medium text-text-primary">
+              {loadingMessage}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

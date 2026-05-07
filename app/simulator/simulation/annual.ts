@@ -17,6 +17,7 @@ import { getZoneClimate } from "../climate";
 import { getBlendedHeatingShare, getHeatPumpCOP, getAdjustedSeasonFactors } from "./upgrades";
 import { simulateMonthsWithUpgrades } from "./monthly";
 import type { AnnualCostBreakdown } from "./cost-model";
+import type { TmyHourlyData } from "../data/pvgis-tmy";
 import { getAnnualAvgSpotOre } from "../data/energy-prices";
 import { getEnergyTaxRateForYear } from "../data/energy-tax";
 import { ELHANDEL_DEFAULTS } from "../data/elhandel-defaults";
@@ -235,14 +236,19 @@ export function getPrecision(answeredQuestions: number): number {
 
 /** Calculate annual summary with investment costs and payback.
  *  @param skipInflation — if true, use the bill as-is (for nuläge scenario
- *  where the invoice kWh already reflects actual grid consumption). */
+ *  where the invoice kWh already reflects actual grid consumption).
+ *  @param tmyData — optional 8760 TMY weather data; when provided, routes
+ *  the underlying month simulation through the full-year physics pipeline
+ *  (simulate8760WithUpgrades). Falls back to the legacy 12-day pipeline
+ *  when omitted. */
 export function calculateAnnualSummary(
   bill: BillData,
   refinement: RefinementAnswers,
   activeUpgrades: ActiveUpgrades,
   seZone: SEZone,
   assumptions?: Assumptions,
-  skipInflation?: boolean
+  skipInflation?: boolean,
+  tmyData?: TmyHourlyData[],
 ): AnnualSummary {
   // When skipInflation is false (default), inflate the bill to a zero-equipment
   // baseline so the simulation can model "without investments" and "with upgrades".
@@ -250,7 +256,7 @@ export function calculateAnnualSummary(
   const effectiveBill = skipInflation
     ? bill
     : estimateZeroEquipmentBill(bill, refinement, seZone);
-  const monthlyData = simulateMonthsWithUpgrades(effectiveBill, refinement, activeUpgrades, seZone, assumptions);
+  const monthlyData = simulateMonthsWithUpgrades(effectiveBill, refinement, activeUpgrades, seZone, assumptions, tmyData);
 
   // Aggregate from monthly cost breakdowns (new cost model)
   const yearlyKwhBase = monthlyData.reduce((s, m) => s + m.kwhBase, 0);

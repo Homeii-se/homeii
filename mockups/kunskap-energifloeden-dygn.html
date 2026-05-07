@@ -1,0 +1,1552 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Energiflöden över ett dygn — Homeii Kunskap</title>
+<style>
+  :root {
+    --bg-page: #F0EAD6;
+    --bg-card: #FFFFFF;
+    --bg-stage: #F4F1E9;
+    --bg-stat: #FAF7EE;
+    --bg-narrative: #1E3A2A;
+    --text-primary: #243B30;
+    --text-secondary: #5C6B61;
+    --text-tertiary: #8C9690;
+    --text-on-dark: #E6EDE7;
+    --border: rgba(36, 59, 48, 0.18);
+    --border-strong: rgba(36, 59, 48, 0.32);
+    --accent: #2D7A4F;
+    --accent-deep: #1E3A2A;
+    --accent-cons: #B97045;
+    --accent-sun: #DCA94B;
+    --accent-storage: #2D7A6F;
+    --accent-grid: #758895;
+    --line-dim: #C9C4B4;
+    --gauge-bg: #D5D2C5;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: var(--bg-page); color: var(--text-primary); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; line-height: 1.6; padding: 32px 16px 64px; }
+  .page { max-width: 1240px; margin: 0 auto; }
+  .breadcrumb { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px; }
+  h1 { font-weight: 500; font-size: 32px; margin: 0 0 12px; max-width: 720px; line-height: 1.25; }
+  h1 .accent { color: var(--accent); }
+  .lede { max-width: 680px; color: var(--text-secondary); margin: 0 0 28px; }
+  .divider { height: 1px; background: var(--border); margin: 0 0 24px; }
+
+  .layout { display: grid; grid-template-columns: 1fr 280px; gap: 16px; align-items: start; }
+  @media (max-width: 1040px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--bg-card); border-radius: 18px; border: 0.5px solid var(--border); padding: 20px; display: flex; flex-direction: column; }
+  .panel > .hero { order: 1; }
+  .panel > #stageSection { order: 2; }
+  .panel > #timelineSection { order: 3; margin-bottom: 0; margin-top: 12px; }
+  .panel > .narr-row { order: 4; }
+
+  .seg { display: inline-flex; border: 0.5px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .seg-btn { border: 0; border-right: 0.5px solid var(--border); padding: 6px 12px; background: transparent; cursor: pointer; font-size: 12px; color: var(--text-primary); font-family: inherit; white-space: nowrap; }
+  .seg-btn:last-child { border-right: 0; }
+  .seg-btn.active { background: var(--accent-deep); color: var(--text-on-dark); font-weight: 500; }
+  .seg-lbl { font-size: 11px; color: var(--text-secondary); letter-spacing: 0.04em; text-transform: uppercase; margin-right: 6px; }
+
+  .hero { text-align: center; padding: 8px 0 16px; }
+  .hero-instr { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; letter-spacing: 0.02em; }
+  .hero-cards { display: inline-flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .hero-card { width: 180px; padding: 11px 14px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--bg-card); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; font-family: inherit; color: var(--accent-deep); transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease; }
+  .hero-card:hover:not(.active) { background: var(--bg-stage); border-color: var(--border-strong); }
+  .hero-card.active { background: var(--accent-deep); border-color: var(--accent-deep); color: var(--text-on-dark); }
+  .hero-illu { width: 100%; height: 50px; display: block; }
+  .hc-title { font-size: 13.5px; font-weight: 500; letter-spacing: 0.01em; }
+  .hc-desc { font-size: 10.5px; line-height: 1.35; opacity: 0.78; text-align: center; letter-spacing: 0.04em; text-transform: uppercase; }
+  .hero-arrow { font-size: 16px; color: var(--text-secondary); opacity: 0.55; user-select: none; }
+
+  .stage-panel { background: var(--bg-stage); border-radius: 14px; padding: 14px; overflow: hidden; }
+
+  .time-module { display: flex; align-items: center; gap: 14px; padding: 0; }
+  .big-clock-large { display: flex; flex-direction: column; align-items: center; min-width: 86px; flex-shrink: 0; gap: 6px; }
+  .clock-season { margin-top: 8px; font-size: 11px; padding: 4px 22px 4px 10px; }
+  .kl-label { font-size: 11px; letter-spacing: 0.16em; color: var(--text-secondary); }
+  .kl-value { font-size: 56px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--text-primary); line-height: 1; letter-spacing: 0.02em; }
+  .timeline-svg-wrap { flex: 1; min-width: 0; }
+  .timeline-svg { display: block; width: 100%; height: 132px; cursor: ew-resize; }
+  .sa-ground { stroke: var(--line-dim); stroke-width: 0.6; opacity: 0.7; }
+  .sa-arc-bg { fill: rgba(220,169,75,0.10); stroke: rgba(220,169,75,0.35); stroke-width: 1; }
+  .sa-tick { font: 500 10px inherit; fill: var(--text-secondary); }
+  .sa-now-line { stroke: var(--accent-deep); stroke-width: 1; opacity: 0.3; }
+  .sa-sun-glow { fill: var(--accent-sun); opacity: 0.18; }
+  .sa-moon-glow { fill: #B5BAAE; opacity: 0.18; }
+
+  .stage-controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-bottom: 12px; }
+  .ctrl-group { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .anpassa-btn { padding: 5px 12px; font-size: 12px; border-radius: 8px; border: 0.5px solid var(--border); background: transparent; color: var(--text-primary); cursor: pointer; font-family: inherit; }
+  .anpassa-btn:hover { background: rgba(0,0,0,0.04); }
+  .anpassa-expand { display: none; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 10px; background: rgba(0,0,0,0.03); border-radius: 8px; margin-top: 4px; flex-basis: 100%; }
+  .anpassa-expand.open { display: flex; }
+  .anpassa-expand .seg-lbl { margin-right: 4px; }
+  .asset-toggle { padding: 4px 11px; font-size: 11.5px; border-radius: 6px; border: 0.5px solid var(--border); background: transparent; color: var(--text-primary); cursor: pointer; font-family: inherit; }
+  .asset-toggle.active { background: var(--accent); color: #FFFFFF; border-color: var(--accent); }
+  .asset-toggle:hover:not(.active) { background: var(--bg-stage); }
+
+  .stage-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .stage-tab { padding: 8px 16px; font-size: 12px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: transparent; cursor: pointer; color: var(--text-secondary); font-family: inherit; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; transition: color 0.2s ease, border-color 0.2s ease; }
+  .stage-tab:hover:not(.active) { color: var(--text-primary); }
+  .stage-tab.active { color: var(--accent-deep); border-bottom-color: var(--accent-deep); }
+  .stage-view { min-height: 470px; }
+  .stage-view.hus { display: flex; align-items: center; justify-content: center; }
+  .stage-svg { width: 100%; max-width: 700px; }
+  .stage-svg svg { display: block; width: 100%; height: 100%; max-height: 470px; }
+  .stage-diagram { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr auto; gap: 14px; }
+  .diagram-money { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 16px; padding: 12px 16px; background: var(--bg-card); border: 0.5px solid var(--border); border-radius: 12px; flex-wrap: wrap; }
+  .dm-lbl { font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); font-weight: 500; }
+  .dm-val { font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+  .dm-sub { font-size: 11.5px; color: var(--accent); margin-left: auto; }
+  .diagram-col { background: var(--bg-card); border: 0.5px solid var(--border); border-radius: 12px; padding: 14px 16px 16px; display: flex; flex-direction: column; }
+  .diagram-h { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); margin: 0 0 4px; text-align: center; font-weight: 500; }
+  .diagram-total { font-size: 22px; font-weight: 500; color: var(--text-primary); margin: 0 0 14px; text-align: center; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+  .bc-track { flex: 1; display: flex; flex-direction: column; gap: 1px; min-height: 0; overflow: hidden; }
+  .bc-seg { padding: 6px 14px; border-radius: 5px; color: #FFFFFF; font-size: 13px; overflow: hidden; flex-direction: row; justify-content: space-between; align-items: center; gap: 12px; transition: height 0.5s ease; height: 0; display: none; }
+  .bc-seg .bc-lab { font-weight: 500; letter-spacing: 0.04em; line-height: 1.1; white-space: nowrap; }
+  .bc-seg .bc-kw { font-size: 12px; opacity: 0.88; font-variant-numeric: tabular-nums; line-height: 1.1; white-space: nowrap; }
+
+  .bc-c-sol { background: var(--accent-sun); }
+  .bc-c-grid { background: var(--accent-grid); }
+  .bc-c-bat { background: var(--accent-storage); }
+  .bc-c-ev { background: var(--accent-storage); }
+  .bc-c-heat { background: var(--accent-cons); }
+  .bc-c-other { background: var(--accent-cons); }
+  .bc-c-export { background: #A0A599; }
+
+  .overlay-dropdown { background: var(--bg-card); border: 0.5px solid var(--border); border-radius: 8px; padding: 6px 28px 6px 12px; font-size: 12px; font-family: inherit; color: var(--text-primary); cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%231E3A2A' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>"); background-repeat: no-repeat; background-position: right 10px center; }
+  .play-text-btn { min-width: 60px; padding: 6px 14px; background: var(--bg-card); border: 0.5px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 12px; font-family: inherit; color: var(--text-primary); font-weight: 500; letter-spacing: 0.02em; }
+  .play-text-btn:hover { background: var(--bg-stage); }
+
+  .timeline { background: var(--bg-stage); border-radius: 14px; padding: 14px 16px 12px; margin-bottom: 12px; user-select: none; }
+  .time-toggles { display: flex; gap: 8px; margin: 8px 0 0; padding-left: 100px; flex-wrap: wrap; align-items: center; }
+  .time-play { margin-left: auto; display: inline-flex; gap: 8px; align-items: center; }
+  .time-toggle { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; font-size: 11.5px; border-radius: 16px; border: 0.5px solid var(--border); background: transparent; cursor: pointer; font-family: inherit; color: var(--text-secondary); transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease; }
+  .time-toggle:hover:not(.active) { background: rgba(0,0,0,0.04); color: var(--text-primary); }
+  .tt-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: transparent; border: 1.5px solid currentColor; transition: background 0.2s ease, border-color 0.2s ease; }
+  .time-toggle.active { background: var(--bg-card); border-color: var(--border-strong); }
+  .time-toggle[data-layer="price"].active { color: var(--accent); }
+  .time-toggle[data-layer="price"].active .tt-dot { background: var(--accent); border-color: var(--accent); }
+  .time-toggle[data-layer="cons"].active { color: var(--accent-cons); }
+  .time-toggle[data-layer="cons"].active .tt-dot { background: var(--accent-cons); border-color: var(--accent-cons); }
+
+  .narr-row { display: grid; grid-template-columns: 1fr 160px; gap: 10px; margin-top: 10px; }
+  .narrative { background: var(--bg-narrative); color: var(--text-on-dark); padding: 16px 18px; border-radius: 14px; border-left: 4px solid transparent; transition: border-left-color 0.3s ease; }
+  .narrative.warn { border-left-color: #D9A742; }
+  .narrative.peak-good { border-left-color: #6B9C84; }
+  .narrative .nh { font-weight: 500; margin: 0 0 8px; font-size: 16px; line-height: 1.3; }
+  .narrative .nb { font-size: 14px; color: rgba(230,237,231,0.88); line-height: 1.55; }
+  .kostnad-card { background: var(--bg-stat); border: 0.5px solid var(--border); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; justify-content: center; position: relative; }
+  .kc-header { display: flex; align-items: center; gap: 6px; }
+  .kc-label { font-size: 10.5px; color: var(--text-secondary); letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.2; }
+  .kc-info-btn { width: 16px; height: 16px; border: 0.5px solid var(--border); border-radius: 50%; background: transparent; color: var(--text-secondary); font-size: 10px; font-weight: 600; cursor: pointer; padding: 0; line-height: 1; font-family: serif; font-style: italic; display: inline-flex; align-items: center; justify-content: center; }
+  .kc-info-btn:hover { background: var(--bg-card); color: var(--accent-deep); border-color: var(--border-strong); }
+  .kc-value { font-size: 22px; font-weight: 500; margin-top: 6px; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+  .kc-popover { position: absolute; bottom: calc(100% + 10px); right: 0; width: 360px; max-width: calc(100vw - 60px); background: var(--bg-card); border: 0.5px solid var(--border); border-radius: 14px; padding: 18px 20px; box-shadow: 0 10px 28px rgba(0,0,0,0.12); z-index: 20; }
+  .kc-pop-h { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); margin: 0 0 10px; font-weight: 500; }
+  .kc-pop-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .kc-pop-table td { padding: 4px 0; vertical-align: top; }
+  .kc-pop-table td:last-child { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .kc-pop-table tr.muted td { font-size: 11px; color: var(--text-tertiary); padding-top: 0; padding-bottom: 6px; }
+  .kc-pop-table tr.rev td:last-child { color: var(--accent); }
+  .kc-pop-table tr.tot td { padding-top: 8px; border-top: 0.5px solid var(--border); font-weight: 500; font-size: 14px; color: var(--text-primary); }
+  .kc-pop-divider { height: 0.5px; background: var(--border); margin: 14px 0 12px; }
+  .kc-pop-explain h5 { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); margin: 0 0 8px; font-weight: 500; }
+  .kc-pop-explain ul { list-style: none; margin: 0; padding: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-primary); }
+  .kc-pop-explain li { padding: 3px 0 3px 14px; position: relative; }
+  .kc-pop-explain li:before { content: "•"; position: absolute; left: 2px; color: var(--accent); font-weight: 600; }
+  .kc-pop-explain li strong { font-weight: 500; color: var(--accent-deep); }
+  .kc-pop-month { font-size: 11px; color: var(--text-tertiary); margin-top: 12px; }
+  .kc-pop-note { font-size: 11.5px; color: var(--text-secondary); margin-top: 10px; padding: 8px 10px; background: var(--bg-stat); border-radius: 6px; line-height: 1.45; }
+  .kc-pop-note strong { font-weight: 600; color: var(--text-primary); }
+
+  .bottom-controls { display: flex; justify-content: flex-end; gap: 10px; align-items: center; margin-top: 14px; }
+
+  .side { display: flex; flex-direction: column; gap: 12px; }
+  .legend { background: var(--bg-card); border: 0.5px solid var(--border); border-radius: 14px; padding: 14px 16px; font-size: 13px; }
+  .legend h3 { font-size: 13px; margin: 0 0 8px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-secondary); }
+  .legend ul { list-style: none; margin: 0; padding: 0; }
+  .legend li { padding: 4px 0; color: var(--text-primary); }
+  .legend strong { font-weight: 500; }
+
+  .node-c { fill: var(--bg-card); stroke: var(--accent-deep); stroke-width: 1.4; }
+  .node-i { fill: none; stroke: var(--accent-deep); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  .node-l { font: 500 11px inherit; fill: var(--accent-deep); text-anchor: middle; letter-spacing: 0.05em; }
+  .kw-bg { fill: var(--accent-deep); }
+  .kw-tx { font: 500 11px inherit; fill: #FFFFFF; text-anchor: middle; }
+  .gauge-bg-r { fill: var(--gauge-bg); }
+  .gauge-fg { fill: var(--accent); transition: width 0.3s ease; }
+  .gauge-tx { font: 500 10.5px inherit; fill: var(--accent-deep); text-anchor: middle; font-variant-numeric: tabular-nums; }
+  .line { stroke: var(--line-dim); stroke-width: 1; fill: none; }
+  .flow { stroke: var(--accent); stroke-width: 1.5; fill: none; stroke-dasharray: 2 8; stroke-linecap: round; opacity: 0; }
+  @keyframes flowMove { to { stroke-dashoffset: -120; } }
+  .flow.run { animation: flowMove 2.4s linear infinite; }
+  .fade { transition: opacity 0.4s ease; }
+
+  .hus-outline-bg { fill: rgba(36, 59, 48, 0.025); stroke: var(--border); stroke-width: 1; stroke-linejoin: round; }
+  .hus-outline-fg { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; transition: stroke 0.4s ease; }
+  .hus-outline-fg.peak { stroke: #C56B3D; }
+  .hus-label { font: 500 11px inherit; fill: var(--text-secondary); letter-spacing: 0.18em; text-anchor: middle; text-transform: uppercase; }
+  .flow-path-geom { fill: none; stroke: none; }
+  .flow-line { fill: none; stroke-width: 1; stroke-linecap: round; opacity: 0; transition: opacity 0.3s ease, stroke-width 0.3s ease; }
+  .flow-line.act { opacity: 0.18; }
+  .flow-line.col-sol { stroke: var(--accent-sun); }
+  .flow-line.col-grid { stroke: var(--accent-grid); }
+  .flow-line.col-bat { stroke: var(--accent-storage); }
+  .particle { opacity: 0; transition: opacity 0.3s ease; }
+  .particle.act { opacity: 0.95; }
+  .particle.col-sol { fill: var(--accent-sun); }
+  .particle.col-grid { fill: var(--accent-grid); }
+  .particle.col-bat { fill: var(--accent-storage); }
+  .flow-kw-bg { display: none; }
+  .flow-kw-tx { font: 600 9.5px inherit; fill: var(--accent-deep); text-anchor: middle; opacity: 0; transition: opacity 0.3s ease; font-variant-numeric: tabular-nums; paint-order: stroke; stroke: var(--bg-stage); stroke-width: 3.5; stroke-linejoin: round; }
+  .flow-kw-tx.act { opacity: 1; }
+  .effekt-readout { font: 500 10.5px inherit; fill: var(--accent-deep); text-anchor: middle; font-variant-numeric: tabular-nums; }
+  .effekt-readout-sub { font: 500 9px inherit; fill: var(--text-secondary); text-anchor: middle; letter-spacing: 0.06em; text-transform: uppercase; }
+  .coin { fill: #E2B945; stroke: #8B6614; stroke-width: 0.6; opacity: 0; transition: opacity 0.4s ease; }
+  .coin.show { opacity: 0.95; }
+  .kc-saving { font-size: 12px; color: var(--accent); margin-top: 6px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.35; }
+  .kc-saving strong { font-weight: 700; }
+  .kc-sub { font-size: 11px; color: var(--accent); margin-top: 4px; font-weight: 500; font-variant-numeric: tabular-nums; opacity: 0.85; }
+  .pg-grid { stroke: var(--line-dim); stroke-width: 0.5; opacity: 0.7; }
+  .pg-axislbl { font: 500 10px inherit; fill: var(--text-secondary); }
+  .pg-axislbl-l { font: 500 10px inherit; fill: var(--accent-cons); }
+  .pg-area { fill: var(--accent); opacity: 0.12; }
+  .pg-line { fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linejoin: round; }
+  .pg-cons-line { fill: none; stroke: var(--accent-cons); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+  .pg-now { stroke: var(--accent-deep); stroke-width: 1.5; }
+
+  .footnote { color: var(--text-secondary); font-size: 13px; margin-top: 24px; max-width: 720px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="breadcrumb">Kunskap › Energiflöden</div>
+  <h1>Hur flödar <span class="accent">energin</span> i morgondagens hem?</h1>
+  <p class="lede">I morgondagens hem rör sig el åt flera håll samtidigt — solen producerar, batteriet lagrar, elbilen laddar, och överskott säljs ibland tillbaka till nätet. Den stora skillnaden mot förr — en framtid som delvis redan är här — är att elpriset varierar över dygnet och att du premieras när du går från passiv brukare till aktiv part i elsystemet. Det innebär både möjligheter och risker, och Homeiis uppgift är att vägleda dig förbi fallgroparna och hjälpa dig kapitalisera på möjligheterna. Klicka mellan gårdagens och morgondagens hem nedan för att se hur de nya flödena skiljer sig från en värld där elen bara gick ett håll: från nätet in i huset.</p>
+  <div class="divider"></div>
+
+  <div class="layout">
+    <div class="panel">
+
+      <div class="hero">
+        <div class="hero-instr">Klicka för att jämföra gårdagens och morgondagens hem</div>
+        <div class="hero-cards">
+          <button id="preset-pre" class="hero-card active">
+            <svg class="hero-illu" viewBox="0 0 160 70" fill="none">
+              <line x1="10" y1="62" x2="150" y2="62" stroke="currentColor" stroke-width="0.6" stroke-dasharray="2 2" opacity="0.5"/>
+              <path d="M 42 62 L 42 38 L 80 18 L 118 38 L 118 62 Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+              <path d="M 73 62 L 73 50 L 87 50 L 87 62" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>
+              <rect x="50" y="44" width="11" height="9" stroke="currentColor" stroke-width="0.9"/>
+              <rect x="99" y="44" width="11" height="9" stroke="currentColor" stroke-width="0.9"/>
+              <rect x="100" y="22" width="5" height="10" stroke="currentColor" stroke-width="1"/>
+              <g stroke="currentColor" stroke-width="0.8" stroke-linecap="round" opacity="0.55"><path d="M 102 18 Q 104 14 102 12 Q 100 9 102 6"/></g>
+            </svg>
+            <div class="hc-title">Gårdagens hem</div>
+            <div class="hc-desc">Passiv konsument</div>
+          </button>
+          <div class="hero-arrow">→</div>
+          <button id="preset-post" class="hero-card">
+            <svg class="hero-illu" viewBox="0 0 160 70" fill="none">
+              <line x1="10" y1="62" x2="150" y2="62" stroke="currentColor" stroke-width="0.6" stroke-dasharray="2 2" opacity="0.5"/>
+              <path d="M 42 62 L 42 38 L 80 18 L 118 38 L 118 62 Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+              <path d="M 73 62 L 73 50 L 87 50 L 87 62" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>
+              <rect x="50" y="44" width="11" height="9" stroke="currentColor" stroke-width="0.9"/>
+              <rect x="99" y="44" width="11" height="9" stroke="currentColor" stroke-width="0.9"/>
+              <g stroke="currentColor" stroke-width="0.8" stroke-linejoin="round">
+                <path d="M 51 35 L 57 24 L 70 24 L 64 35 Z"/>
+                <path d="M 90 24 L 103 24 L 109 35 L 96 35 Z"/>
+                <line x1="56" y1="29.5" x2="68" y2="29.5"/>
+                <line x1="92" y1="29.5" x2="106" y2="29.5"/>
+              </g>
+              <rect x="22" y="50" width="13" height="10" stroke="currentColor" stroke-width="1.1" rx="1"/>
+              <circle cx="28.5" cy="55" r="2.4" stroke="currentColor" stroke-width="0.9"/>
+              <rect x="125" y="46" width="11" height="14" stroke="currentColor" stroke-width="1.1" rx="1"/>
+              <line x1="128" y1="50" x2="133" y2="50" stroke="currentColor" stroke-width="0.7"/>
+              <line x1="128" y1="54" x2="133" y2="54" stroke="currentColor" stroke-width="0.7"/>
+              <line x1="128" y1="58" x2="133" y2="58" stroke="currentColor" stroke-width="0.7"/>
+              <g stroke="currentColor" stroke-width="1" stroke-linejoin="round">
+                <path d="M 4 60 L 6 54 L 16 54 L 18 60 Z"/>
+                <line x1="3" y1="60" x2="19" y2="60"/>
+                <circle cx="7" cy="62" r="1.3" fill="currentColor" stroke="none"/>
+                <circle cx="15" cy="62" r="1.3" fill="currentColor" stroke="none"/>
+              </g>
+            </svg>
+            <div class="hc-title">Morgondagens hem</div>
+            <div class="hc-desc">Aktiv prosument</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="timeline" id="timelineSection">
+        <div class="time-module">
+          <div class="big-clock-large">
+            <span class="kl-label">KL</span>
+            <span class="kl-value" id="timeReadout">07</span>
+            <select id="seasonSel" class="overlay-dropdown clock-season" aria-label="Säsong">
+              <option value="vinter">Vinter</option>
+              <option value="host" selected>Vår·Höst</option>
+              <option value="sommar">Sommar</option>
+            </select>
+          </div>
+          <div class="timeline-svg-wrap">
+            <svg id="timelineSvg" class="timeline-svg" viewBox="0 0 700 115" preserveAspectRatio="none">
+              <g id="gridlines" style="display: none;">
+                <line class="pg-grid" x1="0" y1="32.5" x2="700" y2="32.5" />
+                <line class="pg-grid" x1="0" y1="55" x2="700" y2="55" />
+                <line class="pg-grid" x1="0" y1="77.5" x2="700" y2="77.5" />
+              </g>
+              <path id="sunArcPath" class="sa-arc-bg" d="" />
+              <line class="sa-ground" x1="0" y1="100" x2="700" y2="100" />
+              <path id="pgLine" class="pg-line" d="">
+                <title>Spotpris inkl. moms och skatter (öre/kWh)</title>
+              </path>
+              <path id="pgConsLine" class="pg-cons-line" d="">
+                <title>Hushållets eleffekt (kW)</title>
+              </path>
+              <line id="sunNowLine" class="sa-now-line" x1="0" y1="0" x2="0" y2="100" />
+              <g id="sunIconG">
+                <circle id="sunGlow" class="sa-sun-glow" cx="0" cy="0" r="14" />
+                <g id="sunIcon" transform="translate(0,0)">
+                  <circle r="7" fill="#DCA94B" />
+                  <g stroke="#DCA94B" stroke-width="1.4" stroke-linecap="round">
+                    <line x1="0" y1="-11" x2="0" y2="-15" />
+                    <line x1="0" y1="11" x2="0" y2="15" />
+                    <line x1="-11" y1="0" x2="-15" y2="0" />
+                    <line x1="11" y1="0" x2="15" y2="0" />
+                    <line x1="-8" y1="-8" x2="-11" y2="-11" />
+                    <line x1="8" y1="8" x2="11" y2="11" />
+                    <line x1="-8" y1="8" x2="-11" y2="11" />
+                    <line x1="8" y1="-8" x2="11" y2="-11" />
+                  </g>
+                </g>
+              </g>
+              <g id="moonIconG" transform="translate(0,100)" style="display:none">
+                <circle id="moonGlow" class="sa-moon-glow" cx="0" cy="0" r="13" />
+                <circle cx="0" cy="0" r="7" fill="#D8DDE1" />
+                <circle cx="3" cy="-1.5" r="5.8" fill="#F4F1E9" />
+              </g>
+              <text class="pg-axislbl-l" x="6" y="36">9 kW</text>
+              <text class="pg-axislbl-l" x="6" y="58.5">6 kW</text>
+              <text class="pg-axislbl-l" x="6" y="81">3 kW</text>
+              <text class="pg-axislbl pg-axislbl-r" x="694" y="36" text-anchor="end">300</text>
+              <text class="pg-axislbl pg-axislbl-r" x="694" y="58.5" text-anchor="end">200</text>
+              <text class="pg-axislbl pg-axislbl-r" x="694" y="81" text-anchor="end">100</text>
+              <text class="sa-tick" x="6" y="113">00</text>
+              <text class="sa-tick" x="175" y="113" text-anchor="middle">06</text>
+              <text class="sa-tick" x="350" y="113" text-anchor="middle">12</text>
+              <text class="sa-tick" x="525" y="113" text-anchor="middle">18</text>
+              <text class="sa-tick" x="694" y="113" text-anchor="end">24</text>
+            </svg>
+          </div>
+        </div>
+
+        <div class="time-toggles">
+          <button class="time-toggle" data-layer="price" title="Spotpris inkl. moms och skatter (öre/kWh)"><span class="tt-dot tt-dot-price"></span>Visa elpris</button>
+          <button class="time-toggle" data-layer="cons" title="Hushållets eleffekt (kW)"><span class="tt-dot tt-dot-cons"></span>Visa elanvändning</button>
+          <div class="time-play">
+            <button id="playBtn" class="play-text-btn" aria-label="Spela / Pausa"><span id="playLabel">Paus</span></button>
+            <select id="tempoSel" class="overlay-dropdown" aria-label="Tempo">
+              <option value="slow">0,5x</option>
+              <option value="normal" selected>1x</option>
+              <option value="fast">2x</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage-panel" id="stageSection">
+
+        <div class="stage-controls">
+          <div class="ctrl-group">
+            <span class="seg-lbl">Pris</span>
+            <div class="seg" id="priceSeg">
+              <button data-v="manadsmedel" class="seg-btn active">Månadsmedel</button>
+              <button data-v="dynamiskt" class="seg-btn">Dynamiskt</button>
+            </div>
+          </div>
+          <button id="anpassaToggleBtn" class="anpassa-btn">Anpassa själv ↓</button>
+          <div id="anpassaExpand" class="anpassa-expand">
+            <span class="seg-lbl">Anpassa</span>
+            <button class="asset-toggle active" data-asset="hp">+ Värmepump</button>
+            <button class="asset-toggle" data-asset="ev">+ Elbil</button>
+            <button class="asset-toggle" data-asset="sol">+ Sol</button>
+            <button class="asset-toggle" data-asset="bat">+ Batteri</button>
+            <button class="asset-toggle" data-asset="smart">+ Smart</button>
+          </div>
+        </div>
+
+        <div class="stage-tabs">
+          <button data-mode="hus" class="stage-tab active">Hus-vy</button>
+          <button data-mode="diagram" class="stage-tab">Diagram-vy</button>
+        </div>
+
+        <div id="view-hus" class="stage-view hus">
+          <div class="stage-svg">
+            <svg id="viz" viewBox="0 0 700 470" preserveAspectRatio="xMidYMid meet">
+              <!-- Hus-silhuett (bara visuell ram, ej flödesnod) -->
+              <g id="hus-frame">
+                <path id="hus-outline-bg" class="hus-outline-bg" d="M 60 200 L 60 430 L 640 430 L 640 200 L 350 110 Z" />
+                <text class="hus-label" x="350" y="178">Huset</text>
+                <text class="effekt-readout-sub" x="350" y="448">Effekt just nu</text>
+                <text class="effekt-readout" id="effektReadout" x="350" y="465">
+                  <title>Total effekt som flödar in i huset just nu — laster (värme, övrigt, elbil-laddning) plus lagring (batteri som laddas). När solen exporterar överskott kan denna siffra vara nära 0 trots aktivitet i huset.</title>
+                  0 kW
+                </text>
+              </g>
+
+              <!-- Flödes-paths (osynliga geometrier som partiklar följer) -->
+              <g id="flow-paths"></g>
+              <!-- Synliga flödeslinjer (svaga färgade kurvor) -->
+              <g id="flow-lines"></g>
+              <!-- Partiklar (genereras dynamiskt) -->
+              <g id="flow-particles"></g>
+              <!-- kW-stickers per aktivt flöde -->
+              <g id="flow-kw"></g>
+
+              <!-- Stödtjänster: mynt rasslar från batteri mot elnät vid utvalda timmar -->
+              <g id="stodtjanst-layer" style="display:none">
+                <path id="coin-path" class="flow-path-geom" d="M 130 320 Q 350 80 570 65" />
+              </g>
+
+              <!-- Källa: Sol (ovanför taket) -->
+              <g id="n-sol" class="fade">
+                <title>Solpaneler — producerar el direkt från solinstrålningen. Peak-effekt: ca 5 kW på sommaren, 3,5 kW vår·höst, 1,2 kW på vintern. Överskott laddar batteriet eller säljs till nätet.</title>
+                <circle class="node-c" cx="130" cy="65" r="30" />
+                <circle class="node-i" cx="130" cy="65" r="9" />
+                <g class="node-i">
+                  <line x1="130" y1="48" x2="130" y2="53" /><line x1="130" y1="77" x2="130" y2="82" />
+                  <line x1="113" y1="65" x2="118" y2="65" /><line x1="142" y1="65" x2="147" y2="65" />
+                  <line x1="118" y1="53" x2="121" y2="56" /><line x1="139" y1="74" x2="142" y2="77" />
+                  <line x1="118" y1="77" x2="121" y2="74" /><line x1="139" y1="56" x2="142" y2="53" />
+                </g>
+                <text class="node-l" x="130" y="110">SOL</text>
+              </g>
+
+              <!-- Källa: Elnät (kraftledningsstolpe) -->
+              <g id="n-grid">
+                <title>Elnätet — extern strömkälla. Du köper kWh när huset behöver mer än det producerar; säljer överskott (sol-export). Pris varierar timme-för-timme i dynamiskt-läge, fast i månadsmedel-läge.</title>
+                <circle class="node-c" cx="570" cy="65" r="30" />
+                <g class="node-i" stroke-linejoin="round" stroke-linecap="round">
+                  <!-- Stolpens kropp (bred bas, tapering uppåt) -->
+                  <path d="M 555 82 L 564 56 L 576 56 L 585 82" fill="none" />
+                  <!-- Bottenfundament (bred horisontell linje) -->
+                  <line x1="552" y1="82" x2="588" y2="82" stroke-width="1.6" />
+                  <!-- Topp-spets / blixtavledare -->
+                  <line x1="570" y1="56" x2="570" y2="50" />
+                  <!-- Övre tvärbalk (bredast) -->
+                  <line x1="552" y1="61" x2="588" y2="61" stroke-width="1.2" />
+                  <!-- Tre V-formade isolatorer hängande från övre tvärbalken -->
+                  <path d="M 554 61 L 555.5 65 L 557 61" />
+                  <path d="M 569 61 L 570 65 L 571 61" />
+                  <path d="M 583 61 L 584.5 65 L 586 61" />
+                  <!-- Nedre tvärbalk (smalare) -->
+                  <line x1="558" y1="71" x2="582" y2="71" stroke-width="1" />
+                  <!-- Två V-isolatorer på nedre tvärbalken -->
+                  <path d="M 561 71 L 562 74 L 563 71" />
+                  <path d="M 577 71 L 578 74 L 579 71" />
+                  <!-- Subtila X-strävor i tornkroppen (lattice-känsla) -->
+                  <line x1="566" y1="80" x2="574" y2="64" stroke-width="0.4" opacity="0.55" />
+                  <line x1="574" y1="80" x2="566" y2="64" stroke-width="0.4" opacity="0.55" />
+                </g>
+                <text class="node-l" x="570" y="110">ELNÄT</text>
+              </g>
+
+              <!-- Inne i huset: Batteri (källa+lager) -->
+              <g id="n-bat" class="fade">
+                <title>Hushållsbatteri — 10 kWh kapacitet. Lagrar solöverskott och billig nattel; urladdar under dyra peak-timmar. Stödtjänster (frekvensreserv) ger extra intäkter.</title>
+                <circle class="node-c" cx="130" cy="320" r="26" />
+                <g class="node-i" stroke-linejoin="round">
+                  <!-- Battericell-kropp -->
+                  <rect x="115" y="312" width="26" height="16" rx="2.5" fill="none" />
+                  <!-- Plus-pol (knubbe på höger sida) -->
+                  <rect x="141" y="316" width="3" height="8" rx="1" fill="var(--accent-deep)" stroke="none" />
+                  <!-- Blixt centrerat — signalerar lagrad energi -->
+                  <path d="M 130.5 314.5 L 124.5 322 L 129 322 L 127 326 L 134 318 L 129.5 318 Z" fill="var(--accent-deep)" stroke="none" />
+                </g>
+                <text class="node-l" x="130" y="358">BATTERI</text>
+                <g id="gauge-bat">
+                  <rect class="gauge-bg-r" x="100" y="372" width="60" height="6" rx="3" />
+                  <rect class="gauge-fg" id="gauge-bat-fg" x="100" y="372" width="30" height="6" rx="3" />
+                  <text class="gauge-tx" id="gauge-bat-tx" x="130" y="390">50 %</text>
+                </g>
+              </g>
+
+              <!-- Inne i huset: Värme & VV -->
+              <g id="n-heat">
+                <title>Värme och varmvatten — husets största förbrukare. Värmepump (COP 3,2) drar ca 1/3 av direktel; varmvatten värms i tank ~3 timmar/dygn på billigaste timmar (sol eller nattel).</title>
+                <circle class="node-c" cx="290" cy="320" r="26" />
+                <g class="node-i">
+                  <rect x="278" y="308" width="24" height="22" rx="2" />
+                  <circle cx="290" cy="319" r="6" />
+                  <line x1="286" y1="315" x2="294" y2="323" />
+                  <line x1="294" y1="315" x2="286" y2="323" />
+                </g>
+                <text class="node-l" x="290" y="358">VÄRME &amp; VV</text>
+              </g>
+
+              <!-- Inne i huset: Elbil -->
+              <g id="n-ev" class="fade">
+                <title>Elbil — 100 kWh batteri (50 mil räckvidd). Borta 15:00–20:00 (kör barn till träning). Övriga timmar matar bilen huset (V2H) under dyra timmar och laddas på sol eller billig nattel. Cyklar mellan 30 och 50 mil per dygn.</title>
+                <circle class="node-c" cx="430" cy="320" r="26" />
+                <g class="node-i" stroke-linejoin="round">
+                  <!-- Rundad fylld bil-silhuett (mjuka Bezier-kurvor överallt) -->
+                  <path d="M 411 323 Q 411 319 415 316 Q 418 312 423 311 L 437 311 Q 442 312 445 316 Q 449 319 449 323 Z"
+                    fill="var(--accent-deep)" stroke="none" />
+                  <!-- Gul blixt på sidan signalerar elbil -->
+                  <path d="M 432 313 L 428 318 L 431 318 L 429 322 L 434 317 L 431 317 Z"
+                    fill="#E2B945" stroke="none" />
+                  <!-- Hjul (mörk yttercirkel) -->
+                  <circle cx="421" cy="324" r="3" fill="var(--accent-deep)" stroke="none" />
+                  <circle cx="439" cy="324" r="3" fill="var(--accent-deep)" stroke="none" />
+                  <!-- Hjulnav (vita centrum) -->
+                  <circle cx="421" cy="324" r="1" fill="var(--bg-card)" stroke="none" />
+                  <circle cx="439" cy="324" r="1" fill="var(--bg-card)" stroke="none" />
+                </g>
+                <text class="node-l" x="430" y="358">ELBIL</text>
+                <g id="gauge-ev">
+                  <rect class="gauge-bg-r" x="400" y="372" width="60" height="6" rx="3" />
+                  <rect class="gauge-fg" id="gauge-ev-fg" x="400" y="372" width="30" height="6" rx="3" />
+                  <text class="gauge-tx" id="gauge-ev-tx" x="430" y="390">35 mil</text>
+                </g>
+              </g>
+
+              <!-- Inne i huset: Övriga huset -->
+              <g id="n-other">
+                <title>Övrig hushållsel — belysning, vitvaror, elektronik, ugn, dator m.m. Drar oftast 0,2–1,5 kW beroende på tid på dygnet.</title>
+                <circle class="node-c" cx="570" cy="320" r="26" />
+                <g class="node-i">
+                  <path d="M 557 315 L 557 330 L 567 330 L 567 315 Z" />
+                  <path d="M 565 313 L 565 308 M 560 313 L 560 308" />
+                  <circle cx="578" cy="320" r="3.5" />
+                  <circle cx="578" cy="327" r="1.4" fill="#243B30" stroke="none" />
+                </g>
+                <text class="node-l" x="570" y="358">ÖVRIGA HUSET</text>
+              </g>
+
+              <!-- Stödtjänst-badge — renderas överst så den alltid syns -->
+              <g id="stodtjanst-badge" style="opacity:0">
+                <title>Frekvensreserv (FCR-D/N) — batteriet stöttar svenska kraftnätets frekvens genom att hålla reservkapacitet tillgänglig. Du får betalt även om effekten inte aktiveras. Realistiska siffror för 10 kWh hemmabatteri: 25–40 kr/dygn = 9 000–14 000 kr/år.</title>
+                <rect x="78" y="252" width="104" height="32" rx="6" fill="#E2B945" stroke="#8B6614" stroke-width="0.6" />
+                <text x="130" y="269" text-anchor="middle" fill="#3F2E0E" font-size="13" font-weight="600" font-family="inherit">+ 0 kr</text>
+                <text x="130" y="280" text-anchor="middle" fill="#5C4814" font-size="8.5" font-weight="500" letter-spacing="0.08em" font-family="inherit">FREKVENSRESERV</text>
+              </g>
+            </svg>
+          </div>
+
+        </div>
+
+        <div id="view-diagram" class="stage-view stage-diagram" style="display: none;">
+          <div class="diagram-col">
+            <div class="diagram-h">Var elen kommer ifrån</div>
+            <div class="diagram-total" id="src-total">0.0 kW</div>
+            <div class="bc-track">
+              <div class="bc-seg bc-c-sol" id="bc-src-sol"><span class="bc-lab">Sol</span><span class="bc-kw">0.0 kW</span></div>
+              <div class="bc-seg bc-c-grid" id="bc-src-grid"><span class="bc-lab">Nät</span><span class="bc-kw">0.0 kW</span></div>
+              <div class="bc-seg bc-c-bat" id="bc-src-bat"><span class="bc-lab">Batteri</span><span class="bc-kw">0.0 kW</span></div>
+              <div class="bc-seg bc-c-bat" id="bc-src-ev"><span class="bc-lab">Elbil (V2H)</span><span class="bc-kw">0.0 kW</span></div>
+            </div>
+          </div>
+          <div class="diagram-col">
+            <div class="diagram-h">Var elen tar vägen</div>
+            <div class="diagram-total" id="snk-total">0.0 kW</div>
+            <div class="bc-track">
+              <div class="bc-seg bc-c-bat" id="bc-snk-bat"><span class="bc-lab">Batteri</span><span class="bc-kw">0.0 kW</span></div>
+              <div class="bc-seg bc-c-ev" id="bc-snk-ev"><span class="bc-lab">Elbil</span><span class="bc-kw">0.0 kW</span></div>
+              <div class="bc-seg bc-c-heat" id="bc-snk-heat"><span class="bc-lab">Värme</span><span class="bc-kw">0.0 kW</span></div>
+              <div class="bc-seg bc-c-other" id="bc-snk-other"><span class="bc-lab">Övriga</span><span class="bc-kw">0.0 kW</span></div>
+              <div class="bc-seg bc-c-export" id="bc-snk-export"><span class="bc-lab">Till nät</span><span class="bc-kw">0.0 kW</span></div>
+            </div>
+          </div>
+          <div class="diagram-money">
+            <span class="dm-lbl">Kostnad denna dag</span>
+            <span class="dm-val" id="dm-cost">— kr</span>
+            <span class="dm-sub" id="dm-stod"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="narr-row">
+        <div class="narrative" id="narrBox">
+          <div class="nh" id="narr-head">Passiv konsument — direktel</div>
+          <div class="nb" id="narr-body">Hemmet köper varje kilowattimme rätt av nätet. Direktel toppar dramatiskt morgon och kväll.</div>
+        </div>
+        <div class="kostnad-card">
+          <div class="kc-header">
+            <span class="kc-label">Kostnad denna dag</span>
+            <button class="kc-info-btn" id="costInfoBtn" aria-label="Visa hur kostnaden räknas">i</button>
+          </div>
+          <div class="kc-value" id="st-cost">— kr</div>
+          <div class="kc-saving" id="st-cost-saving" style="display:none"></div>
+          <div class="kc-sub" id="st-cost-sub" style="display:none"></div>
+          <div class="kc-popover" id="costPopover" style="display:none"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <aside class="side">
+      <div class="legend">
+        <h3>Två hem</h3>
+        <ul>
+          <li><strong>Gårdagens hem</strong> — passiv konsument: direktel, inget annat. Köper varje kilowattimme när den behövs. Elen flödar bara åt ett håll — från nätet in i huset.</li>
+          <li><strong>Morgondagens hem</strong> — aktiv prosument: värmepump, sol, batteri, elbil och smart styrning. Samtidigt konsument <em>och</em> producent — en aktiv part i elsystemet som köper, producerar, lagrar och säljer.</li>
+        </ul>
+      </div>
+      <div class="legend">
+        <h3>Anpassa själv</h3>
+        <ul>
+          <li><strong>+ Värmepump</strong> — sänker värmeuttaget med ca 65 %.</li>
+          <li><strong>+ Sol</strong> — täcker dagsförbrukning, exporterar överskott.</li>
+          <li><strong>+ Batteri</strong> — lagrar el, jämnar ut effekttoppar.</li>
+          <li><strong>+ Elbil</strong> — laddas typiskt på kvällen utan smart.</li>
+          <li><strong>+ Smart</strong> — flyttar laster mot pris och produktion.</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+
+  <p class="footnote">Värdena är förenklade illustrationer för att visa <em>logiken</em> i ett energihem — inte exakta mätningar. Solproduktion, värmeförluster, prisprofiler och förbrukningsmönster baseras på typiska svenska villavärden för zon SE3.</p>
+
+</div>
+
+<script>
+(function(){
+  let hasHP = false, hasEV = false, hasSol = false, hasBat = false, hasSmart = false;
+  let season = 'host', prismodell = 'manadsmedel', minute = 438;
+  let tempo = 'normal';
+  let playing = true, lastTick = 0;
+  let mode = 'hus';
+  let showPrice = false, showCons = false;
+  const MAX_KW = 10;
+  const TEMPOS = { slow: 120000, normal: 60000, fast: 30000 };
+
+  const PRICES = {
+    vinter: [128,82,67,56,67,108,230,369,343,200,143,123,113,131,164,220,317,405,410,374,266,189,154,141],
+    host:   [50,32,25,20,25,40,100,175,130,75,45,30,22,28,48,80,120,195,240,175,120,85,65,55],
+    sommar: [40,28,18,10,14,28,65,150,105,35,5,0,0,0,0,3,25,75,180,225,135,80,55,42]
+  };
+
+  const SUN = {
+    vinter: { rise: 8.5, set: 15.5, peakY: 75 },
+    host:   { rise: 7,   set: 17,   peakY: 47 },
+    sommar: { rise: 4.5, set: 21.5, peakY: 22 }
+  };
+
+  function buildScenario(season, hasHP, hasEV, hasSol, hasBat, hasSmart, prismodell) {
+    let soc = 0.5;
+    let evMil = 50;
+    const milMin = 30, milMax = 50, kwhPerMil = 2.0;
+    const evRate = 5;       // kW charging rate
+    const v2hRate = 4;      // kW V2H peak discharge rate
+    const drivePerHour = 2.5;  // mil/h körning under 15-20 (12.5 mil totalt = 25 kWh)
+    const batCap = 10, batRate = 5;
+    const peakSol = season==='sommar' ? 5 : season==='host' ? 3.5 : 1.2;
+    const sunrise = SUN[season].rise;
+    const sunset  = SUN[season].set;
+    const indoorTarget = season==='sommar' ? 16 : season==='host' ? 19 : 21;
+    // Vinter [-5, 1] = typisk SE3-vinter (avg -2 °C), inte kallaste januari-veckan
+    // Sommar [16, 28] = varm sommardag som triggar AC-behov vid peak
+    const tempR = season==='sommar' ? [16,28] : season==='host' ? [3,13] : [-5,1];
+    // Kyltröskel: AC kicks in när inomhus blir varmare än behaglig komfortnivå
+    const coolingThreshold = 22;
+    const copCool = 3.0;
+    const heatRate = season==='sommar' ? 0.13 : 0.16;
+    const heatRateW = 0.20;
+    const cop = hasHP ? 3.2 : 1.0;
+
+    const smart = hasSmart && prismodell === 'dynamiskt';
+    const prices = PRICES[season];
+    const monthAvg = Math.round(prices.reduce((a,b)=>a+b,0) / 24);
+
+    // Two-pass: pass 0 är warmup för att låta soc & evMil konvergera till steady state.
+    // Pass 1 är det visuella dygnet — startar från slutet av pass 0.
+    let out = [];
+    let cumCost = 0;
+    let gridCost = 0;
+    let exportRevenue = 0;
+    let maxGridKw = 0;
+
+    for (let pass = 0; pass < 2; pass++) {
+      out = [];
+      cumCost = 0;
+      gridCost = 0;
+      exportRevenue = 0;
+      maxGridKw = 0;
+
+    for (let h=0; h<24; h++) {
+      let sol = 0;
+      if (hasSol && h>=sunrise && h<=sunset) {
+        sol = peakSol * Math.sin(((h-sunrise)/(sunset-sunrise))*Math.PI);
+      }
+      const outT = tempR[0] + (tempR[1]-tempR[0])*0.5*(1-Math.cos((h-4)*Math.PI/12));
+      const rate = season==='vinter' ? heatRateW : heatRate;
+      const heatLossKW = Math.max(0, (indoorTarget - outT) * rate);
+      const heating = heatLossKW / cop;
+
+      // AC-kylning på sommaren: värmepump i kylläge när det är varmt ute
+      let cooling = 0;
+      if (season === 'sommar' && hasHP && outT > coolingThreshold) {
+        const coolingThermalKW = (outT - coolingThreshold) * 0.5;  // termiskt behov
+        cooling = coolingThermalKW / copCool;  // elektrisk effekt
+      }
+
+      let hotWater = 0.05;
+      if (smart) {
+        // Realistisk: tank värms ca 3 timmar/dygn (~7,5 kWh) på billigaste timmar.
+        // Sol-läge för host/sommar (h=11-14), nattläge för vinter (h=1-4).
+        if (hasSol && (season === 'sommar' || season === 'host') && h >= 11 && h < 14) hotWater = 2.5;
+        else if (h >= 1 && h < 4 && (!hasSol || season === 'vinter')) hotWater = 2.5;
+      } else if ((h>=6&&h<8) || (h>=19&&h<22)) hotWater = 3.0;
+
+      // Säsongsspecifika "övriga"-mönster — beteendet skiljer sig markant mellan årstider:
+      // Vinter: lång kvällspeak (mörker, indoor-aktivitet); Höst: moderat; Sommar: sen och kort kväll (folk är ute).
+      const baseOther = season === 'vinter' ? 0.3 : season === 'host' ? 0.25 : 0.18;
+      let other = baseOther;
+      if (smart) {
+        if (season === 'vinter') {
+          if (h >= 10 && h < 13) other = 1.5;       // smart shifts to midday
+          else if (h >= 18 && h < 22) other = 1.0;  // lång indoor kväll
+        } else if (season === 'host') {
+          if (h >= 10 && h < 13) other = 1.3;
+          else if (h >= 18 && h < 21) other = 0.7;  // moderat kväll
+        } else {  // sommar
+          if (h >= 10 && h < 14) other = 1.0;       // dag-aktivitet inkl tvätt mm
+          else if (h >= 20 && h < 22) other = 0.7;  // sen kort kväll (kommer in efter att ha varit ute)
+        }
+      } else {
+        if (season === 'vinter') {
+          if (h >= 6 && h < 9) other = 1.5;         // morgonpeak
+          else if (h >= 17 && h < 22) other = 1.8;  // STARK kvällspeak (5h, mörkt och kallt)
+        } else if (season === 'host') {
+          if (h >= 6 && h < 9) other = 1.3;
+          else if (h >= 18 && h < 22) other = 1.4;  // måttlig kväll
+        } else {  // sommar
+          if (h >= 7 && h < 9) other = 1.0;         // kort morgon
+          else if (h >= 20 && h < 22) other = 1.0;  // sen kort kväll (efter middag utomhus)
+        }
+      }
+
+      const evAway = hasEV && h >= 15 && h < 20;
+      const evAtHome = hasEV && !evAway;
+      const baseDemand = other + heating + hotWater + cooling;
+
+      let ev = 0;
+      if (evAtHome) {
+        const evRoom = Math.max(0, (milMax - evMil) * kwhPerMil);
+        if (smart) {
+          // Priority 1: charge from solar surplus (after baseload is covered)
+          const solAfterBase = Math.max(0, sol - baseDemand);
+          if (solAfterBase > 0.5 && evRoom > 0.5) {
+            ev = Math.min(solAfterBase, evRate, evRoom);
+          }
+          // Priority 2: cheap night charge — top off before next morning
+          else if ((h >= 22 || h < 6) && evRoom > 0.5) {
+            ev = Math.min(evRate, evRoom);
+          }
+        } else if (h >= 20 && h < 24) {
+          ev = Math.min(3.0, evRoom);
+        }
+      }
+
+      const heatTotal = heating + hotWater + cooling;  // cooling räknas in i värme/VV-noden visuellt
+      const totalDemand = other + heating + hotWater + cooling + ev;
+
+      let solToHouse=0, solToBat=0, solToGrid=0;
+      let gridToHouse=0, gridToBat=0;
+      let batToHouse=0, batCharge=0, batDischarge=0;
+      let evToHouse=0;
+
+      solToHouse = Math.min(sol, totalDemand);
+      let surplus = sol - solToHouse;
+      let remaining = totalDemand - solToHouse;
+
+      if (hasBat) {
+        const sCharge = Math.min(surplus, batRate, (1-soc)*batCap);
+        solToBat = sCharge;
+        batCharge += sCharge;
+        soc = Math.min(1, soc + sCharge/batCap);
+        surplus -= sCharge;
+
+        if (smart) {
+          const minSolDay = hasSol && (season === 'sommar' || season === 'host');
+          if (h>=1 && h<5 && soc < 0.95 && !minSolDay) {
+            const remainingRate = batRate - sCharge;
+            const target = season === 'vinter' ? 0.95 : 0.7;
+            const gCharge = Math.min(remainingRate, Math.max(0, target-soc)*batCap);
+            gridToBat = gCharge;
+            batCharge += gCharge;
+            soc = Math.min(1, soc + gCharge/batCap);
+          }
+          if (h>=17 && h<21 && remaining > 0 && soc > 0.1) {
+            const dis = Math.min(remaining, batRate, (soc-0.05)*batCap);
+            batToHouse = dis; batDischarge = dis;
+            soc = Math.max(0, soc - dis/batCap);
+            remaining -= dis;
+          }
+        } else if (remaining > 0) {
+          const dis = Math.min(remaining, batRate, soc*batCap);
+          batToHouse = dis; batDischarge = dis;
+          soc = Math.max(0, soc - dis/batCap);
+          remaining -= dis;
+        }
+      }
+
+      // V2H: EV agerar som ett extra-batteri som matar huset alla hem-timmar
+      // utom billig natt (då laddar EV:n istället). Högre takt under peak-timmar.
+      if (evAtHome && smart && ev === 0 && remaining > 0) {
+        const inCheapNight = h >= 22 || h < 6;
+        if (!inCheapNight) {
+          const inPeak = (h >= 7 && h < 9) || (h >= 17 && h < 22);
+          const rate = inPeak ? v2hRate : 2.0;  // 4 kW peak, 2 kW off-peak
+          const evAvail = (evMil - milMin) * kwhPerMil;
+          if (evAvail > 0.5) {
+            const dis = Math.min(remaining, rate, evAvail);
+            evToHouse = dis;
+            remaining -= dis;
+          }
+        }
+      }
+
+      // Peak shaving: smart system håller nät-effekten under säsongs-taket.
+      // Reducerar i ordning: 1) EV-laddning först (har lång natt + sol-fönster),
+      // 2) batteri-laddning sist (har kort fönster och behövs för kvällspeak).
+      if (smart) {
+        const peakCap = season === 'sommar' ? 2 : season === 'host' ? 5 : 8;
+        let provGrid = remaining + gridToBat;
+        if (provGrid > peakCap) {
+          let excess = provGrid - peakCap;
+          if (ev > 0) {
+            const evRed = Math.min(excess, ev);
+            ev -= evRed;
+            remaining -= evRed;
+            excess -= evRed;
+          }
+          if (excess > 0 && gridToBat > 0) {
+            const batRed = Math.min(excess, gridToBat);
+            gridToBat -= batRed;
+            soc -= batRed / batCap;
+            batCharge -= batRed;
+          }
+        }
+      }
+
+      solToGrid = surplus;
+      gridToHouse = remaining + gridToBat;
+
+      // Update EV state-of-charge based on driving / charging / V2H
+      if (evAway) {
+        evMil = Math.max(milMin, evMil - drivePerHour);
+      } else if (ev > 0) {
+        evMil = Math.min(milMax, evMil + ev / kwhPerMil);
+      } else if (evToHouse > 0) {
+        evMil = Math.max(milMin, evMil - evToHouse / kwhPerMil);
+      }
+
+      const effectivePrice = prismodell === 'manadsmedel' ? monthAvg : prices[h];
+      const exportPrice = Math.min(effectivePrice * 0.6, 80);
+      gridCost += gridToHouse * effectivePrice / 100;
+      exportRevenue += solToGrid * exportPrice / 100;
+      cumCost += (gridToHouse * effectivePrice - solToGrid * exportPrice) / 100;
+      if (gridToHouse > maxGridKw) maxGridKw = gridToHouse;
+
+      out.push({ h, sol, totalDemand, heatTotal, ev, evToHouse, evAway, other, solToHouse, solToBat, solToGrid, gridToHouse, gridToBat, batToHouse, batCharge, batDischarge, soc, evMil, price: prices[h], effectivePrice, monthAvg, cumCost });
+    }
+    } // end pass-loop
+
+    // Effektavgift: 100 kr/månad/kW → ~3 kr/kW/dag, baserat på dygnets högsta nät-effekt
+    const effektavgift = maxGridKw * 3;
+
+    return {
+      hours: out,
+      prices,
+      monthAvg,
+      gridCost,
+      exportRevenue,
+      energyCost: cumCost,
+      effektavgift,
+      peakKw: maxGridKw,
+      dayCost: cumCost + effektavgift
+    };
+  }
+
+  let scenario = buildScenario(season, hasHP, hasEV, hasSol, hasBat, hasSmart, prismodell);
+  let yesterdayScenario = buildScenario(season, false, false, false, false, false, 'manadsmedel');
+  // Säsongsviktad årsbesparing — uppdateras vid varje rebuildAndRender
+  let annualSavingTotal = 0;
+  let annualSavingByseason = { vinter: 0, host: 0, sommar: 0 };
+
+  // Sverige grovt: 3 mån vinter, 6 mån vår·höst, 3 mån sommar
+  const SEASON_DAYS = { vinter: 90, host: 180, sommar: 90 };
+
+  function computeAnnualSaving() {
+    annualSavingTotal = 0;
+    annualSavingByseason = { vinter: 0, host: 0, sommar: 0 };
+    const isPreDef = !hasHP && !hasEV && !hasSol && !hasBat && !hasSmart && prismodell === 'manadsmedel';
+    if (isPreDef) return;
+    const stodPerDay = (hasBat && hasSmart) ? STODTJANST_DAY_TOTAL : 0;
+    Object.keys(SEASON_DAYS).forEach(seasonKey => {
+      const cur = buildScenario(seasonKey, hasHP, hasEV, hasSol, hasBat, hasSmart, prismodell);
+      const yest = buildScenario(seasonKey, false, false, false, false, false, 'manadsmedel');
+      const dailySaving = yest.dayCost - (cur.dayCost - stodPerDay);
+      const annualForSeason = dailySaving * SEASON_DAYS[seasonKey];
+      annualSavingByseason[seasonKey] = annualForSeason;
+      annualSavingTotal += annualForSeason;
+    });
+  }
+  computeAnnualSaving();
+
+  function lerp(a, b, t) { return a + (b-a)*t; }
+  function snap(arr, h) {
+    const i0 = Math.floor(h) % 24;
+    const i1 = (i0 + 1) % 24;
+    const t = h - Math.floor(h);
+    const a = arr[i0], b = arr[i1];
+    const r = {};
+    Object.keys(a).forEach(k => r[k] = typeof a[k] === 'number' ? lerp(a[k], b[k], t) : a[k]);
+    return r;
+  }
+  function fmtKW(x) { return (Math.round(x*10)/10).toFixed(1); }
+  function fmtHourOnly(min) { return String(Math.floor(min/60)).padStart(2,'0'); }
+
+  // Flow definitions: each is one source→destination path. Geometry is a quadratic Bezier.
+  const NODE_POS = {
+    sol:   { x: 130, y: 65 },
+    grid:  { x: 570, y: 65 },
+    bat:   { x: 130, y: 320 },
+    heat:  { x: 290, y: 320 },
+    ev:    { x: 430, y: 320 },
+    other: { x: 570, y: 320 }
+  };
+  const FLOWS = [
+    { id: 'sol-heat',  src: 'sol',  dst: 'heat',  col: 'sol',  ctrl: [200, 250] },
+    { id: 'sol-ev',    src: 'sol',  dst: 'ev',    col: 'sol',  ctrl: [280, 230] },
+    { id: 'sol-other', src: 'sol',  dst: 'other', col: 'sol',  ctrl: [350, 200] },
+    { id: 'sol-bat',   src: 'sol',  dst: 'bat',   col: 'sol',  ctrl: [80, 180] },
+    { id: 'sol-grid',  src: 'sol',  dst: 'grid',  col: 'sol',  ctrl: [350, 30] },
+    { id: 'grid-heat', src: 'grid', dst: 'heat',  col: 'grid', ctrl: [500, 250] },
+    { id: 'grid-ev',   src: 'grid', dst: 'ev',    col: 'grid', ctrl: [550, 200] },
+    { id: 'grid-other',src: 'grid', dst: 'other', col: 'grid', ctrl: [620, 180] },
+    { id: 'grid-bat',  src: 'grid', dst: 'bat',   col: 'grid', ctrl: [350, 200] },
+    { id: 'bat-heat',  src: 'bat',  dst: 'heat',  col: 'bat',  ctrl: [210, 240] },
+    { id: 'bat-ev',    src: 'bat',  dst: 'ev',    col: 'bat',  ctrl: [280, 240] },
+    { id: 'bat-other', src: 'bat',  dst: 'other', col: 'bat',  ctrl: [350, 240] },
+    { id: 'ev-heat',   src: 'ev',   dst: 'heat',  col: 'bat',  ctrl: [360, 240] },
+    { id: 'ev-other',  src: 'ev',   dst: 'other', col: 'bat',  ctrl: [500, 240] }
+  ];
+
+  function buildFlowDOM() {
+    const pathsG = document.getElementById('flow-paths');
+    const linesG = document.getElementById('flow-lines');
+    const partsG = document.getElementById('flow-particles');
+    const kwG    = document.getElementById('flow-kw');
+    FLOWS.forEach(f => {
+      const a = NODE_POS[f.src], b = NODE_POS[f.dst];
+      const d = `M ${a.x} ${a.y} Q ${f.ctrl[0]} ${f.ctrl[1]} ${b.x} ${b.y}`;
+      // Geometry-only path (used by animateMotion)
+      const pg = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      pg.setAttribute('id', 'fp-' + f.id);
+      pg.setAttribute('class', 'flow-path-geom');
+      pg.setAttribute('d', d);
+      pathsG.appendChild(pg);
+      // Visible faint line
+      const ln = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      ln.setAttribute('id', 'fl-' + f.id);
+      ln.setAttribute('class', 'flow-line col-' + f.col);
+      ln.setAttribute('d', d);
+      linesG.appendChild(ln);
+      // Particles (4 per flow, offset in time)
+      const pgrp = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      pgrp.setAttribute('id', 'pp-' + f.id);
+      for (let i = 0; i < 4; i++) {
+        const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        c.setAttribute('class', 'particle col-' + f.col);
+        c.setAttribute('r', '3.2');
+        const am = document.createElementNS('http://www.w3.org/2000/svg', 'animateMotion');
+        am.setAttribute('dur', '2.6s');
+        am.setAttribute('repeatCount', 'indefinite');
+        am.setAttribute('begin', (i * 0.65) + 's');
+        const mp = document.createElementNS('http://www.w3.org/2000/svg', 'mpath');
+        mp.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#fp-' + f.id);
+        mp.setAttribute('href', '#fp-' + f.id);
+        am.appendChild(mp);
+        c.appendChild(am);
+        pgrp.appendChild(c);
+      }
+      partsG.appendChild(pgrp);
+      // kW sticker — placed at midpoint of the curve
+      const mid = quadraticAt(0.5, a, f.ctrl, b);
+      const stickW = 38, stickH = 14;
+      const sg = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      sg.setAttribute('id', 'fk-' + f.id);
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('class', 'flow-kw-bg');
+      rect.setAttribute('x', mid.x - stickW/2);
+      rect.setAttribute('y', mid.y - stickH/2);
+      rect.setAttribute('width', stickW);
+      rect.setAttribute('height', stickH);
+      rect.setAttribute('rx', 7);
+      const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      txt.setAttribute('class', 'flow-kw-tx');
+      txt.setAttribute('x', mid.x);
+      txt.setAttribute('y', mid.y + 3.3);
+      txt.textContent = '0.0 kW';
+      sg.appendChild(rect);
+      sg.appendChild(txt);
+      kwG.appendChild(sg);
+    });
+  }
+  // Stödtjänster: 3 korta event per dag där batteriet bidrar till frekvensreglering
+  // (FCR-D etc). Visualiseras som mynt som rasslar från batteri mot elnät.
+  const STODTJANST_EVENTS = [
+    { startMin: 555,  endMin: 645,  kr: 6 },   // 09:15-10:45 (90 min)
+    { startMin: 825,  endMin: 915,  kr: 4 },   // 13:45-15:15 (90 min)
+    { startMin: 1110, endMin: 1200, kr: 7 }    // 18:30-20:00 (90 min)
+  ];
+  const STODTJANST_DAY_TOTAL = STODTJANST_EVENTS.reduce((s, e) => s + e.kr, 0);
+
+  function buildCoinDOM() {
+    const layer = document.getElementById('stodtjanst-layer');
+    for (let i = 0; i < 5; i++) {
+      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('class', 'coin');
+      c.setAttribute('r', '4.5');
+      const am = document.createElementNS('http://www.w3.org/2000/svg', 'animateMotion');
+      am.setAttribute('dur', '1.5s');
+      am.setAttribute('repeatCount', 'indefinite');
+      am.setAttribute('begin', (i * 0.3) + 's');
+      const mp = document.createElementNS('http://www.w3.org/2000/svg', 'mpath');
+      mp.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#coin-path');
+      mp.setAttribute('href', '#coin-path');
+      am.appendChild(mp);
+      c.appendChild(am);
+      layer.appendChild(c);
+    }
+  }
+
+  function fmtKr(x) { return (Math.round(x * 10) / 10).toFixed(1).replace('.', ',') + ' kr'; }
+
+  function updateCostPopover(stodTotal, netCost) {
+    const pop = document.getElementById('costPopover');
+    if (!pop) return;
+    const isPostDef = hasHP && hasEV && hasSol && hasBat && hasSmart && prismodell === 'dynamiskt';
+    const isPreDef  = !hasHP && !hasEV && !hasSol && !hasBat && !hasSmart && prismodell === 'manadsmedel';
+
+    const exportRev = scenario.exportRevenue || 0;
+
+    let explain = '';
+    if (isPostDef) {
+      explain = `
+        <div class="kc-pop-divider"></div>
+        <div class="kc-pop-explain">
+          <h5>Varför så lågt?</h5>
+          <ul>
+            <li><strong>Värmepump istället för direktel</strong> — sänker värmeuttaget med ~70 %.</li>
+            <li><strong>Smart timing</strong> flyttar tunga laster (varmvatten, EV, batteri) till nattens billigaste timmar.</li>
+            <li><strong>V2H och batteri</strong> täcker dyra peak-timmar — under ~11 h/dygn köps 0 kWh från nätet.</li>
+          </ul>
+        </div>`;
+    } else if (isPreDef) {
+      explain = `
+        <div class="kc-pop-divider"></div>
+        <div class="kc-pop-explain">
+          <h5>Varför så högt?</h5>
+          <ul>
+            <li><strong>Direktel</strong> drar full effekt rakt mot värmebehovet — ~3× mer än en värmepump.</li>
+            <li><strong>Månadsmedelpris</strong> — alla timmar kostar lika mycket, ingen vinst på att flytta laster.</li>
+            <li><strong>Inget batteri eller sol</strong> som kan kapa peak-timmarna.</li>
+          </ul>
+        </div>`;
+    }
+
+    const evNote = hasEV ? `
+      <div class="kc-pop-note">Inkluderar laddning för ca <strong>20 mil EV-cykel</strong> per dygn (körning ~12 mil + V2H till huset).</div>
+    ` : '';
+
+    // Jämförelse mot gårdagens hem (samma säsong) — visa bara om vi inte själva ÄR det
+    let comparisonHtml = '';
+    if (!isPreDef) {
+      const yCost = yesterdayScenario.dayCost;
+      const saving = yCost - netCost;
+      if (saving > 5) {
+        const annualRound = Math.round(annualSavingTotal / 100) * 100;
+        const winterAnn = Math.round(annualSavingByseason.vinter);
+        const hostAnn = Math.round(annualSavingByseason.host);
+        const summerAnn = Math.round(annualSavingByseason.sommar);
+        comparisonHtml = `
+          <div class="kc-pop-divider"></div>
+          <div class="kc-pop-h">Jämfört med gårdagens hem</div>
+          <table class="kc-pop-table">
+            <tr><td>Gårdagens hem (samma dag)</td><td>${fmtKr(yCost)}</td></tr>
+            <tr><td>Detta hem</td><td>${fmtKr(netCost)}</td></tr>
+            <tr class="tot rev"><td>Sparat denna dag</td><td>${fmtKr(saving)}</td></tr>
+          </table>
+          <div class="kc-pop-divider"></div>
+          <div class="kc-pop-h">Säsongsviktad årsbesparing</div>
+          <table class="kc-pop-table">
+            <tr><td>Vinter (90 dagar)</td><td>~${winterAnn.toLocaleString('sv-SE')} kr</td></tr>
+            <tr><td>Vår·Höst (180 dagar)</td><td>~${hostAnn.toLocaleString('sv-SE')} kr</td></tr>
+            <tr><td>Sommar (90 dagar)</td><td>~${summerAnn.toLocaleString('sv-SE')} kr</td></tr>
+            <tr class="tot rev"><td>Totalt per år</td><td>~${annualRound.toLocaleString('sv-SE')} kr</td></tr>
+          </table>
+          <div class="kc-pop-month">Vinterdagar är dyra för båda hemmen men investeringen i värmepump + smart timing slår igenom mest då. Sommardagar är redan billiga — där sparar du mindre.</div>`;
+      }
+    }
+
+    pop.innerHTML = `
+      <div class="kc-pop-h">Beräkning denna dag</div>
+      <table class="kc-pop-table">
+        <tr><td>Köpt energi från nätet</td><td>${fmtKr(scenario.gridCost)}</td></tr>
+        <tr><td>Effektavgift</td><td>+ ${fmtKr(scenario.effektavgift)}</td></tr>
+        <tr class="muted"><td>Topp ${(Math.round(scenario.peakKw*10)/10).toFixed(1).replace('.',',')} kW × 3 kr/kW</td><td></td></tr>
+        ${exportRev > 0.05 ? `<tr class="rev"><td>Solexport</td><td>− ${fmtKr(exportRev)}</td></tr>` : ''}
+        ${stodTotal > 0 ? `<tr class="rev"><td>Frekvensreserv</td><td>− ${stodTotal} kr</td></tr>` : ''}
+        <tr class="tot"><td>Netto/dygn</td><td>${fmtKr(netCost)}</td></tr>
+      </table>
+      ${evNote}
+      ${comparisonHtml}
+      ${explain}
+    `;
+  }
+
+  function updateStodtjanst() {
+    const enabled = hasBat && hasSmart;
+    const layer = document.getElementById('stodtjanst-layer');
+    const badge = document.getElementById('stodtjanst-badge');
+    if (!enabled) {
+      layer.style.display = 'none';
+      badge.style.opacity = 0;
+      return;
+    }
+    layer.style.display = '';
+    const event = STODTJANST_EVENTS.find(e => minute >= e.startMin && minute < e.endMin);
+    const coins = layer.querySelectorAll('.coin');
+    if (event) {
+      coins.forEach(c => c.classList.add('show'));
+      badge.style.opacity = 1;
+      badge.querySelector('text').textContent = '+ ' + event.kr + ' kr';
+    } else {
+      coins.forEach(c => c.classList.remove('show'));
+      badge.style.opacity = 0;
+    }
+  }
+
+  function quadraticAt(t, a, ctrl, b) {
+    const x = (1-t)*(1-t)*a.x + 2*(1-t)*t*ctrl[0] + t*t*b.x;
+    const y = (1-t)*(1-t)*a.y + 2*(1-t)*t*ctrl[1] + t*t*b.y;
+    return { x, y };
+  }
+  function setFlowActivity(flowId, kw) {
+    const ln = document.getElementById('fl-' + flowId);
+    const pp = document.getElementById('pp-' + flowId);
+    const fk = document.getElementById('fk-' + flowId);
+    if (!ln || !pp || !fk) return;
+    const active = kw > 0.15;
+    ln.classList.toggle('act', active);
+    if (active) {
+      ln.style.strokeWidth = (1 + Math.min(kw, 6) * 0.6).toFixed(1);
+      // Show only as many particles as kW intensity
+      const visParts = Math.max(1, Math.min(4, Math.round(kw / 1.5)));
+      Array.from(pp.children).forEach((c, i) => c.classList.toggle('act', i < visParts));
+      fk.querySelector('rect').classList.add('act');
+      fk.querySelector('text').classList.add('act');
+      fk.querySelector('text').textContent = fmtKW(kw) + ' kW';
+    } else {
+      Array.from(pp.children).forEach(c => c.classList.remove('act'));
+      fk.querySelector('rect').classList.remove('act');
+      fk.querySelector('text').classList.remove('act');
+    }
+  }
+  function allocate(s) {
+    // Distribute each source's "to-house" supply proportionally across the loads.
+    // EV plays two roles: load (when charging, s.ev>0) AND source (when V2H, s.evToHouse>0).
+    // Note: s.gridToHouse includes gridToBat (battery charging) — subtract it so we don't
+    // double-count it. The grid→bat flow is rendered separately via result['grid-bat'].
+    const loads = { heat: s.heatTotal, ev: s.ev, other: s.other };
+    const totalLoad = loads.heat + loads.ev + loads.other;
+    const gridToLoads = Math.max(0, s.gridToHouse - s.gridToBat);
+    const supply = { sol: s.solToHouse, grid: gridToLoads, bat: s.batToHouse, ev: s.evToHouse || 0 };
+    const result = {};
+    if (totalLoad < 0.01) {
+      Object.keys(supply).forEach(k => ['heat','ev','other'].forEach(l => result[k+'-'+l] = 0));
+    } else {
+      Object.keys(supply).forEach(k => {
+        const supplied = supply[k];
+        ['heat','ev','other'].forEach(l => {
+          result[k+'-'+l] = supplied * (loads[l] / totalLoad);
+        });
+      });
+    }
+    // V2H never feeds itself
+    result['ev-ev'] = 0;
+    result['sol-bat']  = s.solToBat;
+    result['grid-bat'] = s.gridToBat;
+    result['sol-grid'] = s.solToGrid;
+    return result;
+  }
+  function setOpacity(id, op) { const el = document.getElementById(id); if (el) el.style.opacity = op; }
+  function setSeg(id, kw) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (kw > 0.05) {
+      const pct = Math.max(0, Math.min(100, (kw / MAX_KW) * 100));
+      el.style.height = pct + '%';
+      el.style.display = 'flex';
+      const kwEl = el.querySelector('.bc-kw');
+      if (kwEl) kwEl.textContent = fmtKW(kw) + ' kW';
+    } else el.style.display = 'none';
+  }
+  function hideSeg(id) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
+
+  function buildSunArcPath(season) {
+    const W = 700, ground = 100;
+    const s = SUN[season];
+    const startX = (s.rise/24)*W;
+    const endX = (s.set/24)*W;
+    const noonX = ((s.rise+s.set)/2/24)*W;
+    const ctrlY = 2 * s.peakY - ground;
+    return `M ${startX.toFixed(1)} ${ground} Q ${noonX.toFixed(1)} ${ctrlY} ${endX.toFixed(1)} ${ground}`;
+  }
+  function sunPosAt(h, season) {
+    const s = SUN[season];
+    if (h < s.rise || h > s.set) return null;
+    const W = 700, ground = 100;
+    const startX = (s.rise/24)*W, endX = (s.set/24)*W, noonX = ((s.rise+s.set)/2/24)*W;
+    const ctrlY = 2 * s.peakY - ground;
+    const t = (h - s.rise) / (s.set - s.rise);
+    const x = (1-t)*(1-t)*startX + 2*(1-t)*t*noonX + t*t*endX;
+    const y = (1-t)*(1-t)*ground + 2*(1-t)*t*ctrlY + t*t*ground;
+    return { x, y };
+  }
+  function moonPosAt(h, season) {
+    const s = SUN[season];
+    if (h >= s.rise && h <= s.set) return null;
+    const W = 700, ground = 100, moonPeak = 45;
+    const nightLen = (24 - s.set) + s.rise;
+    const t = h > s.set ? (h - s.set) / nightLen : ((24 - s.set) + h) / nightLen;
+    const x = (h / 24) * W;
+    const y = ground - (ground - moonPeak) * Math.sin(Math.PI * t);
+    return { x, y };
+  }
+
+  function buildPriceGraphPath() {
+    const w = 700, hG = 100, ymax = 400;
+    const yFor = p => hG - (Math.min(p, ymax) / ymax) * (hG - 10);
+    if (prismodell === 'manadsmedel') {
+      const y = yFor(scenario.monthAvg);
+      return { line: `M 0 ${y} L ${w} ${y}`, area: `M 0 ${y} L ${w} ${y} L ${w} ${hG} L 0 ${hG} Z` };
+    }
+    const pts = [];
+    for (let h2=0; h2<=24; h2++) pts.push([(h2/24)*w, yFor(scenario.prices[h2 % 24])]);
+    const line = pts.map((pt, i) => (i === 0 ? 'M' : 'L') + ' ' + pt[0].toFixed(1) + ' ' + pt[1].toFixed(1)).join(' ');
+    return { line, area: line + ` L ${w} ${hG} L 0 ${hG} Z` };
+  }
+  function buildConsumptionPath() {
+    const w = 700, hG = 100, kwMax = 12;
+    const yFor = kw => hG - (Math.min(kw, kwMax) / kwMax) * (hG - 10);
+    const pts = [];
+    for (let h2=0; h2<=24; h2++) pts.push([(h2/24)*w, yFor(scenario.hours[h2 % 24].totalDemand)]);
+    return pts.map((pt, i) => (i === 0 ? 'M' : 'L') + ' ' + pt[0].toFixed(1) + ' ' + pt[1].toFixed(1)).join(' ');
+  }
+
+  function buildNarrative(season, h, s, prismodell) {
+    const dyn = prismodell === 'dynamiskt';
+    const smart = hasSmart && dyn;
+    const isPassive = !hasHP && !hasEV && !hasSol && !hasBat && !hasSmart;
+
+    // Override 1: 2015-passiv (en text hela dygnet)
+    if (isPassive) {
+      return { mood: 'warn', head: 'Passiv konsument — direktel', body: 'Hemmet köper varje kilowattimme rätt av nätet. Direktel toppar dramatiskt morgon och kväll. En värmepump skulle sänka elförbrukningen med ungefär 65 %.' };
+    }
+
+    // Override 2: utrustning utan dynamiskt pris (en text hela dygnet)
+    if (!dyn && (hasEV || hasBat || hasSmart)) {
+      return { mood: 'warn', head: 'Du sparar inte så mycket som du borde', body: 'Batteri, elbil och smart styrning tjänar pengar främst på prisvariation. Med månadsmedel kostar alla timmar lika mycket — investeringarna sover tills du byter till dynamiskt pris.' };
+    }
+
+    // Tid-baserad narrativ: 5 stabila slots per dygn — växlar bara vid timgränser,
+    // inte på enskilda kW-fluktuationer.
+
+    // 22:00–06:00 — natt
+    if (h >= 22 || h < 6) {
+      if (smart && (hasBat || hasEV)) {
+        return { mood: '', head: 'Lugn natt — laddning på billiga timmar', body: 'Smart styrning fyller batteri och elbil när priset är som lägst. Hemmet i övrigt vilar.' };
+      }
+      return { mood: '', head: 'Lugn natt', body: hasHP ? 'Värmepumpen tickar på, övriga laster är låga.' : 'Direktel håller värmen, övriga laster är låga.' };
+    }
+
+    // 06:00–09:00 — morgonpeak
+    if (h < 9) {
+      if (smart && (hasBat || hasEV)) {
+        return { mood: 'peak-good', head: 'Morgonpeak — batteri och bil matar huset', body: 'Smart styrning släpper lagrad el under dygnets dyraste morgontimmar. Du slipper köpa när elen är som dyrast.' };
+      }
+      if (hasHP) {
+        return { mood: '', head: 'Morgonpeak — värmepumpen drar', body: 'Frukost, dusch och värmebehov pressar samtidigt. Värmepumpen drar ändå bara 1/3 av vad direktel skulle gjort.' };
+      }
+      return { mood: 'warn', head: 'Morgonpeak — direktel toppar', body: 'Värme + varmvatten + frukost pressar samtidigt. Direktel ger dramatiska effekttoppar.' };
+    }
+
+    // 09:00–15:00 — förmiddag/dag
+    if (h < 15) {
+      if (season === 'vinter') {
+        return { mood: '', head: 'Vintervardag — låg sol', body: hasSol ? 'Solen är svag och dagarna korta. Värmepumpen drar mestadels från nätet.' : (hasHP ? 'Värmepumpen jobbar mot kylan, mestadels från nätet.' : 'Direktel håller värmen, mestadels från nätet.') };
+      }
+      if (hasSol) {
+        return { mood: '', head: 'Vardag — solen jobbar', body: 'Solen täcker stora delar av dagsförbrukningen, fyller batteriet och exporterar eventuellt överskott till nätet.' };
+      }
+      return { mood: '', head: 'Vardag', body: hasHP ? 'Värmepumpen håller jämn värme; lugna laster i bakgrunden.' : 'Direktel håller värmen; lugna laster i bakgrunden.' };
+    }
+
+    // 15:00–20:00 — eftermiddag (elbil bortrest)
+    if (h < 20) {
+      if (hasEV) {
+        return { mood: '', head: 'Elbilen är borta — kör barnen', body: 'Bilen är ute mellan 15 och 20 (träning eller liknande). Hemmet drar bara värme och övriga laster under tiden.' };
+      }
+      return { mood: '', head: 'Eftermiddag', body: hasHP ? 'Värmepumpen håller värmen, hemmet är lugnt innan kvällspeak.' : 'Direktel håller värmen, hemmet är lugnt innan kvällspeak.' };
+    }
+
+    // 20:00–22:00 — kvällspeak
+    if (smart && hasBat) {
+      return { mood: 'peak-good', head: 'Kvällspeak — batteriet matar huset', body: 'Lagrad el täcker kvällens behov istället för att köpa dyrt från nätet. Du både sparar pengar och kapar effekttoppen.' };
+    }
+    if (hasHP && dyn) {
+      return { mood: 'warn', head: 'Kvällspeak — värmepumpen mot dyrt nät', body: 'Värmepump + matlagning pressar under nätets dyraste timmar. Ett batteri hade jämnat ut den här toppen.' };
+    }
+    return { mood: 'warn', head: 'Kvällspeak', body: hasHP ? 'Värmepump + matlagning + lampor pressar samtidigt.' : 'Direktel + matlagning + lampor — höga effekttoppar.' };
+  }
+
+  function render() {
+    const h = minute / 60;
+    const s = snap(scenario.hours, h);
+
+    document.getElementById('timeReadout').textContent = fmtHourOnly(minute);
+
+    document.getElementById('sunArcPath').setAttribute('d', buildSunArcPath(season));
+    const sun = sunPosAt(h, season);
+    const W = 700;
+    const sunNowX = (h/24)*W;
+    document.getElementById('sunNowLine').setAttribute('x1', sunNowX);
+    document.getElementById('sunNowLine').setAttribute('x2', sunNowX);
+    if (sun) {
+      document.getElementById('sunIcon').setAttribute('transform', `translate(${sun.x.toFixed(1)},${sun.y.toFixed(1)})`);
+      document.getElementById('sunGlow').setAttribute('cx', sun.x.toFixed(1));
+      document.getElementById('sunGlow').setAttribute('cy', sun.y.toFixed(1));
+      document.getElementById('sunIconG').style.display = '';
+      document.getElementById('moonIconG').style.display = 'none';
+    } else {
+      document.getElementById('sunIconG').style.display = 'none';
+      const moon = moonPosAt(h, season);
+      if (moon) {
+        document.getElementById('moonIconG').setAttribute('transform', `translate(${moon.x.toFixed(1)},${moon.y.toFixed(1)})`);
+        document.getElementById('moonIconG').style.display = '';
+      }
+    }
+
+    setOpacity('n-sol', hasSol ? 1 : 0.22);
+    setOpacity('n-ev', !hasEV ? 0.22 : (s.evAway ? 0.4 : 1));
+    setOpacity('n-bat', hasBat ? 1 : 0.22);
+
+    // Update all 12 flows based on proportional allocation
+    const alloc = allocate(s);
+    FLOWS.forEach(f => setFlowActivity(f.id, alloc[f.id] || 0));
+
+    // Effekt-readout: total kW som flödar IN i huset just nu (laster + lagring).
+    // = värme + elbil-laddning + övrigt + batteriladdning från sol och nät.
+    // Matchar summan av synliga flöden i visualiseringen.
+    const totalPower = s.heatTotal + s.ev + s.other + s.solToBat + s.gridToBat;
+    document.getElementById('effektReadout').textContent = Math.round(totalPower) + ' kW';
+
+    document.getElementById('gauge-bat-fg').setAttribute('width', (60 * s.soc).toFixed(1));
+    document.getElementById('gauge-bat-tx').textContent = Math.round(s.soc*100) + ' %';
+    setOpacity('gauge-bat', hasBat ? 1 : 0.18);
+    const evPct = Math.max(0, Math.min(1, s.evMil / 50));
+    document.getElementById('gauge-ev-fg').setAttribute('width', (60 * evPct).toFixed(1));
+    document.getElementById('gauge-ev-tx').textContent = Math.round(s.evMil) + ' mil · ' + Math.round(s.evMil * 2) + ' kWh';
+    setOpacity('gauge-ev', hasEV ? 1 : 0.18);
+
+    const evToHouseVal = s.evToHouse || 0;
+    const srcTotal = (s.solToHouse + s.solToBat + s.solToGrid) + s.gridToHouse + s.batToHouse + evToHouseVal;
+    const snkTotal = (s.solToBat + s.gridToBat) + s.ev + s.heatTotal + s.other + s.solToGrid;
+    document.getElementById('src-total').textContent = fmtKW(srcTotal) + ' kW';
+    document.getElementById('snk-total').textContent = fmtKW(snkTotal) + ' kW';
+    setSeg('bc-src-sol', s.solToHouse + s.solToBat + s.solToGrid);
+    setSeg('bc-src-grid', s.gridToHouse);
+    setSeg('bc-src-bat', s.batToHouse);
+    setSeg('bc-src-ev', evToHouseVal);
+    setSeg('bc-snk-bat', s.solToBat + s.gridToBat);
+    setSeg('bc-snk-ev', s.ev);
+    setSeg('bc-snk-heat', s.heatTotal);
+    setSeg('bc-snk-other', s.other);
+    setSeg('bc-snk-export', s.solToGrid);
+
+    const stodTotal = (hasBat && hasSmart) ? STODTJANST_DAY_TOTAL : 0;
+    const netCost = scenario.dayCost - stodTotal;
+    document.getElementById('st-cost').textContent = (Math.round(netCost * 10) / 10).toFixed(1).replace('.',',') + ' kr';
+    const stodSub = document.getElementById('st-cost-sub');
+    if (stodTotal > 0) {
+      stodSub.style.display = '';
+      stodSub.textContent = 'varav −' + stodTotal + ' kr stödtjänster';
+    } else {
+      stodSub.style.display = 'none';
+    }
+    // "Sparat vs gårdagens hem"-rad — visa bara när vi inte ÄR gårdagens hem
+    const isPreDef = !hasHP && !hasEV && !hasSol && !hasBat && !hasSmart && prismodell === 'manadsmedel';
+    const savingEl = document.getElementById('st-cost-saving');
+    if (!isPreDef) {
+      const saving = yesterdayScenario.dayCost - netCost;
+      if (saving > 5) {
+        savingEl.style.display = '';
+        savingEl.innerHTML = '<strong>Sparar ' + (Math.round(saving * 10) / 10).toFixed(1).replace('.', ',') + ' kr/dygn</strong> vs gårdagens hem';
+      } else {
+        savingEl.style.display = 'none';
+      }
+    } else {
+      savingEl.style.display = 'none';
+    }
+    // Diagram-vy: visa samma kostnad där också
+    const dmCost = document.getElementById('dm-cost');
+    const dmStod = document.getElementById('dm-stod');
+    if (dmCost) dmCost.textContent = (Math.round(netCost * 10) / 10).toFixed(1).replace('.',',') + ' kr';
+    if (dmStod) dmStod.textContent = stodTotal > 0 ? ('varav −' + stodTotal + ' kr stödtjänster') : '';
+    updateStodtjanst();
+    updateCostPopover(stodTotal, netCost);
+
+    const paths = buildPriceGraphPath();
+    document.getElementById('pgLine').setAttribute('d', paths.line);
+    document.getElementById('pgConsLine').setAttribute('d', buildConsumptionPath());
+
+    const n = buildNarrative(season, h, s, prismodell);
+    document.getElementById('narr-head').textContent = n.head;
+    document.getElementById('narr-body').textContent = n.body;
+    const narrBox = document.getElementById('narrBox');
+    narrBox.classList.remove('warn', 'peak-good');
+    if (n.mood) narrBox.classList.add(n.mood);
+  }
+
+  function syncUI() {
+    const isPre  = !hasHP && !hasEV && !hasSol && !hasBat && !hasSmart && prismodell === 'manadsmedel';
+    const isPost = hasHP &&  hasEV &&  hasSol &&  hasBat &&  hasSmart && prismodell === 'dynamiskt';
+    document.getElementById('preset-pre').classList.toggle('active', isPre);
+    document.getElementById('preset-post').classList.toggle('active', isPost);
+    document.querySelector('[data-asset="hp"]').classList.toggle('active', hasHP);
+    document.querySelector('[data-asset="ev"]').classList.toggle('active', hasEV);
+    document.querySelector('[data-asset="sol"]').classList.toggle('active', hasSol);
+    document.querySelector('[data-asset="bat"]').classList.toggle('active', hasBat);
+    document.querySelector('[data-asset="smart"]').classList.toggle('active', hasSmart);
+    document.querySelectorAll('#priceSeg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === prismodell));
+    document.getElementById('seasonSel').value = season;
+    document.getElementById('tempoSel').value = tempo;
+    document.getElementById('playLabel').textContent = playing ? 'Paus' : 'Play';
+    document.querySelectorAll('.stage-tab').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    document.getElementById('view-hus').style.display = mode === 'hus' ? 'flex' : 'none';
+    document.getElementById('view-diagram').style.display = mode === 'diagram' ? 'grid' : 'none';
+    document.querySelector('[data-layer="price"]').classList.toggle('active', showPrice);
+    document.querySelector('[data-layer="cons"]').classList.toggle('active', showCons);
+    document.getElementById('gridlines').style.display = (showPrice || showCons) ? '' : 'none';
+    document.getElementById('pgLine').style.display = showPrice ? '' : 'none';
+    document.getElementById('pgConsLine').style.display = showCons ? '' : 'none';
+    document.querySelectorAll('.pg-axislbl-r').forEach(el => el.style.display = showPrice ? '' : 'none');
+    document.querySelectorAll('.pg-axislbl-l').forEach(el => el.style.display = showCons ? '' : 'none');
+  }
+
+  function rebuildAndRender() {
+    scenario = buildScenario(season, hasHP, hasEV, hasSol, hasBat, hasSmart, prismodell);
+    yesterdayScenario = buildScenario(season, false, false, false, false, false, 'manadsmedel');
+    computeAnnualSaving();
+    render();
+  }
+
+  document.getElementById('seasonSel').addEventListener('change', e => { season = e.target.value; syncUI(); rebuildAndRender(); });
+  document.querySelectorAll('[data-asset]').forEach(b => b.addEventListener('click', () => {
+    const a = b.dataset.asset;
+    if (a === 'hp') hasHP = !hasHP;
+    if (a === 'ev') hasEV = !hasEV;
+    if (a === 'sol') hasSol = !hasSol;
+    if (a === 'bat') hasBat = !hasBat;
+    if (a === 'smart') hasSmart = !hasSmart;
+    syncUI(); rebuildAndRender();
+  }));
+  document.querySelectorAll('#priceSeg .seg-btn').forEach(b => b.addEventListener('click', () => { prismodell = b.dataset.v; syncUI(); rebuildAndRender(); }));
+  document.getElementById('preset-pre').addEventListener('click', () => { hasHP = hasEV = hasSol = hasBat = hasSmart = false; prismodell = 'manadsmedel'; syncUI(); rebuildAndRender(); });
+  document.getElementById('preset-post').addEventListener('click', () => { hasHP = hasEV = hasSol = hasBat = hasSmart = true; prismodell = 'dynamiskt'; syncUI(); rebuildAndRender(); });
+  document.getElementById('tempoSel').addEventListener('change', e => { tempo = e.target.value; syncUI(); });
+
+  document.getElementById('anpassaToggleBtn').addEventListener('click', () => {
+    const expand = document.getElementById('anpassaExpand');
+    const isOpen = expand.classList.toggle('open');
+    document.getElementById('anpassaToggleBtn').textContent = isOpen ? 'Dölj ↑' : 'Anpassa själv ↓';
+  });
+
+  document.querySelectorAll('.stage-tab').forEach(b => b.addEventListener('click', () => {
+    mode = b.dataset.mode;
+    syncUI(); render();
+  }));
+
+  document.querySelectorAll('.time-toggle').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.layer === 'price') showPrice = !showPrice;
+    if (b.dataset.layer === 'cons') showCons = !showCons;
+    syncUI(); render();
+  }));
+
+  document.getElementById('playBtn').addEventListener('click', () => {
+    playing = !playing;
+    syncUI();
+    if (playing) { lastTick = performance.now(); requestAnimationFrame(tick); }
+  });
+
+  let dragging = false;
+  function scrubFromX(clientX, svgEl) {
+    const rect = svgEl.getBoundingClientRect();
+    const xRel = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    minute = Math.max(0, Math.min(1439, Math.round(xRel * 1440)));
+    render();
+  }
+  ['timelineSvg'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('pointerdown', e => { dragging = true; scrubFromX(e.clientX, el); el.setPointerCapture(e.pointerId); });
+    el.addEventListener('pointermove', e => { if (dragging) scrubFromX(e.clientX, el); });
+    el.addEventListener('pointerup', () => { dragging = false; });
+    el.addEventListener('pointercancel', () => { dragging = false; });
+  });
+
+  function tick(now) {
+    if (!playing) return;
+    const dt = now - lastTick;
+    lastTick = now;
+    minute = (minute + dt * (1440 / TEMPOS[tempo])) % 1440;
+    render();
+    requestAnimationFrame(tick);
+  }
+
+  buildFlowDOM();
+  buildCoinDOM();
+
+  // Cost popover toggle
+  const costInfoBtn = document.getElementById('costInfoBtn');
+  const costPopover = document.getElementById('costPopover');
+  if (costInfoBtn && costPopover) {
+    costInfoBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      costPopover.style.display = costPopover.style.display === 'none' ? '' : 'none';
+    });
+    document.addEventListener('click', e => {
+      if (costPopover.style.display !== 'none' && !costPopover.contains(e.target) && e.target !== costInfoBtn) {
+        costPopover.style.display = 'none';
+      }
+    });
+  }
+
+  syncUI();
+  rebuildAndRender();
+  lastTick = performance.now();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

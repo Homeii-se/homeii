@@ -16,6 +16,7 @@ import { buildExistingEquipmentUpgrades } from "../simulation/upgrades";
 import { calculateAnnualSummary, estimateZeroEquipmentBill } from "../simulation/annual";
 import { calculateEnergyScore } from "../simulation/scoring";
 import { simulateMonthsWithUpgrades } from "../simulation/monthly";
+import type { TmyHourlyData } from "../data/pvgis-tmy";
 
 /** Helper to compute avg monthly peak kW from monthly data */
 function getAvgPeakKw(
@@ -23,10 +24,11 @@ function getAvgPeakKw(
   refinement: RefinementAnswers,
   activeUpgrades: ActiveUpgrades,
   seZone: SEZone,
-  assumptions?: Assumptions
+  assumptions?: Assumptions,
+  tmyData?: TmyHourlyData[],
 ): number {
   const zeroEquipmentBill = estimateZeroEquipmentBill(bill, refinement, seZone);
-  const monthlyData = simulateMonthsWithUpgrades(zeroEquipmentBill, refinement, activeUpgrades, seZone, assumptions);
+  const monthlyData = simulateMonthsWithUpgrades(zeroEquipmentBill, refinement, activeUpgrades, seZone, assumptions, tmyData);
   const hasUpgrades = Object.values(activeUpgrades).some(Boolean);
   const peaks = monthlyData.map((m) => hasUpgrades ? m.peakKw : m.peakKwBase);
   return peaks.reduce((s, v) => s + v, 0) / peaks.length;
@@ -37,12 +39,13 @@ export function generateRecommendations(
   billData: BillData,
   refinement: RefinementAnswers,
   seZone: SEZone,
-  assumptions: Assumptions
+  assumptions: Assumptions,
+  tmyData?: TmyHourlyData[],
 ): RecommendationResult {
   // 1. Calculate baseline including existing equipment
   const existingEquipmentUpgrades = buildExistingEquipmentUpgrades(refinement);
-  const baselineSummary = calculateAnnualSummary(billData, refinement, existingEquipmentUpgrades, seZone, assumptions);
-  const avgPeakKwBase = getAvgPeakKw(billData, refinement, existingEquipmentUpgrades, seZone, assumptions);
+  const baselineSummary = calculateAnnualSummary(billData, refinement, existingEquipmentUpgrades, seZone, assumptions, undefined, tmyData);
+  const avgPeakKwBase = getAvgPeakKw(billData, refinement, existingEquipmentUpgrades, seZone, assumptions, tmyData);
   const baselineScore = calculateEnergyScore(
     baselineSummary.yearlyKwhBase,
     baselineSummary.yearlyTotalCostBase,
@@ -96,7 +99,7 @@ export function generateRecommendations(
       candidateUpgrades.batteri = true;
     }
 
-    const candidateSummary = calculateAnnualSummary(billData, refinement, candidateUpgrades, seZone, assumptions);
+    const candidateSummary = calculateAnnualSummary(billData, refinement, candidateUpgrades, seZone, assumptions, undefined, tmyData);
     // Compare against existing-equipment cost
     const yearlySavingsKr = baselineSummary.yearlyTotalCostAfter - candidateSummary.yearlyTotalCostAfter;
 
@@ -113,7 +116,7 @@ export function generateRecommendations(
       ? ((baselineSummary.yearlyKwhAfter - candidateSummary.yearlyKwhAfter) / baselineSummary.yearlyKwhAfter) * 100
       : 0;
 
-    const avgPeakKwCandidate = getAvgPeakKw(billData, refinement, candidateUpgrades, seZone, assumptions);
+    const avgPeakKwCandidate = getAvgPeakKw(billData, refinement, candidateUpgrades, seZone, assumptions, tmyData);
     const peakReductionPercent = avgPeakKwBase > 0
       ? ((avgPeakKwBase - avgPeakKwCandidate) / avgPeakKwBase) * 100
       : 0;
@@ -165,8 +168,8 @@ export function generateRecommendations(
       allRecsUpgrades.batteri = true;
     }
   }
-  const afterAllSummary = calculateAnnualSummary(billData, refinement, allRecsUpgrades, seZone, assumptions);
-  const avgPeakKwAfterAll = getAvgPeakKw(billData, refinement, allRecsUpgrades, seZone, assumptions);
+  const afterAllSummary = calculateAnnualSummary(billData, refinement, allRecsUpgrades, seZone, assumptions, undefined, tmyData);
+  const avgPeakKwAfterAll = getAvgPeakKw(billData, refinement, allRecsUpgrades, seZone, assumptions, tmyData);
   const savingsPercentAfterAll = baselineSummary.yearlyTotalCostAfter > 0
     ? ((baselineSummary.yearlyTotalCostAfter - afterAllSummary.yearlyTotalCostAfter) / baselineSummary.yearlyTotalCostAfter) * 100
     : 0;

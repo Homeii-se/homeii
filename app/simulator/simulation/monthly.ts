@@ -1,5 +1,14 @@
 /**
  * Monthly simulation — aggregate daily simulations into monthly data.
+ *
+ * As of PR C3 (2026-05-06) the entry point `simulateMonthsWithUpgrades`
+ * accepts an optional `tmyData` parameter. When provided it routes to the
+ * 8760-hour pipeline (`simulate8760WithUpgrades` + `aggregateMonthsFrom8760`)
+ * for full physics-based monthly aggregation. When absent, it falls back
+ * to the legacy 12-day representative-day approach kept here unchanged.
+ *
+ * The fallback exists so callers that haven't yet fetched TMY data
+ * (server-side jobs, fast dev iterations, error paths) keep working.
  */
 
 import type {
@@ -19,6 +28,10 @@ import { calculateMonthlyCost } from "./cost-model";
 import { getGridPricing, DEFAULT_GRID_PRICING } from "../data/grid-operators";
 import { getEnergyTaxRate } from "../data/energy-tax";
 import { ELHANDEL_DEFAULTS } from "../data/elhandel-defaults";
+import type { TmyHourlyData } from "../data/pvgis-tmy";
+import { simulate8760WithUpgrades } from "./simulate8760";
+import { aggregateMonthsFrom8760 } from "./monthly-from-8760";
+import { dlog } from "../../../lib/log";
 
 export function getMonthlyData(
   bill: BillData,
@@ -39,14 +52,57 @@ export function getMonthlyData(
   });
 }
 
-/** Simulate all 12 months with upgrades, using a representative day per month */
+/**
+ * Simulate all 12 months with upgrades.
+ *
+ * When `tmyData` is provided (8760 hourly weather records from PVGIS),
+ * routes to the full-year physics pipeline:
+ *   simulate8760WithUpgrades → aggregateMonthsFrom8760
+ *
+ * When absent, falls back to the legacy representative-day pipeline:
+ *   one simulateDay() call per month, scaled to monthly totals.
+ *
+ * Both paths return the same `MonthlyDataPointExtended[]` shape so callers
+ * are agnostic to which pipeline ran.
+ */
 export function simulateMonthsWithUpgrades(
   bill: BillData,
   refinement: RefinementAnswers,
   activeUpgrades: ActiveUpgrades,
   seZone: SEZone,
-  assumptions?: Assumptions
+  assumptions?: Assumptions,
+  tmyData?: TmyHourlyData[],
 ): MonthlyDataPointExtended[] {
+  // --- 8760-pipeline (preferred when TMY data is available) ---
+  if (tmyData && tmyData.length >= 8760) {
+    const baseSim = simulate8760WithUpgrades(
+      bill,
+      refinement,
+      NO_UPGRADES,
+      tmyData,
+      seZone,
+      assumptions,
+    );
+    const afterSim = simulate8760WithUpgrades(
+      bill,
+      refinement,
+      activeUpgrades,
+      tmyData,
+      seZone,
+      assumptions,
+    );
+    return aggregateMonthsFrom8760({
+      baseSim,
+      afterSim,
+      bill,
+      refinement,
+      activeUpgrades,
+      seZone,
+      assumptions,
+    });
+  }
+
+  // --- Legacy 12-day pipeline (fallback) ---
   const year = new Date().getFullYear();
   const seasonFactors = getAdjustedSeasonFactors(refinement, seZone);
 
@@ -62,7 +118,7 @@ export function simulateMonthsWithUpgrades(
   // known data point perfectly.
   const referenceAnnualKwh = bill.kwhPerMonth * 12;
 
-  console.log('[CALIBRATION] inputs:', {
+  dlog("CALIBRATION", "inputs:", {
     invoicePeriodKwh: bill.invoicePeriodKwh,
     invoiceMonth: bill.invoiceMonth,
     annualKwh: bill.annualKwh,
@@ -111,7 +167,7 @@ export function simulateMonthsWithUpgrades(
         seasonFactors[bill.invoiceMonth!] = Math.max(0.5, pinnedFactor - excess);
       }
 
-      console.log('[CALIBRATION] pin-and-redistribute applied!', {
+      dlog("CALIBRATION", "pin-and-redistribute applied!", {
         invoiceMonth: bill.invoiceMonth,
         actualFactor: actualFactor.toFixed(3),
         modelFactor: modelFactor.toFixed(3),
@@ -243,9 +299,9 @@ export function simulateMonthsWithUpgrades(
     // simulated peaks which only have one month of real data to calibrate from.
     if (bill.invoicePeakKw !== undefined && bill.invoicePeakKw > 0) {
       effectivePeakKwBase = bill.invoicePeakKw;
-      console.log(`[EFFEKTAVGIFT] Using INVOICE peak for base: ${effectivePeakKwBase.toFixed(1)} kW (from elnät invoice)`);
+      dlog("EFFEKTAVGIFT", `Using INVOICE peak for base: ${effectivePeakKwBase.toFixed(1)} kW (from elnät invoice)`);
       if (bill.invoiceTop3PeakKw && bill.invoiceTop3PeakKw.length > 0) {
-        console.log(`[EFFEKTAVGIFT] Invoice top-3 peaks: ${bill.invoiceTop3PeakKw.map(v => v.toFixed(1)).join(', ')} kW`);
+        dlog("EFFEKTAVGIFT", `Invoice top-3 peaks: ${bill.invoiceTop3PeakKw.map(v => v.toFixed(1)).join(', ')} kW`);
       }
 
       // For the after-upgrades scenario, scale the invoice peak by the ratio
@@ -260,7 +316,7 @@ export function simulateMonthsWithUpgrades(
       const peakReductionRatio = simBaseAvg > 0 ? simAfterAvg / simBaseAvg : 1;
       effectivePeakKw = effectivePeakKwBase * peakReductionRatio;
 
-      console.log(`[EFFEKTAVGIFT] After-upgrades peak: ${effectivePeakKwBase.toFixed(1)} × ${peakReductionRatio.toFixed(3)} = ${effectivePeakKw.toFixed(1)} kW`);
+      dlog("EFFEKTAVGIFT", `After-upgrades peak: ${effectivePeakKwBase.toFixed(1)} × ${peakReductionRatio.toFixed(3)} = ${effectivePeakKw.toFixed(1)} kW`);
     } else {
       // No invoice peak data — fall back to simulated top-3 average
       const sortedPeaks = rawMonths.map(m => m.peakKw).sort((a, b) => b - a);
@@ -270,8 +326,8 @@ export function simulateMonthsWithUpgrades(
       effectivePeakKw = top3.reduce((s, v) => s + v, 0) / 3;
       effectivePeakKwBase = top3Base.reduce((s, v) => s + v, 0) / 3;
 
-      console.log('[EFFEKTAVGIFT] top-3 peaks (after):', top3.map(v => v.toFixed(1)), '→ effective:', effectivePeakKw.toFixed(1), 'kW');
-      console.log('[EFFEKTAVGIFT] top-3 peaks (base):', top3Base.map(v => v.toFixed(1)), '→ effective:', effectivePeakKwBase.toFixed(1), 'kW');
+      dlog("EFFEKTAVGIFT", "top-3 peaks (after):", top3.map(v => v.toFixed(1)), "→ effective:", effectivePeakKw.toFixed(1), "kW");
+      dlog("EFFEKTAVGIFT", "top-3 peaks (base):", top3Base.map(v => v.toFixed(1)), "→ effective:", effectivePeakKwBase.toFixed(1), "kW");
     }
   } else {
     effectivePeakKw = 0;
