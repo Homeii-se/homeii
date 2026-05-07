@@ -1,28 +1,45 @@
 import type { Metadata } from "next";
-import KunskapPlaceholder from "../KunskapPlaceholder";
+import Link from "next/link";
+import EnergyFlowApp from "./energifloden-dygn/EnergyFlowApp";
 
 export const metadata: Metadata = {
-  title: "Energiguiden — Kunskap — HOMEii",
+  title: "Energiguiden — HOMEii",
   description:
-    "Guider och interaktiva visualiseringar för solceller, värmepumpar, batterier och elbilar — plus räkneexempel som visar vad du faktiskt sparar.",
+    "Interaktiva visualiseringar för att förstå energiflödena i hemmet — jämför gårdagens hem (passiv konsument) mot morgondagens hem (aktiv prosument med solpaneler, batteri, elbil och smart styrning).",
 };
 
 export default function EnergiguidenPage() {
   return (
-    <KunskapPlaceholder
-      eyebrow="Kunskap › Energiguiden"
-      title="Förstå energiflödena i"
-      italicTitle="ditt hem"
-      subtitle="Praktiska guider och interaktiva visualiseringar för dig som vill förstå hur el rör sig genom hemmet — och vad olika åtgärder faktiskt sparar."
-      comingSoon={[
-        "Energiflöden över ett dygn — interaktiv jämförelse mellan gårdagens och morgondagens hem",
-        "Solceller — vad du behöver veta innan första offerten",
-        "Luft-vatten-värmepump vs bergvärme — så väljer du rätt",
-        "Hembatteri — räknar det hem för dig?",
-        "Smart laddning av elbilen — verktyg och taktiker",
-        "Räkneexempel — vad sparar en typisk villa?",
-        "ROT-avdrag för grön teknik — så maxar du subventionen",
-      ]}
-    />
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
+      <Link
+        href="/kunskap"
+        className="mb-6 inline-flex items-center gap-1 text-xs font-medium text-text-muted hover:text-text-secondary transition-colors"
+      >
+        <span aria-hidden>&larr;</span> Tillbaka till Kunskap
+      </Link>
+
+      <div className="mb-8 max-w-2xl">
+        <p className="mb-3 text-xs font-medium uppercase tracking-widest text-text-muted">
+          Kunskap › Energiguiden
+        </p>
+        <h1 className="mb-4 text-3xl font-light leading-tight text-brand-900 sm:text-4xl font-[family-name:var(--font-fraunces)]">
+          Hur flödar <em className="text-brand-500">energin</em> i morgondagens hem?
+        </h1>
+        <p className="text-base leading-relaxed text-text-secondary">
+          I morgondagens hem rör sig el åt flera håll samtidigt — solen producerar,
+          batteriet lagrar, elbilen laddar, och överskott säljs ibland tillbaka till nätet.
+          Klicka mellan gårdagens och morgondagens hem nedan för att se hur de nya flödena
+          skiljer sig från en värld där elen bara gick ett håll: från nätet in i huset.
+        </p>
+      </div>
+
+      <EnergyFlowApp />
+
+      <p className="mt-8 max-w-2xl text-xs text-text-muted">
+        Värdena är förenklade illustrationer för att visa <em>logiken</em> i ett
+        energihem — inte exakta mätningar. Solproduktion, värmeförluster, prisprofiler
+        och förbrukningsmönster baseras på typiska svenska villavärden för zon SE3.
+      </p>
+    </div>
   );
 }
