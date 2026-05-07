@@ -144,8 +144,8 @@ export default function UploadBill({ onComplete, initialData }: UploadBillProps)
       }
 
       // Block if invoices come from different metering points (different anlaggnings_id).
-      // We can only save one home at a time — schema has anlaggnings_id as primary key
-      // on consumption_metering_points, so two different IDs can't coexist in one save.
+      // We can only save one anlaggnings_id per save-session — the RPC creates or reuses
+      // one home_property per anlaggnings_id (home_properties.id is the PK, not anlaggnings_id).
       const uniqueMeteringPoints = new Set(
         invoices
           .map((i) => i.anlaggningsId)
