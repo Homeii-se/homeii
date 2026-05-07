@@ -39,10 +39,13 @@
 -- Funktioner som refererar till V1-tabeller måste droppas innan tabellerna.
 -- Ordning: drop tabeller med CASCADE, sedan recreate.
 
-drop function if exists public.transfer_ownership(text, uuid);
-drop function if exists public.user_is_member(text);
-drop function if exists public.user_is_owner(text);
-drop function if exists public.user_can_write(text);
+-- CASCADE krävs eftersom V1-RLS-policys på V1-tabellerna
+-- refererar till dessa funktioner. Utan CASCADE failar drop:en.
+-- Säkert eftersom vi ändå droppar V1-tabellerna i nästa steg.
+drop function if exists public.transfer_ownership(text, uuid) cascade;
+drop function if exists public.user_is_member(text) cascade;
+drop function if exists public.user_is_owner(text) cascade;
+drop function if exists public.user_can_write(text) cascade;
 
 -- Triggers droppas implicit via DROP TABLE CASCADE (förutom på auth.users 
 -- som vi inte rör — handle_new_user-triggern överlever).
