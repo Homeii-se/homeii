@@ -1,5 +1,5 @@
 // File: app/app/hem/[home_id]/page.tsx
-// NEW FILE.
+// REPLACES the existing file at this path.
 
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
@@ -13,7 +13,7 @@ interface PageProps {
  * Server component for /app/hem/{home_id}.
  *
  * Server action on /app/spara-analys redirects here after saving.
- * Shows: home name, properties, saved invoices, action buttons.
+ * Shows: home name, properties, saved invoices (clickable), action buttons.
  *
  * Empty state: if home has no properties yet, show CTA to create first analysis.
  */
@@ -28,8 +28,8 @@ export default async function HomeDetailPage({ params }: PageProps) {
     redirect(`/logga-in?next=/app/hem/${home_id}`);
   }
 
-  // Fetch home + properties + linked documents in one query
-  // RLS will return null/empty if the user is not a member of this home
+  // Fetch home + properties + linked documents in one query.
+  // RLS will return null/empty if the user is not a member of this home.
   const { data: home, error: homeError } = await supabase
     .from("homes")
     .select(`
@@ -57,12 +57,11 @@ export default async function HomeDetailPage({ params }: PageProps) {
     (m) => m.user_id === user.id && m.left_at === null,
   );
   if (!myMembership) {
-    // RLS should prevent this but defense-in-depth
     notFound();
   }
   const myRole = myMembership.role as "owner" | "member" | "read_only";
 
-  // Filter active properties and normalize addresses (Supabase returns array for FK joins)
+  // Filter active properties and normalize addresses (Supabase returns FK joins as arrays)
   const properties = (home.home_properties ?? [])
     .filter((p) => p.deleted_at === null)
     .map((p) => ({
@@ -98,10 +97,8 @@ export default async function HomeDetailPage({ params }: PageProps) {
     if (docsError) {
       console.error("[HEM-DETAIL] Docs query failed:", docsError);
     } else {
-      // Deduplicate (same doc could appear via multiple property links)
       const seenIds = new Set<string>();
       for (const link of linkedDocs ?? []) {
-        // Supabase types this as array but we know it's single via !inner
         const doc = link.documents as unknown as {
           id: string;
           invoice_period_start: string | null;
@@ -292,7 +289,6 @@ function DocumentRow({
   };
   isLast: boolean;
 }) {
-  // Format invoice period as "Mars 2026" or fallback
   const periodLabel = doc.invoice_period_start
     ? new Date(doc.invoice_period_start).toLocaleDateString("sv-SE", {
         month: "long",
@@ -300,18 +296,13 @@ function DocumentRow({
       })
     : "Okänd period";
 
-  const periodCapitalized = periodLabel.charAt(0).toUpperCase() + periodLabel.slice(1);
+  const periodCapitalized =
+    periodLabel.charAt(0).toUpperCase() + periodLabel.slice(1);
 
-  // PDF URL — note: pdf_storage_path is "documents/{document_id}.pdf"
-  // We'll need to generate a signed URL client-side or use Supabase getPublicUrl
-  // For now, we link via a route /app/dokument/{document_id} which can handle 
-  // signed URL generation. As a placeholder we open the storage path directly 
-  // (which won't work without signing — TODO in follow-up).
-  // 
-  // Simpler v1: just show the row, no link.
   return (
-    <div
-      className={`flex items-center px-4 py-3 ${
+    <Link
+      href={`/app/dokument/${doc.id}`}
+      className={`flex items-center px-4 py-3 hover:bg-gray-50 ${
         !isLast ? "border-b" : ""
       }`}
     >
@@ -329,8 +320,8 @@ function DocumentRow({
             : ""}
         </p>
       </div>
-      {/* TODO: link to signed PDF URL or a /app/dokument/{id} route */}
-    </div>
+      <span className="ml-3 text-sm text-gray-400">→</span>
+    </Link>
   );
 }
 
