@@ -78,12 +78,11 @@ export default async function DocumentDetailPage({ params }: PageProps) {
   // Generate signed URL for PDF (1 hour TTL)
   let signedPdfUrl: string | null = null;
   if (doc.pdf_storage_path) {
-    // pdf_storage_path is "documents/{document_id}.pdf" 
-    // — Storage API expects path relative to bucket
-    const pathInBucket = doc.pdf_storage_path.replace(`${STORAGE_BUCKET}/`, "");
+    // pdf_storage_path is the path within the bucket (e.g. "{document_id}.pdf")
+    // — no transformation needed.
     const { data: signed, error: signError } = await supabase.storage
       .from(STORAGE_BUCKET)
-      .createSignedUrl(pathInBucket, SIGNED_URL_TTL_SECONDS);
+      .createSignedUrl(doc.pdf_storage_path, SIGNED_URL_TTL_SECONDS);
 
     if (signError) {
       console.error("[DOC-DETAIL] Failed to sign URL:", signError);

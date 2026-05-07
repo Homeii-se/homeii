@@ -60,7 +60,7 @@ export async function uploadPdfs(
 
     results.push({
       document_id: doc.id,
-      storage_path: `${STORAGE_BUCKET}/${path}`,
+      storage_path: path,
     });
   }
 
@@ -78,11 +78,9 @@ export async function rollbackUploads(
   uploads: UploadResult[],
 ): Promise<void> {
   for (const upload of uploads) {
-    // strip "documents/" prefix when calling Storage API
-    const pathInBucket = upload.storage_path.replace(`${STORAGE_BUCKET}/`, "");
     const { error } = await supabase.storage
       .from(STORAGE_BUCKET)
-      .remove([pathInBucket]);
+      .remove([upload.storage_path]);
 
     if (error) {
       console.error(
