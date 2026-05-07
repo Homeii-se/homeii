@@ -31,7 +31,7 @@ export default async function SparaAnalysPage() {
   const { data: profile } = await supabase
     .from("user_profiles")
     .select("first_name")
-    .eq("user_id", user.id)
+    .eq("id", user.id)
     .maybeSingle();
 
   if (!profile) {
