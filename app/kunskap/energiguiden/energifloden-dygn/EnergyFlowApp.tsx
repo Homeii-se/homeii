@@ -55,7 +55,7 @@ export default function EnergyFlowApp() {
   const h = minute / 60;
   const snapshot = snapAt(scenario.hours, h);
   const allocation = allocate(snapshot);
-  const narrative = buildNarrative(settings, h, snapshot);
+  const narrative = buildNarrative(settings, h);
 
   const handlePreset = (which: "pre" | "post") => {
     setSettings(which === "pre" ? { ...PRESET_PRE, season: settings.season } : { ...PRESET_POST, season: settings.season });

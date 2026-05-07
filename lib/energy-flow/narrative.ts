@@ -1,4 +1,4 @@
-import type { Settings, HourSnapshot, Narrative } from "./types";
+import type { Settings, Narrative } from "./types";
 
 /**
  * Genererar narrativ-text (rubrik + kropp + mood) för en given timme i
@@ -19,11 +19,7 @@ import type { Settings, HourSnapshot, Narrative } from "./types";
  * men det skapade flapping mellan minutrar. Tid-baserade slots ger 5
  * stabila byten per dygn istället för 15+.
  */
-export function buildNarrative(
-  settings: Settings,
-  h: number,
-  _s: HourSnapshot,
-): Narrative {
+export function buildNarrative(settings: Settings, h: number): Narrative {
   const { season, hasHP, hasEV, hasSol, hasBat, hasSmart, prismodell } =
     settings;
   const dyn = prismodell === "dynamiskt";

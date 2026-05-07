@@ -34,15 +34,7 @@ export function useScenario(settings: Settings): {
     });
     const annualSaving = computeAnnualSaving(settings);
     return { scenario, yesterdayScenario, annualSaving };
-  }, [
-    settings.season,
-    settings.hasHP,
-    settings.hasEV,
-    settings.hasSol,
-    settings.hasBat,
-    settings.hasSmart,
-    settings.prismodell,
-  ]);
+  }, [settings]);
 }
 
 /**
@@ -62,7 +54,6 @@ export function useTimeAnimation(initialMinute = 438) {
   const [playing, setPlaying] = useState(true);
   const [tempo, setTempo] = useState<Tempo>("normal");
 
-  const lastTickRef = useRef<number>(0);
   const minuteRef = useRef(minute);
   const playingRef = useRef(playing);
   const tempoRef = useRef(tempo);
