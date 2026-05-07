@@ -1,21 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import EnergyFlowApp from "./energifloden-dygn/EnergyFlowApp";
+import EnergyFlowApp from "./EnergyFlowApp";
 
 export const metadata: Metadata = {
-  title: "Energiguiden — HOMEii",
+  title: "Energiflöden över ett dygn — Energiguiden — HOMEii",
   description:
-    "Interaktiva visualiseringar för att förstå energiflödena i hemmet — jämför gårdagens hem (passiv konsument) mot morgondagens hem (aktiv prosument med solpaneler, batteri, elbil och smart styrning).",
+    "Interaktiv visualisering: jämför energiflödena i gårdagens hem (passiv konsument) mot morgondagens hem (aktiv prosument med solpaneler, batteri, elbil och smart styrning).",
 };
 
-export default function EnergiguidenPage() {
+export default function EnergiflodenDygnPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
       <Link
-        href="/kunskap"
+        href="/kunskap/energiguiden"
         className="mb-6 inline-flex items-center gap-1 text-xs font-medium text-text-muted hover:text-text-secondary transition-colors"
       >
-        <span aria-hidden>&larr;</span> Tillbaka till Kunskap
+        <span aria-hidden>&larr;</span> Tillbaka till Energiguiden
       </Link>
 
       <div className="mb-8 max-w-2xl">
